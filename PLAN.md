@@ -33,20 +33,22 @@
 ## 2. 아키텍처 & 기술 스택
 
 ```
-[데스크탑 브라우저]  ←─ WebSocket ─→  [Node.js 서버]  ←─ WebSocket ─→  [폰 브라우저 ×최대 20]
-   (공유 게임 화면)                    (방/상태 관리)                     (컨트롤러)
+[데스크탑 브라우저]        ←─ WebSocket ─→  [Node.js 서버]  ←─ Socket.IO ─→  [폰 브라우저 ×최대 20]
+ (Godot 웹 빌드, 공유 화면)                   (방/상태 관리)                    (컨트롤러)
 ```
 
 | 파트 | 스택 | 역할 |
 |---|---|---|
-| `server/` | Node.js + **Socket.IO** + TypeScript | 방 생성/입장, 게임 상태 머신, 뼈 수집 집계, 퍼즐 정답 판정, 에너지파 히트 판정 & 에너지 총량 관리. **서버가 단일 진실 소스** |
-| `client/src/desktop/` | React + **PixiJS** + TypeScript | 공유 화면 — 로비 QR, 2분할 뼈 캐기 렌더링, 스켈레톤 조립 퍼즐 보드, 이동하는 티라노/크로스헤어/에너지파 이펙트 |
+| `server/` | Node.js + **Socket.IO** + TypeScript | 방 생성/입장, 게임 상태 머신, 뼈 수집 집계, 퍼즐 정답 판정, 에너지파 히트 판정 & 에너지 총량 관리. **서버가 단일 진실 소스**. 폰(Socket.IO)과 데스크탑(순수 WebSocket)을 각각의 경로로 수용 |
+| `desktop-godot/` | **Godot 4.x (GDScript)**, HTML5/WebAssembly export | 공유 화면 — 로비 QR, 2분할 뼈 캐기 렌더링, 스켈레톤 조립 퍼즐 보드, 이동하는 티라노/크로스헤어/에너지파 이펙트. Godot의 `WebSocketPeer`로 서버와 직접 통신 |
 | `client/src/mobile/` | React + TypeScript | 컨트롤러 — 센서 입력(흔들기·자이로)과 퍼즐 선택 입력만 집계해서 전송, 게임 로직 없음 |
-| `shared/` | TypeScript | 이벤트 타입 · 상수 공유 (서버-클라 이벤트 실수 방지) |
+| `shared/` | TypeScript | 이벤트 타입 · 상수 공유 (서버-클라 이벤트 실수 방지). Godot 쪽은 동일 스펙을 GDScript 상수/딕셔너리로 수동 미러링 |
 
 **구조 결정 사항**
-- 데스크탑/모바일을 별도 앱 2개로 나누지 않고 **클라이언트 앱 하나에 라우트 2개** (`/` = 데스크탑, `/join/:code` = 폰). 개발 서버 1개, QR 주소도 하나라 캠프 일정에서 관리가 쉽다. 코드는 `src/desktop`, `src/mobile` 폴더로 분리 유지
-- 모든 상태 변경은 서버에서만 일어나고 `room:state`를 브로드캐스트 → 치팅·동기화 문제 원천 차단
+- **데스크탑은 Godot, 모바일은 React 웹으로 완전히 분리된 2개 클라이언트**. 모바일은 QR 스캔만으로 즉시 접속해야 해서 가벼운 웹페이지가 적합하고, 데스크탑은 스켈레톤 조립·티라노 애니메이션 등 그래픽 비중이 커서 게임 엔진이 유리하다는 판단
+- **데스크탑-서버 통신은 Socket.IO 대신 순수 WebSocket**을 별도 경로(예: `/ws/desktop`)로 둔다. Godot에 공식 Socket.IO 클라이언트가 없고, engine.io 프레이밍을 GDScript로 직접 구현하는 건 리스크 대비 이득이 적기 때문. 서버는 같은 게임 이벤트를 Socket.IO(폰)·순수 WS(데스크탑) 양쪽에 동일한 JSON 페이로드로 브로드캐스트
+- Godot 빌드 결과물(`index.html`/`.wasm`/`.pck`)은 서버가 `/`(루트)에서 정적 파일로 서빙, 모바일 React 앱은 `/join/:code`에서 서빙 — 클라이언트가 2개로 나뉘어도 QR 주소·개발 서버는 하나로 유지
+- 모든 상태 변경은 서버에서만 일어나고 상태 스냅샷을 브로드캐스트 → 치팅·동기화 문제 원천 차단
 - 센서 이벤트는 폰에서 **로컬 집계 후 전송** (흔들기는 카운트만, 조준 좌표는 30Hz 스로틀). 초당 60회 × 최대 20명 원본 전송은 낭비
 - QR에는 서버가 감지한 **LAN IP** (`http://<ip>:5173/join/<code>`)를 넣어 같은 와이파이의 폰이 바로 접속
 
@@ -56,6 +58,9 @@
 2. **자이로 조준은 절대 좌표가 없다**: "화면 중앙을 겨누고 버튼을 눌러 영점" 잡는 **캘리브레이션** 후 상대 회전량으로 크로스헤어를 움직이는 Wii 리모컨 방식으로 구현
 3. **폴백 필수**: 자이로가 이상한 기기 대비, 폰 화면을 터치패드처럼 드래그해서 조준하는 대체 모드를 넣어 시연 리스크를 없앤다
 4. **퍼즐 협동 입력 충돌**: 여러 명이 동시에 같은 뼈 조각을 선택할 수 있으므로, 서버가 "먼저 선택한 사람" 기준으로 락을 걸고 나머지는 실패 피드백만 준다
+5. **Godot 웹 빌드 개발 루프**: 코드 한 줄 고칠 때마다 브라우저로 export하면 느리다. 게임 로직·연출은 우선 Godot 에디터에서 목업 데이터로 개발하고, 실제 서버 연동 확인만 주기적으로 웹 export해서 검증
+6. **Godot 웹 빌드 배포 설정**: 멀티스레드 빌드는 `SharedArrayBuffer` 때문에 서버가 `Cross-Origin-Opener-Policy`/`Cross-Origin-Embedder-Policy` 헤더를 내려줘야 동작. 캠프 일정상 안정성 우선이면 **싱글스레드 웹 export**로 시작해 헤더 설정 이슈를 원천 차단하는 것을 권장
+7. **오디오 자동재생 정책**: 브라우저는 사용자 제스처 전 오디오 재생을 막으므로, 로비 화면에서 첫 클릭/탭 이후에 BGM을 시작하도록 처리
 
 ---
 
@@ -99,20 +104,25 @@
 
 ```
 Tyrannosaurus-rex/
-├─ package.json          # npm workspaces + concurrently (npm run dev 하나로 전부 실행)
+├─ package.json          # npm workspaces + concurrently (npm run dev 하나로 서버+모바일 실행)
 ├─ shared/
-│  └─ src/index.ts       # Player, RoomState, GamePhase, 소켓 이벤트 맵, 상수
+│  └─ src/index.ts       # Player, RoomState, GamePhase, 이벤트 맵, 상수 (Godot 쪽은 수동 미러링)
 ├─ server/
-│  └─ src/index.ts       # Socket.IO 서버 (방 관리 · 상태 머신 · 판정)
+│  └─ src/index.ts       # Socket.IO(폰) + 순수 WebSocket(데스크탑) 서버, Godot 웹 빌드 정적 서빙
+├─ desktop-godot/        # Godot 프로젝트 — 공유 화면
+│  ├─ project.godot
+│  ├─ scenes/            # 로비 / 뼈 캐기 / 퍼즐 / 사격 씬
+│  ├─ scripts/           # 네트워크 클라이언트, 상태 동기화, 이펙트
+│  └─ export/            # `godot --export-release "Web"` 결과물 → 서버가 `/`로 서빙
 └─ client/
    └─ src/
-      ├─ desktop/        # DisplayApp — 공유 화면 (로비 → PixiJS 게임 렌더링)
       ├─ mobile/         # ControllerApp — 폰 컨트롤러
       ├─ socket.ts       # 소켓 연결 헬퍼
-      └─ main.tsx        # 라우팅: "/" 데스크탑, "/join/:code" 폰
+      └─ main.tsx        # 라우팅: "/join/:code" (데스크탑은 Godot 정적 빌드가 "/" 담당)
 ```
 
-**명령어**: `npm install` → `npm run dev` (서버 :3001 + 클라 :5173 동시 실행) · `npm run typecheck`
+**명령어**: `npm install` → `npm run dev` (서버 :3001 + 모바일 클라 :5173 동시 실행) · `npm run typecheck`
+**Godot 빌드**: Godot 에디터 또는 `godot --headless --export-release "Web" desktop-godot/export/index.html` → 결과물을 서버 정적 경로에 배치
 
 ---
 
@@ -124,7 +134,7 @@ Tyrannosaurus-rex/
 |---|---|---|
 | 1일 | 모노레포 + Socket.IO 서버 + QR 로비: 폰 입장 → 데스크탑 로비 실시간 표시, 팀 자동 배정, 시작 시 페이즈 전환 | ✅ **완료** (스모크 테스트 통과) |
 | 2일 | 흔들기 입력 파이프라인 + iOS 권한·HTTPS(ngrok) 처리, **실기기 검증** | |
-| 3일 | 1페이즈 완성: PixiJS 2분할 화면, 뼈 수집 동기화, 돌덩이/화석 아이템, 종료 조건 | |
+| 3일 | 1페이즈 완성: Godot 2분할 화면, 뼈 수집 동기화, 돌덩이/화석 아이템, 종료 조건 | |
 | 4일 | 자이로 조준 프로토타입 + 캘리브레이션 (최대 리스크 — 하루 통째로. 실패 시 터치패드 폴백 확정) | |
 | 5일 | 3페이즈 완성: 크로스헤어 다수(팀당 최대 10개) 동시 표시, 히트 판정, 티라노 이동 패턴, 에너지 게이지 | |
 | 6일 | 2페이즈(퍼즐) 구현, 결과 화면(부활/좀비 엔딩), 아트/사운드, 페이즈 전환 연출 | |
