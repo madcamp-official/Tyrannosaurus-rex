@@ -1,6 +1,6 @@
 /** Plan.md §4, §6 권장 초기 수치. 실기기 테스트 중 조정하는 유일한 밸런스 원천. */
 
-export const CORE_BONE_COUNT = 9;
+export const CORE_BONE_COUNT = 13;
 export const EXCAVATION_POINTS_PER_BONE = 60;
 export const EXCAVATION_SHAKE_COOLDOWN_MS = 200;
 export const MOBILE_INPUT_FLUSH_MS = 100;

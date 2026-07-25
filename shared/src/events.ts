@@ -45,15 +45,19 @@ export const transform2DSchema: z.ZodType<Transform2D> = normalizedPointSchema.a
 );
 
 export const boneIdSchema: z.ZodType<BoneId> = z.enum([
-  "HEAD",
+  "SKULL",
+  "JAW",
   "NECK",
-  "TORSO",
+  "SPINE",
+  "RIBCAGE",
   "PELVIS",
   "ARM_LEFT",
   "ARM_RIGHT",
   "LEG_LEFT",
   "LEG_RIGHT",
-  "TAIL",
+  "TAIL_BASE",
+  "TAIL_MIDDLE",
+  "TAIL_TIP",
 ]);
 
 export const teamIdSchema: z.ZodType<TeamId> = z.enum(["A", "B"]);
@@ -309,7 +313,7 @@ export interface ServerToClientEvents {
     evt: ServerEvent<{ teamId: TeamId; boneId: BoneId; transform: Transform2D; playerId: PlayerId }>,
   ) => void;
   "puzzle:piecePlaced": (
-    evt: ServerEvent<{ teamId: TeamId; boneId: BoneId; correct: boolean; teamPhase: TeamPhase }>,
+    evt: ServerEvent<{ teamId: TeamId; boneId: BoneId; correct: boolean; teamPhase: TeamPhase; fixedTransform?: Transform2D }>,
   ) => void;
   "aim:playerMoved": (
     evt: ServerEvent<{ playerId: PlayerId; teamId: TeamId; point: NormalizedPoint; active: boolean }>,

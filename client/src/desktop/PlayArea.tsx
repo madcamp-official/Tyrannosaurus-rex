@@ -2,6 +2,7 @@
 
 import type { RoomState, TeamId, TeamState } from "@trex/shared";
 import { ExcavationTeamPanel } from "./ExcavationView";
+import { PuzzleTeamPanel } from "./PuzzleView";
 
 const TEAM_IDS: readonly TeamId[] = ["A", "B"];
 
@@ -12,7 +13,7 @@ function TeamPhaseContent({ team, roomState }: { team: TeamState; roomState: Roo
     case "EXCAVATION":
       return <ExcavationTeamPanel team={team} players={players} />;
     case "ASSEMBLY":
-      return <p className="phase-placeholder">🧩 골격 조립 중… (다음 단계)</p>;
+      return <PuzzleTeamPanel team={team} players={players} />;
     case "CHARGING":
       return <p className="phase-placeholder">⚡ 부활 에너지 충전 중… (다음 단계)</p>;
     case "PURIFICATION":

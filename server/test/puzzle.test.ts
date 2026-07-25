@@ -31,9 +31,9 @@ describe("puzzle claim/move/place", () => {
   it("rejects a second claim on an already-claimed piece", () => {
     const { rooms, room, playerA1, playerA2 } = setupAssemblyRoom();
     const now = Date.now();
-    const first = rooms.applyPuzzleClaim(room, "A", playerA1, "HEAD", now);
+    const first = rooms.applyPuzzleClaim(room, "A", playerA1, "SKULL", now);
     expect(first.ok).toBe(true);
-    const second = rooms.applyPuzzleClaim(room, "A", playerA2, "HEAD", now);
+    const second = rooms.applyPuzzleClaim(room, "A", playerA2, "SKULL", now);
     expect(second.ok).toBe(false);
     if (!second.ok) expect(second.error).toBe("PIECE_ALREADY_CLAIMED");
   });
@@ -41,9 +41,9 @@ describe("puzzle claim/move/place", () => {
   it("releases a claim once its TTL has expired", () => {
     const { rooms, room, playerA1, playerA2 } = setupAssemblyRoom();
     const now = Date.now();
-    rooms.applyPuzzleClaim(room, "A", playerA1, "HEAD", now);
+    rooms.applyPuzzleClaim(room, "A", playerA1, "SKULL", now);
     const later = now + PUZZLE_CLAIM_TTL_MS + 10;
-    const retry = rooms.applyPuzzleClaim(room, "A", playerA2, "HEAD", later);
+    const retry = rooms.applyPuzzleClaim(room, "A", playerA2, "SKULL", later);
     expect(retry.ok).toBe(true);
   });
 
@@ -60,15 +60,15 @@ describe("puzzle claim/move/place", () => {
   it("fixes a piece placed within tolerance of its target transform", () => {
     const { rooms, room, playerA1 } = setupAssemblyRoom();
     const now = Date.now();
-    const claim = rooms.applyPuzzleClaim(room, "A", playerA1, "HEAD", now);
+    const claim = rooms.applyPuzzleClaim(room, "A", playerA1, "SKULL", now);
     if (!claim.ok) throw new Error("claim failed");
 
-    const target = PUZZLE_TARGET_TRANSFORMS.HEAD;
-    const result = rooms.applyPuzzlePlace(room, "A", playerA1, "HEAD", claim.claimToken, target, now + 100);
+    const target = PUZZLE_TARGET_TRANSFORMS.SKULL;
+    const result = rooms.applyPuzzlePlace(room, "A", playerA1, "SKULL", claim.claimToken, target, now + 100);
     expect(result.ok).toBe(true);
     if (result.ok) expect(result.correct).toBe(true);
     expect(room.state.teams.A.puzzle.fixedCount).toBe(1);
-    const piece = room.state.teams.A.puzzle.pieces.find((p) => p.boneId === "HEAD")!;
+    const piece = room.state.teams.A.puzzle.pieces.find((p) => p.boneId === "SKULL")!;
     expect(piece.fixed).toBe(true);
     expect(piece.transform).toEqual(target);
   });
@@ -76,21 +76,21 @@ describe("puzzle claim/move/place", () => {
   it("locks a piece for PUZZLE_WRONG_PLACEMENT_LOCK_MS on an incorrect placement", () => {
     const { rooms, room, playerA1, playerA2 } = setupAssemblyRoom();
     const now = Date.now();
-    const claim = rooms.applyPuzzleClaim(room, "A", playerA1, "HEAD", now);
+    const claim = rooms.applyPuzzleClaim(room, "A", playerA1, "SKULL", now);
     if (!claim.ok) throw new Error("claim failed");
 
     const wrong = { x: 0.01, y: 0.01, rotationDeg: 0 };
-    const result = rooms.applyPuzzlePlace(room, "A", playerA1, "HEAD", claim.claimToken, wrong, now + 100);
+    const result = rooms.applyPuzzlePlace(room, "A", playerA1, "SKULL", claim.claimToken, wrong, now + 100);
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.correct).toBe(false);
       expect(result.lockedUntil).toBeGreaterThan(now);
     }
 
-    const reclaim = rooms.applyPuzzleClaim(room, "A", playerA2, "HEAD", now + 200);
+    const reclaim = rooms.applyPuzzleClaim(room, "A", playerA2, "SKULL", now + 200);
     expect(reclaim.ok).toBe(false);
 
-    const afterLock = rooms.applyPuzzleClaim(room, "A", playerA2, "HEAD", now + PUZZLE_WRONG_PLACEMENT_LOCK_MS + 250);
+    const afterLock = rooms.applyPuzzleClaim(room, "A", playerA2, "SKULL", now + PUZZLE_WRONG_PLACEMENT_LOCK_MS + 250);
     expect(afterLock.ok).toBe(true);
   });
 
@@ -116,11 +116,11 @@ describe("puzzle claim/move/place", () => {
   it("clamps a move that requests an impossibly large jump in a tiny time window", () => {
     const { rooms, room, playerA1 } = setupAssemblyRoom();
     const now = Date.now();
-    const claim = rooms.applyPuzzleClaim(room, "A", playerA1, "HEAD", now);
+    const claim = rooms.applyPuzzleClaim(room, "A", playerA1, "SKULL", now);
     if (!claim.ok) throw new Error("claim failed");
 
     const jump = { x: 1, y: 1, rotationDeg: 180 };
-    const result = rooms.applyPuzzleMove(room, "A", playerA1, "HEAD", claim.claimToken, jump, now + 5);
+    const result = rooms.applyPuzzleMove(room, "A", playerA1, "SKULL", claim.claimToken, jump, now + 5);
     expect(result.ok).toBe(true);
     if (result.ok) {
       const dist = Math.hypot(result.transform.x - 0.5, result.transform.y - 0.5);

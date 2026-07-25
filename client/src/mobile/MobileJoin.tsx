@@ -6,6 +6,13 @@ import type { Ack, PlayerId, RoomJoinResponse, RoomState, TeamId } from "@trex/s
 import { connectSocket, type AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
 import { ExcavationControls } from "./ExcavationControls";
+import { PuzzleControls } from "./PuzzleControls";
+import {
+  applyPuzzleClaimChanged,
+  applyPuzzlePieceMoved,
+  applyPuzzlePiecePlaced,
+  applyTeamPhaseChanged,
+} from "../roomStateReducer";
 
 type JoinStatus = "FORM" | "JOINING" | "JOINED" | "ERROR";
 
@@ -36,6 +43,10 @@ export function MobileJoin(): JSX.Element {
     const socket = connectSocket("PLAYER");
     socketRef.current = socket;
     socket.on("room:state", (evt) => setRoomState(evt.data));
+    socket.on("team:phaseChanged", (evt) => setRoomState((prev) => (prev ? applyTeamPhaseChanged(prev, evt.data) : prev)));
+    socket.on("puzzle:claimChanged", (evt) => setRoomState((prev) => (prev ? applyPuzzleClaimChanged(prev, evt.data) : prev)));
+    socket.on("puzzle:pieceMoved", (evt) => setRoomState((prev) => (prev ? applyPuzzlePieceMoved(prev, evt.data) : prev)));
+    socket.on("puzzle:piecePlaced", (evt) => setRoomState((prev) => (prev ? applyPuzzlePiecePlaced(prev, evt.data) : prev)));
 
     socket.on("connect", () => {
       socket.emit(
@@ -92,7 +103,7 @@ export function MobileJoin(): JSX.Element {
     return (
       <main className="mobile-join">
         {team.phase === "EXCAVATION" && socket && <ExcavationControls socket={socket} />}
-        {team.phase === "ASSEMBLY" && <p>🧩 골격 조립 단계 (다음 업데이트에서 제공됩니다)</p>}
+        {team.phase === "ASSEMBLY" && socket && <PuzzleControls socket={socket} team={team} />}
         {(team.phase === "CHARGING" || team.phase === "PURIFICATION") && (
           <p>⚡ 에너지 충전 단계 (다음 업데이트에서 제공됩니다)</p>
         )}

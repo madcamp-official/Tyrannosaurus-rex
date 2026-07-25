@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EXCAVATION_MAX_INPUTS_PER_SECOND, EXCAVATION_POINTS_PER_BONE } from "@trex/shared";
+import { CORE_BONE_COUNT, EXCAVATION_MAX_INPUTS_PER_SECOND, EXCAVATION_POINTS_PER_BONE } from "@trex/shared";
 import { RoomManager } from "../src/rooms/RoomManager.js";
 import { makeBoneOrder } from "../src/game/excavation.js";
 
@@ -17,11 +17,11 @@ function setupStartedRoom() {
 }
 
 describe("makeBoneOrder", () => {
-  it("is deterministic for a given seed and contains all 9 bones exactly once", () => {
+  it("is deterministic for a given seed and contains every puzzle bone exactly once", () => {
     const orderA = makeBoneOrder("seed-1");
     const orderB = makeBoneOrder("seed-1");
     expect(orderA).toEqual(orderB);
-    expect(new Set(orderA).size).toBe(9);
+    expect(new Set(orderA).size).toBe(CORE_BONE_COUNT);
   });
 
   it("differs across seeds (not guaranteed but true for these fixtures)", () => {
@@ -90,7 +90,7 @@ describe("applyExcavation via RoomManager", () => {
   it("awards bones in the room's seeded order and transitions the team to ASSEMBLY", () => {
     const { rooms, room, playerA } = setupStartedRoom();
     const expectedOrder = room.boneOrder;
-    expect(expectedOrder).toHaveLength(9);
+    expect(expectedOrder).toHaveLength(CORE_BONE_COUNT);
 
     let seq = 1;
     let now = Date.now();

@@ -6,21 +6,38 @@ export type SocketId = string;
 export type RequestId = string; // UUID v4
 
 /**
- * model/trex_major_parts.glb의 실제 노드 9개(01_HEAD..09_TAIL)와 1:1로 대응한다.
- * Godot 쪽 매핑은 desktop-godot/scripts/BonePartCatalog.gd 참고.
+ * 원본 Stan 골격의 254개 세부 메시를 퍼즐용 대형 해부학 조각 13개로 묶는다.
+ * Godot 쪽 실제 노드 매핑은 desktop-godot/scripts/TrexPuzzleModel.gd 참고.
  */
-export type BoneId = "HEAD" | "NECK" | "TORSO" | "PELVIS" | "ARM_LEFT" | "ARM_RIGHT" | "LEG_LEFT" | "LEG_RIGHT" | "TAIL";
+export type BoneId =
+  | "SKULL"
+  | "JAW"
+  | "NECK"
+  | "SPINE"
+  | "RIBCAGE"
+  | "PELVIS"
+  | "ARM_LEFT"
+  | "ARM_RIGHT"
+  | "LEG_LEFT"
+  | "LEG_RIGHT"
+  | "TAIL_BASE"
+  | "TAIL_MIDDLE"
+  | "TAIL_TIP";
 
 export const BONE_IDS: readonly BoneId[] = [
-  "HEAD",
+  "SKULL",
+  "JAW",
   "NECK",
-  "TORSO",
+  "SPINE",
+  "RIBCAGE",
   "PELVIS",
   "ARM_LEFT",
   "ARM_RIGHT",
   "LEG_LEFT",
   "LEG_RIGHT",
-  "TAIL",
+  "TAIL_BASE",
+  "TAIL_MIDDLE",
+  "TAIL_TIP",
 ];
 
 export type TeamId = "A" | "B";

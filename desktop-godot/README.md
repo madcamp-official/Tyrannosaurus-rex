@@ -2,6 +2,15 @@
 
 Three.js 프로토타입(뼈 캐기 굴착 데모)을 Godot 4.3+ 로 포팅한 것.
 
+## 실제 티라노 골격과 퍼즐 조각
+
+- `assets/models/trex_skeleton/skeleton.gltf`: 254개 세부 메시가 포함된 원본 Stan 골격
+- `scripts/TrexPuzzleModel.gd`: 세부 메시를 13개 대형 해부학 퍼즐 조각으로 묶는 런타임 모델
+- `scenes/TrexPuzzlePreview.tscn`: 완성·분해·조각 단독 보기를 확인하는 장면
+- `assets/models/trex_skeleton/PUZZLE_PARTS.md`: 조각별 포함 범위와 조작법
+
+기존 `BoneModel.gd`의 임시 원통 뼈는 제거했다. 발굴 데모에서는 실제 13개 퍼즐 조각이 차례대로 발견된다.
+
 ## 실행
 
 Godot 4.3 이상 에디터로 이 폴더(`desktop-godot/`)를 프로젝트로 열고 실행. 클릭 또는 스페이스바 = 굴착 1회 (아직 폰 연동 전이라 프로토타입과 동일하게 임시 입력).

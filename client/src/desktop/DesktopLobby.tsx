@@ -8,7 +8,15 @@ import { GodotStage, useGodotBridge } from "../godot/GodotStage";
 import { DebugPanel } from "../DebugPanel";
 import { newRequestId } from "../util/requestId";
 import { PlayArea } from "./PlayArea";
-import { applyBoneFound, applyExcavationEvent, applyExcavationProgress, applyTeamPhaseChanged } from "./roomStateReducer";
+import {
+  applyBoneFound,
+  applyExcavationEvent,
+  applyExcavationProgress,
+  applyPuzzleClaimChanged,
+  applyPuzzlePieceMoved,
+  applyPuzzlePiecePlaced,
+  applyTeamPhaseChanged,
+} from "../roomStateReducer";
 
 export function DesktopLobby(): JSX.Element {
   const socketRef = useRef<AppSocket | null>(null);
@@ -42,6 +50,9 @@ export function DesktopLobby(): JSX.Element {
     socket.on("excavation:boneFound", (evt) => setRoomState((prev) => (prev ? applyBoneFound(prev, evt.data) : prev)));
     socket.on("excavation:eventTriggered", (evt) => setRoomState((prev) => (prev ? applyExcavationEvent(prev, evt.data) : prev)));
     socket.on("team:phaseChanged", (evt) => setRoomState((prev) => (prev ? applyTeamPhaseChanged(prev, evt.data) : prev)));
+    socket.on("puzzle:claimChanged", (evt) => setRoomState((prev) => (prev ? applyPuzzleClaimChanged(prev, evt.data) : prev)));
+    socket.on("puzzle:pieceMoved", (evt) => setRoomState((prev) => (prev ? applyPuzzlePieceMoved(prev, evt.data) : prev)));
+    socket.on("puzzle:piecePlaced", (evt) => setRoomState((prev) => (prev ? applyPuzzlePiecePlaced(prev, evt.data) : prev)));
 
     return () => {
       socket.close();

@@ -140,6 +140,7 @@ export function registerPuzzleHandlers(io: AppServer, socket: AppSocket, rooms: 
         boneId: result.boneId,
         correct: result.correct,
         teamPhase: result.teamPhase,
+        fixedTransform: result.fixedTransform,
       }),
     );
 

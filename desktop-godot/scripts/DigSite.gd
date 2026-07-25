@@ -143,6 +143,8 @@ func _reset_site() -> void:
 	_reset_bone()
 
 func _reset_bone() -> void:
+	if _bone_count > 0:
+		_bone.show_piece(_bone_count % maxi(1, _bone.get_piece_count()))
 	_bone.scale = Vector3.ZERO
 	_bone.position.y = -4.2
 	_bone.rotation.y = randf() * PI
