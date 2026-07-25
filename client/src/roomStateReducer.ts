@@ -4,7 +4,7 @@
  * 전용 이벤트로 온다. 데스크탑·모바일 모두 이 이벤트들을 로컬 RoomState에 합성해서 쓴다.
  */
 
-import type { BoneId, PlayerId, RoomState, TeamId, Transform2D } from "@trex/shared";
+import type { BoneId, CoreZone, PlayerId, RevivalForm, RoomState, TeamId, Transform2D } from "@trex/shared";
 
 export function applyExcavationProgress(
   state: RoomState,
@@ -140,4 +140,47 @@ export function applyPuzzlePiecePlaced(
       },
     },
   };
+}
+
+export function applyShotResolved(state: RoomState, data: { teamId: TeamId; energyAfter: number; stabilityAfter: number }): RoomState {
+  const team = state.teams[data.teamId];
+  return {
+    ...state,
+    teams: {
+      ...state.teams,
+      [data.teamId]: { ...team, charging: { ...team.charging, energy: data.energyAfter, stability: data.stabilityAfter } },
+    },
+  };
+}
+
+export function applyCoreChanged(state: RoomState, data: { teamId: TeamId; to: CoreZone; nextChangeAt: number }): RoomState {
+  const team = state.teams[data.teamId];
+  return {
+    ...state,
+    teams: {
+      ...state.teams,
+      [data.teamId]: { ...team, charging: { ...team.charging, activeCore: data.to, coreChangesAt: data.nextChangeAt } },
+    },
+  };
+}
+
+export function applyRevivalFormChanged(
+  state: RoomState,
+  data: { teamId: TeamId; form: RevivalForm; energy: number; stability: number },
+): RoomState {
+  const team = state.teams[data.teamId];
+  return {
+    ...state,
+    teams: {
+      ...state.teams,
+      [data.teamId]: { ...team, charging: { ...team.charging, form: data.form, energy: data.energy, stability: data.stability } },
+    },
+  };
+}
+
+export function applyGameResult(
+  state: RoomState,
+  data: { winnerTeamId: TeamId | null; reason: RoomState["winner"]["reason"] },
+): RoomState {
+  return { ...state, roomPhase: "RESULT", winner: { teamId: data.winnerTeamId, reason: data.reason } };
 }

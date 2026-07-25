@@ -7,6 +7,8 @@ import { connectSocket, type AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
 import { ExcavationControls } from "./ExcavationControls";
 import { PuzzleControls } from "./PuzzleControls";
+import { AimControls } from "./AimControls";
+import { DecorationVote } from "./DecorationVote";
 import {
   applyPuzzleClaimChanged,
   applyPuzzlePieceMoved,
@@ -97,6 +99,18 @@ export function MobileJoin(): JSX.Element {
     );
   }
 
+  if (roomState && (roomState.roomPhase === "RESULT" || roomState.roomPhase === "DECORATION") && playerId) {
+    const socket = socketRef.current;
+    return (
+      <main className="mobile-join">
+        <h1>결과</h1>
+        {roomState.winner.teamId && <p>{roomState.winner.teamId}팀 승리!</p>}
+        {!roomState.winner.teamId && <p>무승부</p>}
+        {socket && <DecorationVote socket={socket} />}
+      </main>
+    );
+  }
+
   if (roomState && roomState.roomPhase !== "LOBBY" && teamId) {
     const team = roomState.teams[teamId];
     const socket = socketRef.current;
@@ -104,10 +118,8 @@ export function MobileJoin(): JSX.Element {
       <main className="mobile-join">
         {team.phase === "EXCAVATION" && socket && <ExcavationControls socket={socket} />}
         {team.phase === "ASSEMBLY" && socket && <PuzzleControls socket={socket} team={team} />}
-        {(team.phase === "CHARGING" || team.phase === "PURIFICATION") && (
-          <p>⚡ 에너지 충전 단계 (다음 업데이트에서 제공됩니다)</p>
-        )}
-        {team.phase === "REVIVED" && <p>🦖 부활 완료! 데스크탑 화면을 확인하세요.</p>}
+        {(team.phase === "CHARGING" || team.phase === "PURIFICATION") && socket && <AimControls socket={socket} />}
+        {team.phase === "REVIVED" && <p>{team.charging.form === "NORMAL" ? "🦖 부활 완료!" : "🧟 좀비가 되어버렸어요."} 데스크탑 화면을 확인하세요.</p>}
       </main>
     );
   }

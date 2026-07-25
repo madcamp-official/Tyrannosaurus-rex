@@ -238,3 +238,174 @@ body {
   background: #43aa8b;
   font-weight: 700;
 }
+
+.aim-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+}
+
+.aim-controls__mode {
+  display: flex;
+  gap: 8px;
+}
+
+.aim-controls__mode button.active {
+  background: #43aa8b;
+}
+
+.aim-pad {
+  position: relative;
+  width: 280px;
+  height: 280px;
+  border-radius: 12px;
+  background: #1c232c;
+  touch-action: none;
+  overflow: hidden;
+}
+
+.aim-pad--hit {
+  box-shadow: inset 0 0 0 4px #90be6d;
+}
+
+.aim-pad--miss {
+  box-shadow: inset 0 0 0 4px #575f6b;
+}
+
+.aim-pad__crosshair {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  margin: -12px;
+  border: 2px solid #f94144;
+  border-radius: 50%;
+}
+
+.fire-button {
+  width: 140px;
+  height: 60px;
+  font-size: 1.2rem;
+  font-weight: 700;
+  background: #f94144;
+  border: none;
+  border-radius: 30px;
+  color: white;
+}
+
+.fire-button:disabled {
+  opacity: 0.5;
+}
+
+.stat-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+}
+
+.progress-bar--stability .progress-bar__fill {
+  background: linear-gradient(90deg, #577590, #43aa8b);
+}
+
+.charging-view__warning {
+  color: #f94144;
+  font-weight: 700;
+}
+
+.charging-view__core {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.charging-view__arena {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #1c232c;
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 8px 0;
+}
+
+.charging-view__arena--hit {
+  box-shadow: inset 0 0 0 4px #90be6d;
+}
+
+.charging-view__trex {
+  position: absolute;
+  font-size: 2rem;
+  transform: translate(-50%, -50%);
+}
+
+.charging-view__crosshair {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  margin: -9px;
+  border: 2px solid #f94144;
+  border-radius: 50%;
+}
+
+.result-view {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+  text-align: center;
+}
+
+.result-view__reason {
+  opacity: 0.7;
+  font-size: 1rem;
+}
+
+.result-view__teams {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+  margin: 24px 0;
+  text-align: left;
+}
+
+.result-view__team {
+  flex: 1;
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #2a323d;
+  border-radius: 8px;
+}
+
+.result-view__voting {
+  margin-top: 12px;
+  font-size: 0.75rem;
+}
+
+.result-view__category {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  opacity: 0.85;
+}
+
+.decoration-vote {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+}
+
+.decoration-vote__categories,
+.decoration-vote__items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+
+.decoration-vote__categories button.active,
+.decoration-vote__items button.active {
+  background: #43aa8b;
+}
