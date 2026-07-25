@@ -174,10 +174,13 @@ func on_energy_hit(hit_zone: String, hit_point) -> void:
 		_hit_particles.position = _model.position
 	_hit_particles.restart()
 
+## Plan.md §12.6: "Skeleton3D 리그는 정상 부활 경로에서만 사용한다. 와이라노 판정은
+## 3D 리그 대신 결과 화면의 레퍼런스 이미지로 대체한다." 그래서 실패(YRANNO)에는
+## 3D 연출을 넣지 않는다 — 그 몫은 전적으로 2D 결과 화면(ResultView)이 담당한다.
 func on_revival_result(form: String, _purified: bool) -> void:
-	if not _model_ready:
+	if not _model_ready or form != "NORMAL":
 		return
-	var tint := Color(0.25, 0.85, 0.35, 0.55) if form == "ZOMBIE" else Color(1.0, 1.0, 0.85, 0.5)
+	var tint := Color(1.0, 1.0, 0.85, 0.5)
 	for piece_id in _model.get_piece_ids():
 		var piece := _model.get_piece(piece_id)
 		if not piece:
