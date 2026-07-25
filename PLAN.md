@@ -334,16 +334,18 @@
 발굴 포인트가 60 증가할 때마다 팀에 아직 없는 핵심 뼈 한 개를 지급한다.
 
 ```text
-두개골
-턱뼈
-척추
+머리
+목
+몸통(흉곽)
 골반
-왼쪽/오른쪽 앞다리
-왼쪽/오른쪽 뒷다리
-왼쪽/오른쪽 갈비뼈
-꼬리 앞부분
-꼬리 뒷부분
+왼쪽 앞다리
+오른쪽 앞다리
+왼쪽 뒷다리
+오른쪽 뒷다리
+꼬리
 ```
+
+> 3D 모델(`model/trex_major_parts.glb`)이 이미 이 9개 이름(HEAD/NECK/TORSO_RIBCAGE/PELVIS/ARM_LEFT/ARM_RIGHT/LEG_LEFT/LEG_RIGHT/TAIL)으로 분할되어 있어, 뼈 목록을 여기 맞췄다 (2026-07-25, HISTORY.md 참고).
 
 발견 순서는 라운드마다 섞되 양 팀이 동일한 순서를 사용한다.
 
@@ -991,15 +993,15 @@ type PlayerId = string;
 type SocketId = string;
 type RequestId = string;      // UUID v4
 type BoneId =
-  | "SKULL"
-  | "JAW"
-  | "SPINE"
+  | "HEAD"
+  | "NECK"
+  | "TORSO"
   | "PELVIS"
-  | "ARMS"
-  | "LEGS"
-  | "RIBS"
-  | "TAIL_FRONT"
-  | "TAIL_REAR";
+  | "ARM_LEFT"
+  | "ARM_RIGHT"
+  | "LEG_LEFT"
+  | "LEG_RIGHT"
+  | "TAIL";
 
 type TeamId = "A" | "B";
 type SensorPermission = "UNKNOWN" | "GRANTED" | "DENIED" | "UNSUPPORTED";
