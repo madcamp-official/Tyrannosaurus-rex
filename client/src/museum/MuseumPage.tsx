@@ -21,7 +21,7 @@ export function MuseumPage(): JSX.Element {
           {entries.map((entry) => (
             <li key={entry.id} className={`museum-entry museum-entry--${entry.form.toLowerCase()}`}>
               <h2>{entry.name}</h2>
-              <p>{entry.form === "ZOMBIE" ? "좀비 티라노" : "정상 부활"}</p>
+              <p>{entry.form === "YRANNO" ? "와이라노" : "정상 부활"}</p>
               <p>팀 {entry.teamId} · {entry.teamMembers.join(", ")}</p>
               <p>명중률 {(entry.accuracy * 100).toFixed(0)}%</p>
             </li>
