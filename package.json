@@ -1,0 +1,30 @@
+{
+  "name": "trex-monorepo",
+  "private": true,
+  "version": "0.1.0",
+  "description": "내 티라노사우루스 살려내!!! - 웹 기반 크로스플랫폼 팀 파티 게임",
+  "workspaces": [
+    "shared",
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "predev": "npm run build -w shared",
+    "dev": "concurrently -n server,client -c blue,green \"npm run dev -w server\" \"npm run dev -w client\"",
+    "dev:tunnel": "cloudflared tunnel --url http://localhost:5173",
+    "build": "npm run build -w shared && npm run build -w server && npm run build -w client",
+    "build:godot": "godot --headless --path desktop-godot --export-release Web ../client/public/godot/index.html",
+    "start": "node server/dist/index.js",
+    "typecheck": "npm run build -w shared && npm run typecheck -w server && npm run typecheck -w client",
+    "pretest": "npm run build -w shared",
+    "test": "npm run test -w shared --if-present && npm run test -w server --if-present && npm run test -w client --if-present",
+    "simulate": "npm run simulate -w server --"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "typescript": "^5.5.4"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
