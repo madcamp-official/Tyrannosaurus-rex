@@ -66,8 +66,20 @@ export function DesktopLobby(): JSX.Element {
     socket.on("excavation:eventTriggered", (evt) => setRoomState((prev) => (prev ? applyExcavationEvent(prev, evt.data) : prev)));
     socket.on("team:phaseChanged", (evt) => setRoomState((prev) => (prev ? applyTeamPhaseChanged(prev, evt.data) : prev)));
     socket.on("puzzle:claimChanged", (evt) => setRoomState((prev) => (prev ? applyPuzzleClaimChanged(prev, evt.data) : prev)));
-    socket.on("puzzle:pieceMoved", (evt) => setRoomState((prev) => (prev ? applyPuzzlePieceMoved(prev, evt.data) : prev)));
-    socket.on("puzzle:piecePlaced", (evt) => setRoomState((prev) => (prev ? applyPuzzlePiecePlaced(prev, evt.data) : prev)));
+    socket.on("puzzle:pieceMoved", (evt) => {
+      setRoomState((prev) => {
+        const next = prev ? applyPuzzlePieceMoved(prev, evt.data) : prev;
+        if (next) sendPuzzleState(bridge, next, evt.data.teamId);
+        return next;
+      });
+    });
+    socket.on("puzzle:piecePlaced", (evt) => {
+      setRoomState((prev) => {
+        const next = prev ? applyPuzzlePiecePlaced(prev, evt.data) : prev;
+        if (next) sendPuzzleState(bridge, next, evt.data.teamId);
+        return next;
+      });
+    });
     socket.on("energy:coreChanged", (evt) => setRoomState((prev) => (prev ? applyCoreChanged(prev, evt.data) : prev)));
     socket.on("revival:formChanged", (evt) => {
       setRoomState((prev) => (prev ? applyRevivalFormChanged(prev, evt.data) : prev));
@@ -96,9 +108,8 @@ export function DesktopLobby(): JSX.Element {
         if (!prev) return prev;
         const player = prev.players.find((p) => p.id === evt.data.playerId);
         if (!player) return prev;
-        setEphemeral((ePrev) => ({
-          ...ePrev,
-          crosshairsByPlayer: {
+        setEphemeral((ePrev) => {
+          const nextCrosshairsByPlayer = {
             ...ePrev.crosshairsByPlayer,
             [evt.data.playerId]: {
               playerId: evt.data.playerId,
@@ -107,8 +118,13 @@ export function DesktopLobby(): JSX.Element {
               color: player.color,
               receivedAt: Date.now(),
             },
-          },
-        }));
+          };
+          const teamCrosshairs = Object.values(nextCrosshairsByPlayer)
+            .filter((c) => c.teamId === evt.data.teamId)
+            .map((c) => ({ playerId: c.playerId, color: c.color, point: c.point, active: true }));
+          bridge.send("CROSSHAIRS", { teamId: evt.data.teamId, crosshairs: teamCrosshairs });
+          return { ...ePrev, crosshairsByPlayer: nextCrosshairsByPlayer };
+        });
         return prev;
       });
     });
@@ -243,4 +259,13 @@ function snapshotForTeam(team: RoomState["teams"][TeamId]) {
     stability: team.charging.stability,
     form: team.charging.form,
   };
+}
+
+function sendPuzzleState(bridge: ReturnType<typeof useGodotBridge>["bridge"], roomState: RoomState, teamId: TeamId): void {
+  const pieces = roomState.teams[teamId].puzzle.pieces.map((piece) => ({
+    boneId: piece.boneId,
+    transform: piece.transform,
+    fixed: piece.fixed,
+  }));
+  bridge.send("PUZZLE_STATE", { teamId, pieces });
 }

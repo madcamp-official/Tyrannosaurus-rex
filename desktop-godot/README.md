@@ -13,7 +13,10 @@ Three.js 프로토타입(뼈 캐기 굴착 데모)을 Godot 4.3+ 로 포팅한 �
 
 ## 실행
 
-Godot 4.3 이상 에디터로 이 폴더(`desktop-godot/`)를 프로젝트로 열고 실행. 클릭 또는 스페이스바 = 굴착 1회 (아직 폰 연동 전이라 프로토타입과 동일하게 임시 입력).
+기본 실행 씬은 이제 `scenes/Main.tscn`이다 (React 연동 장면, 아래 "React 연동 3D 장면" 참고).
+`scenes/DigSite.tscn`은 클릭/스페이스바로 굴착만 단독으로 확인하는 프로토타입으로 남아있고,
+`scenes/TrexPuzzlePreview.tscn`은 13개 퍼즐 조각을 키보드로 확인하는 프리뷰다. Godot 4.3
+이상 에디터에서 원하는 씬을 열고 실행하면 된다.
 
 ## 프로토타입과 다른 점
 
@@ -40,3 +43,35 @@ Godot 4.3 이상 에디터로 이 폴더(`desktop-godot/`)를 프로젝트로 �
 **아직 실행 검증 불가**: 이 환경에는 Godot 에디터·export 템플릿이 없어서 `export_presets.cfg`와 `web/shell.html`을 실제 export로 확인하지 못했다. 처음 `godot --headless --path desktop-godot --export-release Web ...`를 돌렸을 때:
 - `export_presets.cfg`가 에디터에 의해 자동으로 다시 쓰이며 옵션 키가 달라질 수 있다.
 - `$GODOT_URL$`, `$GODOT_CONFIG$`, `$GODOT_HEAD_INCLUDE$` 등 shell.html의 템플릿 변수가 사용 중인 Godot 버전의 기본 shell과 다르면 콘솔에 오류가 뜬다. 그 경우 Godot 설치 폴더의 `misc/dist/html/full-size.html` 원본과 비교해서 고치면 된다.
+
+## React 연동 3D 장면 (Plan.md §12.1)
+
+`scenes/Main.tscn` (`scripts/Main.gd`)이 실제로 React 브리지 메시지를 3D로 그리는 장면이다.
+
+- 좌우로 티라노스테이지(`scripts/TeamStage.gd`) 두 개를 배치한다 (A팀 x=-9, B팀 x=+9) — §12.1이 말하는
+  "하나의 3D 월드 안에 좌우 팀 무대를 배치"를 그대로 따랐다.
+- 각 `TeamStage`는 발굴(`GroundDig`)·조립·충전 세 단계를 **하나의 `TrexPuzzleModel` 인스턴스**로 이어간다:
+  발굴 중 `BONE_DISCOVERED`가 오면 해당 조각만 보이게 하고 팝업 트윈을 재생하고, 조립 중
+  `PUZZLE_STATE`로 조각이 정답 배치되면(`fixed: true`) 그 조각의 실제 해부학적 목표 위치로
+  스냅하고, 충전 중에는 이미 조립된 같은 모델 전체를 `TREX_TRANSFORM` 좌표로 이동시킨다.
+  이렇게 하면 97MB 골격 에셋을 단계마다 새로 로드하지 않는다.
+- `PUZZLE_STATE`가 보내는 서버의 0~1 정규화 좌표는 자체 2D 판정용이라 3D 모델의 실제 관절 위치와
+  대응하지 않는다. 드래그 중에는 조각을 보이게만 두고, 배치가 **정답으로 확정**될 때만
+  `TrexPuzzleModel.snap_piece()`로 실제 해부학적 위치에 스냅한다 — 조각이 정확히 어디로
+  움직이는지는 서버 좌표가 아니라 모델 자체가 아는 정답 위치를 따른다.
+- `CROSSHAIRS`는 `scripts/CrosshairOverlay.gd`(2D `CanvasLayer`)가 화면을 좌/우로 나눠 그린다.
+- `ENERGY_HIT`은 `CPUParticles3D` 한 번 재생, `REVIVAL_RESULT`는 조각 메쉬에 반투명
+  `material_overlay`를 씌워 좀비(초록)/정상(밝게) 틴트를 표현한다 — 전용 셰이더 없이 최소
+  구현이다.
+- `FULL_SNAPSHOT`(React가 상태 바뀔 때마다, 최소 5초 주기로 보냄)이 `TeamStage.apply_full_snapshot()`로
+  들어와 발견된 뼈·고정된 조각·현재 phase·(충전 중이면) 티라노 위치를 한 번에 다시 맞춘다. 즉
+  Godot iframe이 재로드돼도 다음 스냅샷으로 복구된다(§11.5).
+
+**중요한 한계**: `JsBridge.gd`는 `OS.has_feature("web")`이 참일 때만(Web export) 동작한다.
+에디터에서 `Main.tscn`을 바로 실행하면 React 연결이 없어 아무 메시지도 오지 않고, 두 팀
+무대가 초기 상태(땅은 보이고 뼈는 전부 숨겨진 채)로만 나온다 — 이건 버그가 아니라 브리지
+설계상 당연한 동작이다. 실제 동작을 보려면 `npm run build:godot`으로 export한 뒤
+`npm run dev`로 전체 스택을 띄우고 브라우저에서 데스크탑 화면을 열어야 한다. 이 환경에는
+Godot 에디터가 없어 `TeamStage`/`Main`의 실제 렌더링 결과를 스크린샷 등으로 확인하지 못했다 —
+스크립트 문법과 노드 API 사용은 Godot 4.3 문서 기준으로 맞췄지만, 처음 열었을 때 콘솔 에러가
+나면 알려주면 바로 고칠 수 있다.
