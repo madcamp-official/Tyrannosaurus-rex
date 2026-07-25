@@ -831,7 +831,7 @@ Main.tscn
 ### 12.4 스켈레톤 티라노
 
 - 하나의 `Skeleton3D` 리그를 정상·좀비 티라노가 공유한다.
-- 발굴한 12개 게임 조각과 시각용 세부 뼈를 분리한다.
+- 발굴한 9개 게임 조각과 시각용 세부 뼈를 분리한다.
 - 퍼즐 완료 시 조각 오브젝트를 리그 위치로 흡수하는 연출 후 완성 리그로 전환한다.
 - 이동은 `idle`, `walk`, `roar`, `hit`, `revive`, `zombie` AnimationTree 상태로 관리한다.
 - 서버의 `poseId`, 위치, 회전을 목표값으로 받고 Godot이 부드럽게 보간한다.
@@ -995,12 +995,9 @@ type BoneId =
   | "JAW"
   | "SPINE"
   | "PELVIS"
-  | "ARM_LEFT"
-  | "ARM_RIGHT"
-  | "LEG_LEFT"
-  | "LEG_RIGHT"
-  | "RIB_LEFT"
-  | "RIB_RIGHT"
+  | "ARMS"
+  | "LEGS"
+  | "RIBS"
   | "TAIL_FRONT"
   | "TAIL_REAR";
 
@@ -1916,7 +1913,7 @@ curl -I https://<origin>/api/version
 
 #### 목표
 
-모든 지원 기기에서 팀 발굴을 수행하고 12종 뼈 획득까지 진행한다.
+모든 지원 기기에서 팀 발굴을 수행하고 9종 뼈 획득까지 진행한다.
 
 #### 작업 항목
 
@@ -1924,7 +1921,7 @@ curl -I https://<origin>/api/version
 - iOS 센서 권한 요청과 거절·미지원 UI
 - 100ms 입력 집계와 서버 속도 제한
 - `excavate:input` sequence와 token bucket
-- 12종 뼈 획득과 공정한 이벤트 seed
+- 9종 뼈 획득과 공정한 이벤트 seed
 - 팀별 발굴 화면과 개인 기여도
 - 돌·화석·황금 뼈 이벤트
 - Godot 발굴 무대, 지층과 뼈 오브젝트 풀
@@ -1941,7 +1938,7 @@ curl -I https://<origin>/api/version
 
 - iOS와 Android에서 탭 발굴이 동작한다.
 - 지원 기기에서 흔들기 입력이 중복 폭주 없이 반영된다.
-- 양 팀이 12개 뼈를 모두 모으면 각자 퍼즐 단계에 진입한다.
+- 양 팀이 9개 뼈를 모두 모으면 각자 퍼즐 단계에 진입한다.
 - 비정상 입력과 제한 초과 입력은 점수에 반영되지 않는다.
 
 ### Day 3 — 골격 퍼즐
@@ -1957,14 +1954,14 @@ curl -I https://<origin>/api/version
 - claim token 발급·마스킹·만료
 - 조각별 단일 조작권과 5초 타임아웃
 - 위치·각도 정답 판정과 오답 잠금
-- 12개 3D 뼈와 Skeleton3D target transform
+- 9개 3D 뼈와 Skeleton3D target transform
 - `PUZZLE_STATE`의 이동·회전·스냅 표현
 
 #### 산출물
 
 - 퍼즐 모바일 컨트롤
 - 퍼즐 조작권·스냅 서버 모듈
-- 12개 뼈 메타데이터
+- 9개 뼈 메타데이터
 - Godot Assembly 장면
 
 #### 완료 기준
@@ -2160,7 +2157,7 @@ curl -I https://<origin>/api/version
 ```text
 방 생성
   → 6명 입장
-  → 뼈 12종 발굴
+  → 뼈 9종 발굴
   → 골격 퍼즐 완성
   → 에너지 사격
   → 정상 또는 좀비 부활
