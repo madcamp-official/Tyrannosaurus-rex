@@ -7,6 +7,7 @@ import { API_VERSION, type ClientToServerEvents, type ServerToClientEvents } fro
 import { loadEnv } from "./env.js";
 import { RoomManager } from "./rooms/RoomManager.js";
 import { registerRoomHandlers } from "./rooms/roomHandlers.js";
+import { registerExcavationHandlers } from "./rooms/excavationHandlers.js";
 import type { InterServerEvents, SocketData } from "./rooms/socketData.js";
 
 const env = loadEnv();
@@ -81,6 +82,7 @@ const rooms = new RoomManager(env.PUBLIC_JOIN_ORIGIN);
 
 io.on("connection", (socket) => {
   registerRoomHandlers(io, socket, rooms);
+  registerExcavationHandlers(io, socket, rooms);
 });
 
 const idleSweepInterval = setInterval(() => {

@@ -8,6 +8,13 @@ export const EXCAVATION_MAX_INPUTS_PER_SECOND = 12;
 export const EXCAVATION_STONE_DEBUFF_MS = 3_000;
 export const EXCAVATION_STONE_EFFICIENCY_MULTIPLIER = 0.8;
 export const EXCAVATION_GOLD_BONE_POINT_DISCOUNT = 20;
+// Plan.md §4는 "완만한 효율 감소"라고만 서술하고 정확한 수치는 주지 않는다. 팀 합산 초당 입력이
+// EXCAVATION_MAX_INPUTS_PER_SECOND(1인분 최대치)를 넘는 초과분에 이 배율을 곱해 점수로 인정한다.
+export const EXCAVATION_TEAM_OVERFLOW_EFFICIENCY = 0.5;
+// 발굴 이벤트 확률도 Plan.md에 수치가 없어 MVP 기본값으로 정했다. 세 확률의 합은 1 이하여야 한다.
+export const EXCAVATION_EVENT_STONE_CHANCE = 0.15;
+export const EXCAVATION_EVENT_FOSSIL_CHANCE = 0.1;
+export const EXCAVATION_EVENT_GOLD_BONE_CHANCE = 0.05;
 
 export const PUZZLE_PIECE_COUNT = CORE_BONE_COUNT;
 export const PUZZLE_MAX_CONCURRENT_CLAIMS_PER_TEAM = 2;

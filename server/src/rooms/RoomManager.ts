@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import {
   BONE_IDS,
+  EXCAVATION_POINTS_PER_BONE,
   MAX_PLAYERS,
   MAX_PLAYERS_PER_TEAM,
   MIN_PLAYERS,
@@ -12,6 +13,8 @@ import {
   ROOM_CODE_MAX_GENERATION_ATTEMPTS,
   ROUND_DURATION_MS,
   TEAM_IDS,
+  type BoneId,
+  type ExcavateInput,
   type PlayerId,
   type PublicPlayer,
   type RoomCode,
@@ -20,10 +23,13 @@ import {
   type TeamState,
 } from "@trex/shared";
 import { colorForJoinIndex } from "./colors.js";
+import { applyExcavateInput, createExcavationState, makeBoneOrder, type ExcavationRoomState } from "../game/excavation.js";
 
 export type CreateRoomResult = { room: RoomRecord; joinUrl: string };
 export type JoinRoomError = "ROOM_NOT_FOUND" | "ROOM_ALREADY_STARTED" | "ROOM_FULL" | "NICKNAME_INVALID" | "NICKNAME_TAKEN";
 export type StartGameError = "ROOM_NOT_FOUND" | "WRONG_ROOM_PHASE" | "NOT_ENOUGH_PLAYERS" | "NOT_ALL_READY";
+
+export type PhaseDurations = { excavationMs: number | null; assemblyMs: number | null; chargingMs: number | null };
 
 export type RoomRecord = {
   state: RoomState;
@@ -31,46 +37,65 @@ export type RoomRecord = {
   playerSocketIds: Map<PlayerId, string>;
   nextTeamForOddAssignment: TeamId;
   lastActivityAt: number;
+  /** 라운드 시작 시 생성되는 결정론적 시드. 발굴 이벤트·뼈 순서·티라노 이동 패턴에 공유된다 (§6.1, §6.3). */
+  roundSeed: string | null;
+  boneOrder: BoneId[];
+  excavation: ExcavationRoomState;
+  phaseDurations: Record<TeamId, PhaseDurations>;
+  /** CHARGING에 처음 진입한 시각. PURIFICATION을 거쳐도 리셋하지 않아 chargingMs 계산에 쓴다. */
+  chargingStartedAt: Record<TeamId, number | null>;
 };
 
+/** 게임 시작·재경기 때마다 팀별 발굴·퍼즐·충전 상태를 초기값으로 되돌린다. id/playerIds는 건드리지 않는다. */
+function resetTeamGameplayState(team: TeamState, now: number): void {
+  team.phase = "EXCAVATION";
+  team.phaseStartedAt = now;
+  team.phaseEndsAt = null;
+  team.excavation = {
+    points: 0,
+    nextBoneAt: EXCAVATION_POINTS_PER_BONE,
+    discoveredBoneIds: [],
+    fossils: 0,
+    efficiencyMultiplier: 1,
+    debuffEndsAt: null,
+  };
+  team.puzzle = {
+    pieces: BONE_IDS.map((boneId) => ({
+      boneId,
+      discovered: false,
+      fixed: false,
+      transform: { x: 0.5, y: 0.5, rotationDeg: 0 },
+      claimedBy: null,
+      claimToken: null,
+      claimExpiresAt: null,
+      lockedUntil: null,
+    })),
+    fixedCount: 0,
+    completedAt: null,
+  };
+  team.charging = {
+    energy: 0,
+    stability: 100,
+    activeCore: "HEART",
+    coreChangesAt: 0,
+    form: "NONE",
+    purificationEndsAt: null,
+  };
+}
+
 function makeEmptyTeamState(teamId: TeamId, now: number): TeamState {
-  return {
+  const team: TeamState = {
     id: teamId,
     phase: "EXCAVATION",
     phaseStartedAt: now,
     phaseEndsAt: null,
     playerIds: [],
-    excavation: {
-      points: 0,
-      nextBoneAt: 60,
-      discoveredBoneIds: [],
-      fossils: 0,
-      efficiencyMultiplier: 1,
-      debuffEndsAt: null,
-    },
-    puzzle: {
-      pieces: BONE_IDS.map((boneId) => ({
-        boneId,
-        discovered: false,
-        fixed: false,
-        transform: { x: 0.5, y: 0.5, rotationDeg: 0 },
-        claimedBy: null,
-        claimToken: null,
-        claimExpiresAt: null,
-        lockedUntil: null,
-      })),
-      fixedCount: 0,
-      completedAt: null,
-    },
-    charging: {
-      energy: 0,
-      stability: 100,
-      activeCore: "HEART",
-      coreChangesAt: 0,
-      form: "NONE",
-      purificationEndsAt: null,
-    },
+    excavation: { points: 0, nextBoneAt: EXCAVATION_POINTS_PER_BONE, discoveredBoneIds: [], fossils: 0, efficiencyMultiplier: 1, debuffEndsAt: null },
+    puzzle: { pieces: [], fixedCount: 0, completedAt: null },
+    charging: { energy: 0, stability: 100, activeCore: "HEART", coreChangesAt: 0, form: "NONE", purificationEndsAt: null },
   };
+  resetTeamGameplayState(team, now);
+  return team;
 }
 
 function isNicknameSafe(nickname: string): boolean {
@@ -149,6 +174,14 @@ export class RoomManager {
       playerSocketIds: new Map(),
       nextTeamForOddAssignment: "A",
       lastActivityAt: now,
+      roundSeed: null,
+      boneOrder: [],
+      excavation: createExcavationState(now),
+      phaseDurations: {
+        A: { excavationMs: null, assemblyMs: null, chargingMs: null },
+        B: { excavationMs: null, assemblyMs: null, chargingMs: null },
+      },
+      chargingStartedAt: { A: null, B: null },
     };
     this.rooms.set(roomCode, room);
     return { room, joinUrl: this.joinUrlFor(roomCode) };
@@ -251,15 +284,38 @@ export class RoomManager {
     room.state.roomPhase = "PLAYING";
     room.state.roundStartedAt = now;
     room.state.roundEndsAt = now + ROUND_DURATION_MS;
+    room.state.winner = { teamId: null, reason: null };
+    room.roundSeed = seed;
+    room.boneOrder = makeBoneOrder(seed);
+    room.excavation = createExcavationState(now);
+    room.phaseDurations = {
+      A: { excavationMs: null, assemblyMs: null, chargingMs: null },
+      B: { excavationMs: null, assemblyMs: null, chargingMs: null },
+    };
+    room.chargingStartedAt = { A: null, B: null };
     for (const teamId of TEAM_IDS) {
-      const team = room.state.teams[teamId];
-      team.phase = "EXCAVATION";
-      team.phaseStartedAt = now;
-      team.phaseEndsAt = null;
+      resetTeamGameplayState(room.state.teams[teamId], now);
     }
     this.touch(room);
     this.bumpRevision(room);
     return { seed, roundStartedAt: now, roundEndsAt: room.state.roundEndsAt };
+  }
+
+  /** 팀 발굴 판정을 적용하고 phase 전환이 필요하면 함께 처리한다. */
+  applyExcavation(room: RoomRecord, teamId: TeamId, playerId: PlayerId, input: ExcavateInput, now: number) {
+    const result = applyExcavateInput(room, teamId, playerId, input, now);
+    if (!result.accepted) return result;
+
+    this.touch(room);
+    if (result.phaseCompleted) {
+      const team = room.state.teams[teamId];
+      room.phaseDurations[teamId].excavationMs = now - team.phaseStartedAt;
+      team.phase = "ASSEMBLY";
+      team.phaseStartedAt = now;
+      team.phaseEndsAt = null;
+    }
+    this.bumpRevision(room);
+    return result;
   }
 
   setHostConnected(room: RoomRecord, connected: boolean): void {
