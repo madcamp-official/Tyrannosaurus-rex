@@ -1,0 +1,155 @@
+/** Plan.md §6.3, §17.10, §3. 서버 권위 사격 판정과 정상·좀비·정화 상태 전환. */
+
+import {
+  AIM_STALE_MS,
+  ENERGY_TARGET,
+  PURIFICATION_DURATION_MS,
+  SHOT_COOLDOWN_MS,
+  STABILITY_TARGET,
+  type HitZone,
+  type PlayerId,
+  type TeamId,
+  type TeamPhase,
+} from "@trex/shared";
+import type { RoomRecord } from "../rooms/RoomManager.js";
+import { computeActiveCore, computeTrexTransform, resolveHit } from "./charging.js";
+
+export type ShotTracking = { lastShotAt: number; recentShotIds: Set<string> };
+
+const MAX_TRACKED_SHOT_IDS = 32;
+
+export function createShotTracking(): ShotTracking {
+  return { lastShotAt: 0, recentShotIds: new Set() };
+}
+
+export type EnergyFireOutcome = {
+  accepted: boolean;
+  reason?: "WRONG_TEAM_PHASE" | "SHOT_COOLDOWN" | "DUPLICATE_REQUEST" | "INVALID_PAYLOAD";
+  hit: boolean;
+  hitZone: HitZone | null;
+  energyDelta: number;
+  stabilityDelta: number;
+  energyAfter: number;
+  stabilityAfter: number;
+  teamPhaseAfter: TeamPhase;
+  aimPoint: { x: number; y: number } | null;
+  hitPoint: { x: number; y: number } | null;
+  /** REVIVED에 새로 도달했다면(정상 또는 좀비 확정) true. 룸 승패 확정 처리를 트리거한다. */
+  justReachedRevived: boolean;
+};
+
+function rejectOutcome(reason: NonNullable<EnergyFireOutcome["reason"]>, team: { phase: TeamPhase }): EnergyFireOutcome {
+  return {
+    accepted: false,
+    reason,
+    hit: false,
+    hitZone: null,
+    energyDelta: 0,
+    stabilityDelta: 0,
+    energyAfter: 0,
+    stabilityAfter: 0,
+    teamPhaseAfter: team.phase,
+    aimPoint: null,
+    hitPoint: null,
+    justReachedRevived: false,
+  };
+}
+
+export function applyEnergyFire(
+  room: RoomRecord,
+  teamId: TeamId,
+  playerId: PlayerId,
+  shotId: string,
+  now: number,
+): EnergyFireOutcome {
+  const team = room.state.teams[teamId];
+  if (team.phase !== "CHARGING" && team.phase !== "PURIFICATION") {
+    return rejectOutcome("WRONG_TEAM_PHASE", team);
+  }
+
+  let tracking = room.shotTracking.get(playerId);
+  if (!tracking) {
+    tracking = createShotTracking();
+    room.shotTracking.set(playerId, tracking);
+  }
+  if (tracking.recentShotIds.has(shotId)) return rejectOutcome("DUPLICATE_REQUEST", team);
+  if (now - tracking.lastShotAt < SHOT_COOLDOWN_MS) return rejectOutcome("SHOT_COOLDOWN", team);
+
+  const aim = room.aimState.get(playerId);
+  if (!aim || now - aim.receivedAt > AIM_STALE_MS) return rejectOutcome("INVALID_PAYLOAD", team);
+
+  tracking.lastShotAt = now;
+  tracking.recentShotIds.add(shotId);
+  if (tracking.recentShotIds.size > MAX_TRACKED_SHOT_IDS) {
+    const oldest = tracking.recentShotIds.values().next().value;
+    if (oldest !== undefined) tracking.recentShotIds.delete(oldest);
+  }
+
+  const trex = computeTrexTransform(room, teamId, now);
+  const { core } = computeActiveCore(room, teamId, now);
+  const { hitZone, energyDelta, stabilityDelta } = resolveHit(aim.point, trex.position, core);
+
+  team.charging.energy = Math.max(0, Math.min(ENERGY_TARGET, team.charging.energy + energyDelta));
+  team.charging.stability = Math.max(0, Math.min(STABILITY_TARGET, team.charging.stability + stabilityDelta));
+
+  const player = room.state.players.find((p) => p.id === playerId);
+  if (player) {
+    player.stats.shots += 1;
+    if (hitZone !== null) {
+      player.stats.hits += 1;
+      player.stats.energyContributed += energyDelta;
+      if (hitZone === "HEART" || hitZone === "SKULL" || hitZone === "SPINE") player.stats.coreHits += 1;
+    }
+  }
+
+  let justReachedRevived = false;
+
+  if (team.phase === "CHARGING" && team.charging.energy >= ENERGY_TARGET) {
+    team.charging.form = "NORMAL";
+    team.phase = "REVIVED";
+    justReachedRevived = true;
+  } else if (team.phase === "PURIFICATION" && team.charging.stability >= STABILITY_TARGET) {
+    team.charging.form = "NORMAL";
+    team.phase = "REVIVED";
+    team.charging.purificationEndsAt = null;
+    justReachedRevived = true;
+  }
+
+  return {
+    accepted: true,
+    hit: hitZone !== null,
+    hitZone,
+    energyDelta,
+    stabilityDelta,
+    energyAfter: team.charging.energy,
+    stabilityAfter: team.charging.stability,
+    teamPhaseAfter: team.phase,
+    aimPoint: aim.point,
+    hitPoint: hitZone !== null ? trex.position : null,
+    justReachedRevived,
+  };
+}
+
+/** CHARGING 제한 시간(90초)이 지났는데 에너지를 못 채웠으면 좀비로 정화 단계에 들어간다. */
+export function expireChargingIfNeeded(room: RoomRecord, teamId: TeamId, now: number): "TO_PURIFICATION" | null {
+  const team = room.state.teams[teamId];
+  if (team.phase !== "CHARGING") return null;
+  if (team.phaseEndsAt === null || now < team.phaseEndsAt) return null;
+
+  team.phase = "PURIFICATION";
+  team.charging.form = "ZOMBIE";
+  team.charging.purificationEndsAt = now + PURIFICATION_DURATION_MS;
+  return "TO_PURIFICATION";
+}
+
+/** 정화 제한 시간(10초)이 지나도록 안정도를 못 채우면 좀비인 채로 라운드가 끝난다. */
+export function expirePurificationIfNeeded(room: RoomRecord, teamId: TeamId, now: number): "TO_REVIVED_ZOMBIE" | null {
+  const team = room.state.teams[teamId];
+  if (team.phase !== "PURIFICATION") return null;
+  if (team.charging.purificationEndsAt === null || now < team.charging.purificationEndsAt) return null;
+
+  team.phase = "REVIVED";
+  team.charging.form = "ZOMBIE";
+  team.charging.purificationEndsAt = null;
+  return "TO_REVIVED_ZOMBIE";
+}

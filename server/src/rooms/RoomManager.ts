@@ -16,6 +16,7 @@ import {
   TEAM_IDS,
   type AimUpdateInput,
   type BoneId,
+  type CoreZone,
   type ExcavateInput,
   type PlayerId,
   type PublicPlayer,
@@ -37,12 +38,30 @@ import {
   type PuzzlePlaceResult,
 } from "../game/puzzle.js";
 import { applyAimUpdate, type AimState } from "../game/aim.js";
+import {
+  applyEnergyFire,
+  createShotTracking,
+  expireChargingIfNeeded,
+  expirePurificationIfNeeded,
+  type EnergyFireOutcome,
+  type ShotTracking,
+} from "../game/energy.js";
+import { computeActiveCore, computeTrexTransform, type TrexTransform } from "../game/charging.js";
 
 export type CreateRoomResult = { room: RoomRecord; joinUrl: string };
 export type JoinRoomError = "ROOM_NOT_FOUND" | "ROOM_ALREADY_STARTED" | "ROOM_FULL" | "NICKNAME_INVALID" | "NICKNAME_TAKEN";
 export type StartGameError = "ROOM_NOT_FOUND" | "WRONG_ROOM_PHASE" | "NOT_ENOUGH_PLAYERS" | "NOT_ALL_READY";
 
 export type PhaseDurations = { excavationMs: number | null; assemblyMs: number | null; chargingMs: number | null };
+
+export type ChargingTickUpdate = {
+  teamId: TeamId;
+  transform: TrexTransform;
+  core: CoreZone;
+  nextChangeAt: number;
+  coreChanged: boolean;
+  transition: "TO_PURIFICATION" | "TO_REVIVED_ZOMBIE" | null;
+};
 
 export type RoomRecord = {
   state: RoomState;
@@ -61,6 +80,8 @@ export type RoomRecord = {
   puzzleLastMoveAt: Record<TeamId, Map<BoneId, number>>;
   /** 플레이어별 최신 유효 조준 좌표 (§17.9). */
   aimState: Map<PlayerId, AimState>;
+  /** 플레이어별 발사 쿨다운·shotId 중복 방지 상태 (§17.10). */
+  shotTracking: Map<PlayerId, ShotTracking>;
 };
 
 /** 게임 시작·재경기 때마다 팀별 발굴·퍼즐·충전 상태를 초기값으로 되돌린다. id/playerIds는 건드리지 않는다. */
@@ -201,6 +222,7 @@ export class RoomManager {
       chargingStartedAt: { A: null, B: null },
       puzzleLastMoveAt: { A: new Map(), B: new Map() },
       aimState: new Map(),
+      shotTracking: new Map(),
     };
     this.rooms.set(roomCode, room);
     return { room, joinUrl: this.joinUrlFor(roomCode) };
@@ -314,6 +336,7 @@ export class RoomManager {
     room.chargingStartedAt = { A: null, B: null };
     room.puzzleLastMoveAt = { A: new Map(), B: new Map() };
     room.aimState = new Map();
+    room.shotTracking = new Map();
     for (const teamId of TEAM_IDS) {
       resetTeamGameplayState(room.state.teams[teamId], now);
     }
@@ -408,6 +431,118 @@ export class RoomManager {
 
   getAimState(room: RoomRecord, playerId: PlayerId): AimState | undefined {
     return room.aimState.get(playerId);
+  }
+
+  /** §17.10. 사격 판정 + 정상/좀비 도달 시 라운드 승패까지 확정한다. */
+  fireEnergy(
+    room: RoomRecord,
+    teamId: TeamId,
+    playerId: PlayerId,
+    shotId: string,
+    now: number,
+  ): EnergyFireOutcome & { roundFinalized: boolean } {
+    const outcome = applyEnergyFire(room, teamId, playerId, shotId, now);
+    if (!outcome.accepted) return { ...outcome, roundFinalized: false };
+
+    this.touch(room);
+    let roundFinalized = false;
+    if (outcome.justReachedRevived) {
+      room.phaseDurations[teamId].chargingMs = room.chargingStartedAt[teamId] !== null ? now - room.chargingStartedAt[teamId]! : null;
+      roundFinalized = this.checkRoundCompletion(room, now);
+    }
+    this.bumpRevision(room);
+    return { ...outcome, roundFinalized };
+  }
+
+  /** 배경 틱(§6.3 10Hz)에서 팀별 티라노 위치·코어 로테이션·시간 초과를 처리한다. */
+  tickCharging(room: RoomRecord, now: number): { updates: ChargingTickUpdate[]; roundFinalized: boolean } {
+    const updates: ChargingTickUpdate[] = [];
+    let roundFinalized = false;
+
+    for (const teamId of TEAM_IDS) {
+      const team = room.state.teams[teamId];
+      if (team.phase !== "CHARGING" && team.phase !== "PURIFICATION") continue;
+
+      const chargingTransition = expireChargingIfNeeded(room, teamId, now);
+      const purificationTransition = expirePurificationIfNeeded(room, teamId, now);
+      const transition = chargingTransition ?? purificationTransition;
+
+      const transform = computeTrexTransform(room, teamId, now);
+      const { core, nextChangeAt } = computeActiveCore(room, teamId, now);
+      const coreChanged = team.charging.activeCore !== core;
+      if (coreChanged) {
+        team.charging.activeCore = core;
+        team.charging.coreChangesAt = nextChangeAt;
+      }
+
+      updates.push({ teamId, transform, core, nextChangeAt, coreChanged, transition });
+
+      if (transition) {
+        this.touch(room);
+        this.bumpRevision(room);
+        if (transition === "TO_REVIVED_ZOMBIE") {
+          room.phaseDurations[teamId].chargingMs = room.chargingStartedAt[teamId] !== null ? now - room.chargingStartedAt[teamId]! : null;
+          if (this.checkRoundCompletion(room, now)) roundFinalized = true;
+        }
+      }
+    }
+    return { updates, roundFinalized };
+  }
+
+  private teamProgressScore(team: TeamState): number {
+    switch (team.phase) {
+      case "EXCAVATION":
+        return 0 + team.excavation.discoveredBoneIds.length / BONE_IDS.length;
+      case "ASSEMBLY":
+        return 1 + team.puzzle.fixedCount / Math.max(1, team.puzzle.pieces.length);
+      case "CHARGING":
+        return 2 + team.charging.energy / 100;
+      case "PURIFICATION":
+        return 2.5 + team.charging.stability / 100;
+      case "REVIVED":
+        return 3 + (team.charging.form === "NORMAL" ? 1 : 0.5);
+      default:
+        return 0;
+    }
+  }
+
+  /** 정상 부활, 양 팀 모두 좀비로 종료, 라운드 시간 초과 중 하나라도 해당되면 승패를 확정한다. */
+  checkRoundCompletion(room: RoomRecord, now: number): boolean {
+    if (room.state.roomPhase !== "PLAYING") return false;
+
+    for (const teamId of TEAM_IDS) {
+      const team = room.state.teams[teamId];
+      if (team.phase === "REVIVED" && team.charging.form === "NORMAL") {
+        this.finalizeRoundWinner(room, teamId, "NORMAL_REVIVAL");
+        return true;
+      }
+    }
+
+    const bothRevived = TEAM_IDS.every((teamId) => room.state.teams[teamId].phase === "REVIVED");
+    if (bothRevived) {
+      // 여기 도달했다는 것은 둘 다 정상(NORMAL)이 아니라 좀비로 끝났다는 뜻이다 (정상은 위에서 즉시 처리됨).
+      this.finalizeRoundWinner(room, null, "DRAW");
+      return true;
+    }
+
+    if (room.state.roundEndsAt !== null && now >= room.state.roundEndsAt) {
+      const scoreA = this.teamProgressScore(room.state.teams.A);
+      const scoreB = this.teamProgressScore(room.state.teams.B);
+      if (scoreA === scoreB) {
+        this.finalizeRoundWinner(room, null, "DRAW");
+      } else {
+        this.finalizeRoundWinner(room, scoreA > scoreB ? "A" : "B", "TIME_LIMIT");
+      }
+      return true;
+    }
+    return false;
+  }
+
+  private finalizeRoundWinner(room: RoomRecord, teamId: TeamId | null, reason: NonNullable<RoomState["winner"]["reason"]>): void {
+    room.state.roomPhase = "RESULT";
+    room.state.winner = { teamId, reason };
+    this.touch(room);
+    this.bumpRevision(room);
   }
 
   setHostConnected(room: RoomRecord, connected: boolean): void {
