@@ -31,8 +31,17 @@ export class GodotBridge {
   private readonly onWindowMessage = (event: MessageEvent) => {
     if (event.origin !== window.location.origin) return;
     if (event.source !== this.iframe?.contentWindow) return;
-    if (!isBridgeEnvelope(event.data) || event.data.source !== "trex-godot") return;
-    const message = event.data as GodotToReactMessage;
+    // JsBridge.gd는 JavaScriptBridge로 JS 객체를 만들 수 없어 JSON 문자열로 postMessage한다.
+    let data: unknown = event.data;
+    if (typeof data === "string") {
+      try {
+        data = JSON.parse(data);
+      } catch {
+        return;
+      }
+    }
+    if (!isBridgeEnvelope(data) || data.source !== "trex-godot") return;
+    const message = data as GodotToReactMessage;
     this.recordLog("IN", message);
 
     if (message.type === "GODOT_READY") {

@@ -1,36 +1,36 @@
 /** Plan.md §11.2, §11.5. Godot Web iframe을 임베드하고 GODOT_READY 실패 시 2D 안전 화면을 보여준다. */
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState } from "react";
 import { GodotBridge, type BridgeStatus } from "./GodotBridge";
 
 const GODOT_ENTRY = import.meta.env.VITE_GODOT_ENTRY || "/godot/index.html";
 const GODOT_ASSET_VERSION = import.meta.env.VITE_GODOT_ASSET_VERSION || "dev";
 
-export function useGodotBridge(): { bridge: GodotBridge; status: BridgeStatus; iframeRef: RefObject<HTMLIFrameElement> } {
-  const bridgeRef = useRef<GodotBridge>();
-  if (!bridgeRef.current) bridgeRef.current = new GodotBridge();
-  const bridge = bridgeRef.current;
+// 앱에 Godot iframe은 하나뿐이다. 훅 호출마다 새 인스턴스를 만들면 iframe에 attach된
+// 인스턴스(GodotStage)와 로비가 send하는 인스턴스가 갈라져 메시지가 허공으로 가므로 공유한다.
+const sharedBridge = new GodotBridge();
 
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [status, setStatus] = useState<BridgeStatus>("LOADING");
-
-  useEffect(() => {
-    const iframe = iframeRef.current;
-    if (!iframe) return;
-    bridge.attach(iframe);
-    const unsubscribe = bridge.onStatusChange(setStatus);
-    return () => {
-      unsubscribe();
-      bridge.detach();
-    };
-  }, [bridge]);
-
-  return { bridge, status, iframeRef };
+export function useGodotBridge(): { bridge: GodotBridge } {
+  return { bridge: sharedBridge };
 }
 
 export function GodotStage({ onReload }: { onReload?: () => void }): JSX.Element {
-  const { status, iframeRef } = useGodotBridge();
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [status, setStatus] = useState<BridgeStatus>("LOADING");
   const [reloadKey, setReloadKey] = useState(0);
+
+  // reloadKey가 바뀌면 key= 때문에 iframe DOM이 새로 만들어지므로, 브리지도 새 iframe에 다시 attach해야 한다.
+  useEffect(() => {
+    const iframe = iframeRef.current;
+    if (!iframe) return;
+    sharedBridge.attach(iframe);
+    setStatus("LOADING");
+    const unsubscribe = sharedBridge.onStatusChange(setStatus);
+    return () => {
+      unsubscribe();
+      sharedBridge.detach();
+    };
+  }, [reloadKey]);
 
   const retry = () => {
     setReloadKey((key) => key + 1);
