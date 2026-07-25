@@ -55,15 +55,22 @@ func _build_grid() -> void:
 			var b := a + 1
 			var c := a + verts_per_side
 			var d := c + 1
-			_indices.append(a); _indices.append(c); _indices.append(b)
-			_indices.append(b); _indices.append(c); _indices.append(d)
+			_indices.append(a); _indices.append(b); _indices.append(c)
+			_indices.append(b); _indices.append(d); _indices.append(c)
 
 func _setup_material() -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://shaders/ground.gdshader")
-	mat.set_shader_parameter("grass_tex", grass_texture if grass_texture else ProceduralTextures.make_grass())
-	mat.set_shader_parameter("dirt_tex", dirt_texture if dirt_texture else ProceduralTextures.make_dirt())
+	mat.set_shader_parameter("grass_tex", grass_texture if grass_texture else _load_texture("res://assets/textures/grass.jpg", ProceduralTextures.make_grass))
+	mat.set_shader_parameter("dirt_tex", dirt_texture if dirt_texture else _load_texture("res://assets/textures/dirt.png", ProceduralTextures.make_dirt))
 	material_override = mat
+
+func _load_texture(path: String, fallback: Callable) -> Texture2D:
+	if ResourceLoader.exists(path):
+		var tex: Texture2D = load(path)
+		if tex:
+			return tex
+	return fallback.call()
 
 func _wall_noise(x: float, z: float) -> float:
 	return 0.07 * sin(x * 3.1 + z * 1.7) \
@@ -145,7 +152,7 @@ func _rebuild_geometry() -> void:
 		st.set_uv(_uvs[idx])
 		st.set_color(colors[idx])
 		st.add_vertex(verts[idx])
-	st.generate_normals()
+	st.generate_normals(true)
 	st.index()
 	mesh = st.commit()
 
@@ -158,9 +165,9 @@ func dig_random_scoop(progress: float) -> Vector2:
 	if _scoop_history.size() > 2 and _rng.randf() < cluster_chance:
 		var anchor := _pick_recent_scoop()
 		var angle := _rng.randf() * TAU
-		var side_min := lerp(1.22, 1.08, phase)
-		var side_max := lerp(2.18, 1.88, phase)
-		var jitter_radius := lerp(side_min, side_max, _rng.randf())
+		var side_min: float = lerp(1.22, 1.08, phase)
+		var side_max: float = lerp(2.18, 1.88, phase)
+		var jitter_radius: float = lerp(side_min, side_max, _rng.randf())
 		var point := _keep_inside_dig_zone(
 			anchor.x + cos(angle) * jitter_radius,
 			anchor.y + sin(angle) * jitter_radius
@@ -169,7 +176,7 @@ func dig_random_scoop(progress: float) -> Vector2:
 		scoop_z = point.y
 	else:
 		var angle := _rng.randf() * TAU
-		var center_bias := lerp(0.55, 2.15, phase)
+		var center_bias: float = lerp(0.55, 2.15, phase)
 		var r := DIG_ZONE_RADIUS * pow(_rng.randf(), center_bias)
 		scoop_x = cos(angle) * r
 		scoop_z = sin(angle) * r

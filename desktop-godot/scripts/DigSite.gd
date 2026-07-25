@@ -12,23 +12,30 @@ var _bone_count_label: Label
 var _progress := 0.0
 var _revealed := false
 var _bone_count := 0
+var _cam: Camera3D
 
 func _ready() -> void:
 	_build_scene()
 	_reset_bone()
 
 func _build_scene() -> void:
-	var cam := Camera3D.new()
-	cam.transform = Transform3D(Basis(), Vector3(0, 10.5, 7.5)).looking_at(Vector3(0, -1.2, 0), Vector3.UP)
-	cam.fov = 45.0
-	cam.near = 0.1
-	cam.far = 100.0
-	add_child(cam)
-	cam.current = true
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(0.749, 0.910, 0.961)
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(1, 1, 1)
+	env.ambient_light_energy = 1.1
+	var world_env := WorldEnvironment.new()
+	world_env.environment = env
+	add_child(world_env)
 
-	var light := DirectionalLight3D.new()
-	light.rotation_degrees = Vector3(-55, -30, 0)
-	add_child(light)
+	_cam = Camera3D.new()
+	_cam.transform = Transform3D(Basis(), Vector3(0, 10.5, 7.5)).looking_at(Vector3(0, -1.2, 0), Vector3.UP)
+	_cam.fov = 45.0
+	_cam.near = 0.1
+	_cam.far = 100.0
+	add_child(_cam)
+	_cam.current = true
 
 	_ground = GroundDig.new()
 	add_child(_ground)
@@ -77,9 +84,21 @@ func _build_scene() -> void:
 	hud.add_child(_found_label)
 
 	_bone_count_label = Label.new()
-	_bone_count_label.text = "발굴한 뼈: 0"
+	_bone_count_label.text = "발굴한 뼈: 0개"
 	_bone_count_label.position = Vector2(20, 20)
 	hud.add_child(_bone_count_label)
+
+	var hint_label := Label.new()
+	hint_label.text = "화면 클릭 또는 스페이스바 = 흔들기 1회"
+	hint_label.modulate = Color(1, 1, 1, 0.85)
+	hint_label.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
+	hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	hint_label.custom_minimum_size = Vector2(320, 20)
+	hint_label.position = Vector2(-336, -36)
+	hud.add_child(hint_label)
+
+func _process(delta: float) -> void:
+	_cam.position.x += (0.0 - _cam.position.x) * delta * 2.0
 
 func _unhandled_input(event: InputEvent) -> void:
 	if _revealed:
@@ -96,6 +115,7 @@ func _on_dig_tick() -> void:
 	var scoop_pos := _ground.dig_random_scoop(_progress)
 	_particles.position = Vector3(scoop_pos.x, 0.3, scoop_pos.y)
 	_particles.restart()
+	_cam.position.x += (randf() - 0.5) * 0.2
 
 	if _progress >= 100.0 and not _revealed:
 		_revealed = true
@@ -103,7 +123,7 @@ func _on_dig_tick() -> void:
 
 func _reveal_bone() -> void:
 	_bone_count += 1
-	_bone_count_label.text = "발굴한 뼈: %d" % _bone_count
+	_bone_count_label.text = "발굴한 뼈: %d개" % _bone_count
 
 	var tween := create_tween()
 	tween.tween_property(_bone, "scale", Vector3.ONE, 1.2).set_trans(Tween.TRANS_BACK)
