@@ -20,3 +20,14 @@ Godot 4.3 이상 에디터로 이 폴더(`desktop-godot/`)를 프로젝트로 �
 ## 다음 단계 (네트워크 연동)
 
 지금은 `DigSite.gd`의 `_unhandled_input`이 클릭/스페이스바를 직접 처리함. 나중에 서버에서 팀 굴착 진행량을 받으면, 이 입력 핸들러를 제거하고 `_on_dig_tick()`을 서버 이벤트 콜백에서 호출하도록 바꾸면 됨 (게임 로직 함수 자체는 순수 함수라 그대로 재사용 가능).
+
+## Web Export와 React 브리지 (Plan.md §9.2, §11)
+
+- 렌더러를 `gl_compatibility`(Compatibility)로 고정했다. 에디터에서 이 프로젝트를 처음 열면 렌더러 전환 대화상자가 뜰 수 있다.
+- `scripts/JsBridge.gd`, `scripts/RenderRouter.gd`를 오토로드로 등록했다. `JsBridge`는 Web export에서만 `JavaScriptBridge`로 `window.trexGodotReceive`를 등록하고 `GODOT_READY`를 보낸다. 에디터/데스크탑 실행에서는 `OS.has_feature("web")`이 false라 조용히 비활성화된다.
+- `web/shell.html`이 export preset의 커스텀 HTML shell이다. Godot 기본 `full-size.html` 템플릿에 `postMessage` 릴레이 스크립트만 추가했다.
+- `export_presets.cfg`는 싱글 스레드(`variant/thread_support=false`) Web 프리셋이며 `../client/public/godot/index.html`로 export한다.
+
+**아직 실행 검증 불가**: 이 환경에는 Godot 에디터·export 템플릿이 없어서 `export_presets.cfg`와 `web/shell.html`을 실제 export로 확인하지 못했다. 처음 `godot --headless --path desktop-godot --export-release Web ...`를 돌렸을 때:
+- `export_presets.cfg`가 에디터에 의해 자동으로 다시 쓰이며 옵션 키가 달라질 수 있다.
+- `$GODOT_URL$`, `$GODOT_CONFIG$`, `$GODOT_HEAD_INCLUDE$` 등 shell.html의 템플릿 변수가 사용 중인 Godot 버전의 기본 shell과 다르면 콘솔에 오류가 뜬다. 그 경우 Godot 설치 폴더의 `misc/dist/html/full-size.html` 원본과 비교해서 고치면 된다.

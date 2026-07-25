@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<!--
+  Plan.md §9.2, §11.2~§11.4, §22.3. Godot 4 Web Export 커스텀 HTML shell.
+  Godot 엔진의 기본 full-size.html 템플릿에 React <-> Godot postMessage 브리지 릴레이만 추가했다.
+  이 환경에는 Godot 에디터/export 템플릿이 없어 실제 export로 검증하지 못했다.
+  export_presets.cfg의 html/custom_html_shell이 이 파일을 가리키므로, 처음 실제로 export할 때
+  콘솔에 $GODOT_* 템플릿 변수 관련 오류가 나오면 사용 중인 Godot 버전의 기본 shell과 비교해서 고칠 것.
+-->
+<html>
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, user-scalable=no" />
+	<meta name="mobile-web-app-capable" content="yes" />
+	<meta name="apple-mobile-web-app-capable" content="yes" />
+	<title>$GODOT_PROJECT_NAME$</title>
+	<style>
+		body {
+			touch-action: none;
+			margin: 0;
+			border: 0 none;
+			padding: 0;
+			text-align: center;
+			background-color: black;
+		}
+
+		#canvas {
+			display: block;
+			margin: 0;
+			color: white;
+			width: 100%;
+			height: 100%;
+		}
+
+		#canvas:focus {
+			outline: none;
+		}
+
+		.godot {
+			font-family: 'Noto Sans', 'Droid Sans', Arial, sans-serif;
+			color: #e0e0e0;
+			background-color: #3b3943;
+			background-image: linear-gradient(to bottom, #403e48, #35333c);
+		}
+
+		#status {
+			position: absolute;
+			left: 0;
+			top: 0;
+			right: 0;
+			bottom: 0;
+			display: flex;
+			justify-content: center;
+			align-items: center;
+			flex-direction: column;
+		}
+
+		#status-progress {
+			display: block;
+			height: 6px;
+			border: 1px solid #605f69;
+			border-radius: 2px;
+			width: 366px;
+			max-width: 80%;
+		}
+
+		#status-progress-inner {
+			height: 100%;
+			width: 0%;
+			background-color: #202020;
+			transition: width 0.2s linear;
+		}
+
+		#status-notice {
+			margin: 0 100px;
+			line-height: 1.3;
+			display: none;
+			max-width: 90%;
+		}
+	</style>
+	$GODOT_HEAD_INCLUDE$
+</head>
+<body>
+	<canvas id="canvas">
+		Your browser does not support the canvas tag.
+	</canvas>
+
+	<noscript>
+		Your browser does not support JavaScript.
+	</noscript>
+
+	<div id="status">
+		<div id="status-progress" style="display: none;" oncontextmenu="event.preventDefault();">
+			<div id="status-progress-inner"></div>
+		</div>
+		<div id="status-indeterminate" style="display: none;">
+			불러오는 중…
+		</div>
+		<div id="status-notice" class="godot"></div>
+	</div>
+
+	<script>
+		// Plan.md §11.4. React 부모 창의 메시지를 window.trexGodotReceive(JSON string)로 전달한다.
+		// GDScript의 JsBridge 오토로드가 _ready()에서 window.trexGodotReceive를 등록하기 전에 도착한
+		// 메시지는 버린다 (React가 GODOT_READY 이후 FULL_SNAPSHOT을 다시 보내므로 유실이 문제되지 않는다).
+		window.addEventListener("message", (event) => {
+			if (event.origin !== window.location.origin) return;
+			if (!event.data || event.data.source !== "trex-react") return;
+			if (typeof window.trexGodotReceive !== "function") return;
+			window.trexGodotReceive(JSON.stringify(event.data));
+		});
+	</script>
+
+	<script src="$GODOT_URL$"></script>
+	<script>
+		const GODOT_CONFIG = $GODOT_CONFIG$;
+		const GODOT_THREADS_ENABLED = false;
+		const engine = new Engine(GODOT_CONFIG);
+
+		(function () {
+			const statusProgress = document.getElementById('status-progress');
+			const statusProgressInner = document.getElementById('status-progress-inner');
+			const statusIndeterminate = document.getElementById('status-indeterminate');
+			const statusNotice = document.getElementById('status-notice');
+
+			let initializing = true;
+			let statusMode = '';
+
+			function setStatusMode(mode) {
+				if (statusMode === mode || !initializing) return;
+				[statusProgress, statusIndeterminate, statusNotice].forEach((elem) => { elem.style.display = 'none'; });
+				statusMode = mode;
+				if (mode !== 'hidden') document.getElementById('status-' + mode).style.display = 'block';
+			}
+
+			function setStatusNotice(text) {
+				statusNotice.innerHTML = '';
+				text.split('\n').forEach((line) => {
+					statusNotice.appendChild(document.createTextNode(line));
+					statusNotice.appendChild(document.createElement('br'));
+				});
+			}
+
+			function displayFailureNotice(err) {
+				console.error(err);
+				setStatusNotice(err instanceof Error ? err.message : String(err));
+				setStatusMode('notice');
+				initializing = false;
+			}
+
+			const missing = Engine.getMissingFeatures({ threads: GODOT_THREADS_ENABLED });
+
+			if (missing.length !== 0) {
+				displayFailureNotice('다음 기능이 없어 이 브라우저에서 실행할 수 없습니다:\n' + missing.join('\n'));
+			} else {
+				setStatusMode('indeterminate');
+				engine.startGame({
+					onProgress(current, total) {
+						if (total > 0) {
+							statusProgressInner.style.width = `${(current / total) * 100}%`;
+							setStatusMode('progress');
+						} else {
+							setStatusMode('indeterminate');
+						}
+					},
+				}).then(() => {
+					setStatusMode('hidden');
+					initializing = false;
+				}, displayFailureNotice);
+			}
+		})();
+	</script>
+</body>
+</html>

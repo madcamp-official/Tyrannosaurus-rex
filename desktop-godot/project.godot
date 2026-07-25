@@ -5,8 +5,14 @@ config_version=5
 
 config/name="Tyrannosaurus Rex Desktop"
 run/main_scene="res://scenes/DigSite.tscn"
-config/features=PackedStringArray("4.3", "Forward Plus")
+config/features=PackedStringArray("4.3", "GL Compatibility")
+
+[autoload]
+
+JsBridge="*res://scripts/JsBridge.gd"
+RenderRouter="*res://scripts/RenderRouter.gd"
 
 [rendering]
 
-renderer/rendering_method="forward_plus"
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"
