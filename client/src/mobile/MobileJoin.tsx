@@ -5,6 +5,7 @@ import { useParams } from "react-router-dom";
 import type { Ack, PlayerId, RoomJoinResponse, RoomState, TeamId } from "@trex/shared";
 import { connectSocket, type AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
+import { ExcavationControls } from "./ExcavationControls";
 
 type JoinStatus = "FORM" | "JOINING" | "JOINED" | "ERROR";
 
@@ -85,10 +86,17 @@ export function MobileJoin(): JSX.Element {
     );
   }
 
-  if (roomState?.roomPhase !== "LOBBY") {
+  if (roomState && roomState.roomPhase !== "LOBBY" && teamId) {
+    const team = roomState.teams[teamId];
+    const socket = socketRef.current;
     return (
       <main className="mobile-join">
-        <p>게임이 진행 중입니다. 데스크탑 화면을 확인하세요.</p>
+        {team.phase === "EXCAVATION" && socket && <ExcavationControls socket={socket} />}
+        {team.phase === "ASSEMBLY" && <p>🧩 골격 조립 단계 (다음 업데이트에서 제공됩니다)</p>}
+        {(team.phase === "CHARGING" || team.phase === "PURIFICATION") && (
+          <p>⚡ 에너지 충전 단계 (다음 업데이트에서 제공됩니다)</p>
+        )}
+        {team.phase === "REVIVED" && <p>🦖 부활 완료! 데스크탑 화면을 확인하세요.</p>}
       </main>
     );
   }
@@ -99,7 +107,7 @@ export function MobileJoin(): JSX.Element {
       <button type="button" onClick={toggleReady}>
         {ready ? "준비 완료 ✅ (취소)" : "준비하기"}
       </button>
-      <p>다른 팀원 {roomState.players.filter((p) => p.teamId === teamId && p.id !== playerId).length}명</p>
+      <p>다른 팀원 {roomState?.players.filter((p) => p.teamId === teamId && p.id !== playerId).length ?? 0}명</p>
     </main>
   );
 }

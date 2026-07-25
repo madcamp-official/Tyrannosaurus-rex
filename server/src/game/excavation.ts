@@ -114,6 +114,9 @@ export function applyExcavateInput(
   const playerAccepted = consumePlayerBucket(playerBucket, input.count, now);
   if (playerAccepted <= 0) return { ...reject, accepted: true };
 
+  const player = room.state.players.find((p) => p.id === playerId);
+  if (player) player.stats.excavationInputs += playerAccepted;
+
   if (team.excavation.debuffEndsAt !== null && now >= team.excavation.debuffEndsAt) {
     team.excavation.efficiencyMultiplier = 1;
     team.excavation.debuffEndsAt = null;

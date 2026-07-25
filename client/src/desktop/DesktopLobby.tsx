@@ -7,6 +7,8 @@ import { connectSocket, type AppSocket } from "../socket";
 import { GodotStage, useGodotBridge } from "../godot/GodotStage";
 import { DebugPanel } from "../DebugPanel";
 import { newRequestId } from "../util/requestId";
+import { PlayArea } from "./PlayArea";
+import { applyBoneFound, applyExcavationEvent, applyExcavationProgress, applyTeamPhaseChanged } from "./roomStateReducer";
 
 export function DesktopLobby(): JSX.Element {
   const socketRef = useRef<AppSocket | null>(null);
@@ -36,6 +38,10 @@ export function DesktopLobby(): JSX.Element {
     });
 
     socket.on("room:state", (evt) => setRoomState(evt.data));
+    socket.on("excavation:progress", (evt) => setRoomState((prev) => (prev ? applyExcavationProgress(prev, evt.data) : prev)));
+    socket.on("excavation:boneFound", (evt) => setRoomState((prev) => (prev ? applyBoneFound(prev, evt.data) : prev)));
+    socket.on("excavation:eventTriggered", (evt) => setRoomState((prev) => (prev ? applyExcavationEvent(prev, evt.data) : prev)));
+    socket.on("team:phaseChanged", (evt) => setRoomState((prev) => (prev ? applyTeamPhaseChanged(prev, evt.data) : prev)));
 
     return () => {
       socket.close();
@@ -85,7 +91,7 @@ export function DesktopLobby(): JSX.Element {
         </section>
       )}
 
-      {roomState && roomState.roomPhase !== "LOBBY" && <p>라운드가 진행 중입니다.</p>}
+      {roomState && roomState.roomPhase === "PLAYING" && <PlayArea roomState={roomState} />}
 
       <GodotStage />
       <DebugPanel bridge={bridge} />
