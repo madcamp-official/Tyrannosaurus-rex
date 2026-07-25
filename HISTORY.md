@@ -126,3 +126,30 @@ npm run build        # 전체 프로덕션 빌드 성공
 - **`model/trex_major_parts.glb`(100MB)**: Web 다운로드 예산(30MB)의 3배가 넘어 실제
   export 전에 폴리곤 감소가 필요하다. 아직 git에 커밋하지 않았다(대용량 바이너리라 Git
   LFS 여부는 판단이 필요하다).
+
+## 2026-07-25 — Godot 3D 장면이 브리지 데이터를 실제로 그리도록 연결
+
+Day2~6에서는 브리지 "전송"만 배관해두고 받는 쪽 로직이 없었다. 이번에 `scenes/Main.tscn`
+(`Main.gd`)을 새 메인 씬으로 만들어 `project.godot`의 `run/main_scene`을 바꾸고, 좌우
+팀 무대(`TeamStage.gd`)가 실제로 `RenderRouter`의 메시지를 소비해 3D를 갱신하게 했다.
+
+- `TeamStage`는 발굴·조립·충전을 팀당 `TrexPuzzleModel` 인스턴스 하나로 이어간다(97MB
+  골격을 단계마다 다시 로드하지 않음): `BONE_DISCOVERED`로 조각을 하나씩 드러내고,
+  `PUZZLE_STATE`에서 `fixed=true`가 오면 모델이 아는 실제 해부학적 위치로 스냅하고,
+  `TREX_TRANSFORM`으로 조립된 모델 전체를 이동시킨다.
+- `CrosshairOverlay.gd`(2D `CanvasLayer`)가 화면을 좌/우로 나눠 `CROSSHAIRS`를 그린다.
+- React 쪽에 빠져 있던 `PUZZLE_STATE`·`CROSSHAIRS` 브리지 전송도 이번에 추가했다.
+
+### 검증
+
+```bash
+npm run typecheck   # 전체 통과
+npm test             # 48개 전부 통과
+npm run build        # 성공
+```
+
+GDScript는 실행 검증 불가(Godot 에디터 없음) — 문법·API는 Godot 4.3 문서와 기존
+`RenderRouter.gd`/`TrexPuzzleModel.gd` 패턴을 기준으로 맞췄다. 에디터에서 `Main.tscn`을
+바로 실행하면 React 연결이 없어(`JsBridge`는 Web export에서만 동작) 두 팀 무대가 초기
+상태로만 보이는 것이 정상이다 — 실제 확인은 `npm run build:godot` 후 `npm run dev`로
+전체 스택을 띄워야 한다.
