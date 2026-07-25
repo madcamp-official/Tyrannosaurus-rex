@@ -5,27 +5,22 @@ export type PlayerId = string;
 export type SocketId = string;
 export type RequestId = string; // UUID v4
 
-export type BoneId =
-  | "SKULL"
-  | "JAW"
-  | "SPINE"
-  | "PELVIS"
-  | "ARMS"
-  | "LEGS"
-  | "RIBS"
-  | "TAIL_FRONT"
-  | "TAIL_REAR";
+/**
+ * model/trex_major_parts.glb의 실제 노드 9개(01_HEAD..09_TAIL)와 1:1로 대응한다.
+ * Godot 쪽 매핑은 desktop-godot/scripts/BonePartCatalog.gd 참고.
+ */
+export type BoneId = "HEAD" | "NECK" | "TORSO" | "PELVIS" | "ARM_LEFT" | "ARM_RIGHT" | "LEG_LEFT" | "LEG_RIGHT" | "TAIL";
 
 export const BONE_IDS: readonly BoneId[] = [
-  "SKULL",
-  "JAW",
-  "SPINE",
+  "HEAD",
+  "NECK",
+  "TORSO",
   "PELVIS",
-  "ARMS",
-  "LEGS",
-  "RIBS",
-  "TAIL_FRONT",
-  "TAIL_REAR",
+  "ARM_LEFT",
+  "ARM_RIGHT",
+  "LEG_LEFT",
+  "LEG_RIGHT",
+  "TAIL",
 ];
 
 export type TeamId = "A" | "B";

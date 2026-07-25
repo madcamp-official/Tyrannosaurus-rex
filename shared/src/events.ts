@@ -45,15 +45,15 @@ export const transform2DSchema: z.ZodType<Transform2D> = normalizedPointSchema.a
 );
 
 export const boneIdSchema: z.ZodType<BoneId> = z.enum([
-  "SKULL",
-  "JAW",
-  "SPINE",
+  "HEAD",
+  "NECK",
+  "TORSO",
   "PELVIS",
-  "ARMS",
-  "LEGS",
-  "RIBS",
-  "TAIL_FRONT",
-  "TAIL_REAR",
+  "ARM_LEFT",
+  "ARM_RIGHT",
+  "LEG_LEFT",
+  "LEG_RIGHT",
+  "TAIL",
 ]);
 
 export const teamIdSchema: z.ZodType<TeamId> = z.enum(["A", "B"]);
