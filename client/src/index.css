@@ -9,12 +9,53 @@ body {
   color: #f2f2f2;
 }
 
-.desktop-lobby,
 .mobile-join,
 .museum-page {
   max-width: 960px;
   margin: 0 auto;
   padding: 24px;
+}
+
+/* 데스크탑은 3D 무대를 화면 전체 배경으로 깔고 UI를 그 위에 띄운다. */
+.desktop-lobby {
+  position: relative;
+  min-height: 100vh;
+}
+
+.desktop-lobby__overlay {
+  position: relative;
+  z-index: 1;
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.desktop-lobby__overlay header {
+  text-align: center;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+}
+
+.desktop-lobby__join {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  max-width: 420px;
+  margin: 24px auto 0;
+  padding: 24px;
+  border-radius: 16px;
+  background: rgba(16, 21, 28, 0.88);
+  border: 1px solid #2a323d;
+}
+
+.desktop-lobby__join button {
+  font-size: 1.1rem;
+  font-weight: 700;
+  padding: 10px 32px;
+  border: none;
+  border-radius: 8px;
+  background: #43aa8b;
+  color: white;
 }
 
 .room-code {
@@ -35,10 +76,9 @@ body {
 }
 
 .godot-stage {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  margin-top: 24px;
+  position: fixed;
+  inset: 0;
+  z-index: 0;
   background: #000;
 }
 
@@ -81,6 +121,7 @@ body {
   padding: 12px;
   border: 1px solid #2a323d;
   border-radius: 8px;
+  background: rgba(16, 21, 28, 0.85);
 }
 
 .phase-placeholder {
@@ -375,6 +416,7 @@ body {
   padding: 12px;
   border: 1px solid #2a323d;
   border-radius: 8px;
+  background: rgba(16, 21, 28, 0.85);
 }
 
 .result-view__voting {

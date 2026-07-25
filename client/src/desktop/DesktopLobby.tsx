@@ -194,30 +194,39 @@ export function DesktopLobby(): JSX.Element {
 
   return (
     <main className="desktop-lobby">
-      <header>
-        <h1>내 티라노사우루스 살려내!!!</h1>
-        <p>죽은 티라노, 정말 살려드립니다</p>
-      </header>
-
-      {roomState?.roomPhase === "LOBBY" && (
-        <section className="desktop-lobby__join">
-          <div className="room-code">{roomState.roomCode}</div>
-          {qrDataUrl && <img src={qrDataUrl} alt="입장 QR 코드" width={240} height={240} />}
-          <TeamList roomState={roomState} />
-          {startError && <p className="error">{startError}</p>}
-          <button type="button" onClick={handleStart}>
-            게임 시작
-          </button>
-        </section>
-      )}
-
-      {roomState && roomState.roomPhase === "PLAYING" && <PlayArea roomState={roomState} ephemeral={ephemeral} />}
-      {roomState && (roomState.roomPhase === "RESULT" || roomState.roomPhase === "DECORATION") && (
-        <ResultView roomState={roomState} gameResult={gameResult} socket={socketRef.current} />
-      )}
-
       <GodotStage />
-      <DebugPanel bridge={bridge} />
+
+      <div className="desktop-lobby__overlay">
+        <header>
+          <h1>내 티라노사우루스 살려내!!!</h1>
+          <p>죽은 티라노, 정말 살려드립니다</p>
+        </header>
+
+        {!roomState && (
+          <section className="desktop-lobby__join">
+            {startError ? <p className="error">방을 만들지 못했습니다: {startError}</p> : <p>서버에 연결하는 중…</p>}
+          </section>
+        )}
+
+        {roomState?.roomPhase === "LOBBY" && (
+          <section className="desktop-lobby__join">
+            <div className="room-code">{roomState.roomCode}</div>
+            {qrDataUrl && <img src={qrDataUrl} alt="입장 QR 코드" width={240} height={240} />}
+            <TeamList roomState={roomState} />
+            {startError && <p className="error">{startError}</p>}
+            <button type="button" onClick={handleStart}>
+              게임 시작
+            </button>
+          </section>
+        )}
+
+        {roomState && roomState.roomPhase === "PLAYING" && <PlayArea roomState={roomState} ephemeral={ephemeral} />}
+        {roomState && (roomState.roomPhase === "RESULT" || roomState.roomPhase === "DECORATION") && (
+          <ResultView roomState={roomState} gameResult={gameResult} socket={socketRef.current} />
+        )}
+
+        <DebugPanel bridge={bridge} />
+      </div>
     </main>
   );
 }
