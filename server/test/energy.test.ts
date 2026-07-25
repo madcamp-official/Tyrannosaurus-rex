@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { ENERGY_TARGET, SHOT_COOLDOWN_MS, STABILITY_TARGET } from "@trex/shared";
+import { ENERGY_TARGET, SHOT_COOLDOWN_MS } from "@trex/shared";
 import { RoomManager, type RoomRecord } from "../src/rooms/RoomManager.js";
 import { computeActiveCore, computeTrexTransform, CORE_OFFSETS } from "../src/game/charging.js";
 
@@ -33,7 +33,7 @@ function setupChargingRoom() {
 }
 
 describe("energy:fire", () => {
-  it("rejects fire outside CHARGING/PURIFICATION", () => {
+  it("rejects fire outside CHARGING", () => {
     const { rooms, room, playerA } = setupChargingRoom();
     room.state.teams.A.phase = "ASSEMBLY";
     const outcome = rooms.fireEnergy(room, "A", playerA, randomUUID(), Date.now());
@@ -118,26 +118,10 @@ describe("energy:fire", () => {
 });
 
 describe("charging tick transitions", () => {
-  it("turns a team into a yranno in PURIFICATION once the charging timer expires", () => {
+  it("turns a team into a permanent yranno once the charging timer expires without reaching the energy target", () => {
     const { rooms, room } = setupChargingRoom();
     const now = Date.now();
     room.state.teams.A.phaseEndsAt = now - 1;
-
-    const { updates } = rooms.tickCharging(room, now);
-    const teamAUpdate = updates.find((u) => u.teamId === "A");
-    expect(teamAUpdate?.transition).toBe("TO_PURIFICATION");
-    expect(room.state.teams.A.phase).toBe("PURIFICATION");
-    expect(room.state.teams.A.charging.form).toBe("YRANNO");
-    expect(room.state.teams.A.charging.purificationEndsAt).not.toBeNull();
-  });
-
-  it("locks in as a permanent yranno if purification times out without reaching stability target", () => {
-    const { rooms, room } = setupChargingRoom();
-    room.state.teams.A.phase = "PURIFICATION";
-    room.state.teams.A.charging.form = "YRANNO";
-    room.state.teams.A.charging.stability = STABILITY_TARGET - 1;
-    const now = Date.now();
-    room.state.teams.A.charging.purificationEndsAt = now - 1;
 
     const { updates } = rooms.tickCharging(room, now);
     const teamAUpdate = updates.find((u) => u.teamId === "A");
@@ -150,11 +134,11 @@ describe("charging tick transitions", () => {
     const { rooms, room } = setupChargingRoom();
     room.state.teams.A.phase = "REVIVED";
     room.state.teams.A.charging.form = "YRANNO";
-    room.state.teams.B.phase = "PURIFICATION";
+    room.state.teams.B.phase = "CHARGING";
     room.state.teams.B.charging.form = "YRANNO";
     room.state.teams.B.charging.stability = 10;
     const now = Date.now();
-    room.state.teams.B.charging.purificationEndsAt = now - 1;
+    room.state.teams.B.phaseEndsAt = now - 1;
 
     rooms.tickCharging(room, now);
     expect(room.state.teams.B.phase).toBe("REVIVED");

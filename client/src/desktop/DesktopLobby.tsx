@@ -42,7 +42,7 @@ export function DesktopLobby(): JSX.Element {
     socket.on("connect", () => {
       socket.emit(
         "room:create",
-        { requestId: newRequestId(), settings: { maxPlayers: 6, roundDurationSec: 300, language: "ko" } },
+        { requestId: newRequestId(), settings: { maxPlayers: 10, roundDurationSec: 300, language: "ko" } },
         (ack: Ack<RoomCreateResponse>) => {
           if (!ack.ok) {
             setStartError(ack.error.message);

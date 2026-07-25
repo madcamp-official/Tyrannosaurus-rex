@@ -153,3 +153,57 @@ GDScript는 실행 검증 불가(Godot 에디터 없음) — 문법·API는 Godo
 바로 실행하면 React 연결이 없어(`JsBridge`는 Web export에서만 동작) 두 팀 무대가 초기
 상태로만 보이는 것이 정상이다 — 실제 확인은 `npm run build:godot` 후 `npm run dev`로
 전체 스택을 띄워야 한다.
+
+## 2026-07-25 — 정화(PURIFICATION) 메커닉 제거, 인원 상한 6→10 반영
+
+Plan.md가 "와이라노는 되돌릴 수 없는 최종 결과"로 재정의되면서 정화 사격으로
+역전하는 구간(`PURIFICATION` 팀 페이즈, 10초 정화 타이머)이 전부 삭제됐다.
+또한 §0.1/§2.2의 인원 상한이 "전체 2~6명, 팀당 3명"에서 "전체 2~10명, 팀당
+5명"으로 바뀌어 있었다. 두 변경 모두 Plan.md에만 반영되어 있고 구현이 못
+따라간 상태라 이번에 코드 전체를 맞췄다.
+
+### 정화 제거
+
+- `shared`: `TeamPhase`에서 `"PURIFICATION"` 제거, `TeamState.charging`에서
+  `purificationEndsAt` 필드 제거, `PURIFICATION_DURATION_MS` 상수 삭제,
+  `revival:purificationStarted` 이벤트 타입 삭제.
+- `server/game/energy.ts`: `expireChargingIfNeeded`가 CHARGING 90초 타임아웃 시
+  중간 단계 없이 바로 `REVIVED`/`YRANNO`로 확정하도록 변경(기존에는
+  `PURIFICATION`을 거쳐 10초 뒤 재확정). `expirePurificationIfNeeded` 함수
+  자체를 삭제하고, `applyEnergyFire`의 안정도 기반 역전 분기도 제거.
+- `server/rooms/RoomManager.ts`: `ChargingTickUpdate.transition`을
+  `"TO_REVIVED_YRANNO" | null`로 단순화, `tickCharging`/`applyAim`의
+  `PURIFICATION` 분기 제거, `teamProgressScore`의 `PURIFICATION` case 제거.
+- `server/rooms/energyHandlers.ts`: `emitTransitionEvents`가 `TO_PURIFICATION`
+  분기 없이 `TO_REVIVED_YRANNO` 하나만 처리하도록 정리(`team:phaseChanged`의
+  `from`도 `PURIFICATION`이 아닌 `CHARGING`으로 수정).
+- `client`: `ChargingView`의 "정화 사격 중" 경고 배너 제거, `PlayArea`/
+  `MobileJoin`의 `team.phase === "PURIFICATION"` 분기 제거.
+- `desktop-godot/TeamStage.gd`: `apply_full_snapshot`의 `PURIFICATION` 체크 제거.
+- `server/test/energy.test.ts`, `server/test/aim.test.ts`: `PURIFICATION`
+  상태를 직접 세팅하던 테스트를 CHARGING 타임아웃이 바로 REVIVED/YRANNO로
+  가는 흐름에 맞춰 다시 작성.
+
+### 인원 상한 6→10, 팀당 3→5
+
+- `shared/constants.ts`: `MAX_PLAYERS` 6→10, `MAX_PLAYERS_PER_TEAM` 3→5.
+- `shared/events.ts`: `roomCreateRequestSchema.settings.maxPlayers` 리터럴
+  유니언을 2~6에서 2~10으로 확장.
+- `server/rooms/colors.ts`: 플레이어 크로스헤어 색상 팔레트를 6색→10색으로
+  확장. 6색인 채로 두면 5인 팀에서 짝수 인덱스(0·2·4·6·8)가 6으로 나눈
+  나머지가 겹쳐(0↔6, 2↔8) 같은 팀 안에서 두 플레이어가 같은 색을 받는
+  버그가 생겨서 함께 고쳤다.
+- `server/simulate.ts`, `client/DesktopLobby.tsx`: `room:create`에 보내는
+  `maxPlayers` 예시값 6→10, `simulate --players` 상한도 6→10.
+- Plan.md 안에서 남아있던 "6명/3명" 하드캡 서술(§2.3 대기열, ROOM_FULL 설명,
+  `RoomCreateRequest.maxPlayers` 타입, Day1/Day4 완료 기준, 최종 체크리스트,
+  §30 구현 가정)도 전부 10/5로 맞췄다. 단, "권장 인원 4~6명"과 실기기 테스트
+  대수(§Day7의 "실기기 6대" 등)는 상한과 무관한 별개 값이라 그대로 뒀다.
+
+### 검증
+
+```bash
+npm run typecheck   # shared/server/client 전부 통과
+npm test             # shared 4, server 38, client 4 — 전부 통과
+npm run build        # 전체 프로덕션 빌드 성공
+```

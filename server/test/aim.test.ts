@@ -18,7 +18,7 @@ function setupChargingRoom() {
 }
 
 describe("aim:update", () => {
-  it("is rejected outside CHARGING/PURIFICATION", () => {
+  it("is rejected outside CHARGING", () => {
     const rooms = new RoomManager("https://trex.example.com");
     const created = rooms.createRoom("host-1")!;
     const roomCode = created.room.state.roomCode;
@@ -53,19 +53,6 @@ describe("aim:update", () => {
     const state = rooms.getAimState(room, playerA);
     expect(state?.point).toEqual({ x: 0.3, y: 0.4 });
     expect(state?.mode).toBe("GYRO");
-  });
-
-  it("also accepts updates during PURIFICATION", () => {
-    const { rooms, room, playerA } = setupChargingRoom();
-    room.state.teams.A.phase = "PURIFICATION";
-    const accepted = rooms.applyAim(
-      room,
-      "A",
-      playerA,
-      { seq: 1, point: { x: 0.1, y: 0.1 }, mode: "TOUCHPAD", calibrated: true, clientTime: Date.now() },
-      Date.now(),
-    );
-    expect(accepted).toBe(true);
   });
 
   it("ignores stale or duplicate seq numbers", () => {

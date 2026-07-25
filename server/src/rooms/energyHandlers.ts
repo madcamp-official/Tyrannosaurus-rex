@@ -151,47 +151,22 @@ export function tickRoomCharging(io: AppServer, rooms: RoomManager, roomCode: st
 
 function emitTransitionEvents(io: AppServer, rooms: RoomManager, roomCode: string, update: ChargingTickUpdate): void {
   const room = rooms.getRoom(roomCode);
-  if (!room || !update.transition) return;
+  if (!room || update.transition !== "TO_REVIVED_YRANNO") return;
   const channel = roomChannel(roomCode);
   const team = room.state.teams[update.teamId];
 
-  if (update.transition === "TO_PURIFICATION") {
-    io.to(channel).emit(
-      "team:phaseChanged",
-      toServerEvent(roomCode, room.state.revision, {
-        teamId: update.teamId,
-        from: "CHARGING",
-        to: "PURIFICATION",
-        endsAt: team.charging.purificationEndsAt,
-      }),
-    );
-    io.to(channel).emit(
-      "revival:purificationStarted",
-      toServerEvent(roomCode, room.state.revision, { teamId: update.teamId, endsAt: team.charging.purificationEndsAt ?? 0 }),
-    );
-    io.to(channel).emit(
-      "revival:formChanged",
-      toServerEvent(roomCode, room.state.revision, {
-        teamId: update.teamId,
-        form: team.charging.form,
-        energy: team.charging.energy,
-        stability: team.charging.stability,
-      }),
-    );
-  } else if (update.transition === "TO_REVIVED_YRANNO") {
-    io.to(channel).emit(
-      "team:phaseChanged",
-      toServerEvent(roomCode, room.state.revision, { teamId: update.teamId, from: "PURIFICATION", to: "REVIVED", endsAt: null }),
-    );
-    io.to(channel).emit(
-      "revival:formChanged",
-      toServerEvent(roomCode, room.state.revision, {
-        teamId: update.teamId,
-        form: team.charging.form,
-        energy: team.charging.energy,
-        stability: team.charging.stability,
-      }),
-    );
-  }
+  io.to(channel).emit(
+    "team:phaseChanged",
+    toServerEvent(roomCode, room.state.revision, { teamId: update.teamId, from: "CHARGING", to: "REVIVED", endsAt: null }),
+  );
+  io.to(channel).emit(
+    "revival:formChanged",
+    toServerEvent(roomCode, room.state.revision, {
+      teamId: update.teamId,
+      form: team.charging.form,
+      energy: team.charging.energy,
+      stability: team.charging.stability,
+    }),
+  );
   broadcastRoomState(io, rooms, roomCode);
 }

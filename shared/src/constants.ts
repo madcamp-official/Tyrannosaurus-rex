@@ -39,7 +39,6 @@ export const STABILITY_HIT_JOINT_OUTSIDE = -3;
 export const STABILITY_HIT_CORE = 2;
 export const ENERGY_TARGET = 100;
 export const STABILITY_TARGET = 100;
-export const PURIFICATION_DURATION_MS = 10_000;
 // Plan.md §6.3은 "단순 히트박스"만 요구하고 정확한 반경/이동 공식은 없다. 정규화 좌표 기준
 // MVP 기본값이며, 실제 3D 히트박스가 생기면 Godot 쪽과 맞춰 조정한다.
 export const CORE_HIT_RADIUS = 0.05;
@@ -53,8 +52,8 @@ export const ROUND_DURATION_MS = 300_000;
 export const DECORATION_VOTE_DURATION_MS = 20_000;
 
 export const MIN_PLAYERS = 2;
-export const MAX_PLAYERS = 6;
-export const MAX_PLAYERS_PER_TEAM = 3;
+export const MAX_PLAYERS = 10;
+export const MAX_PLAYERS_PER_TEAM = 5;
 export const NICKNAME_MIN_LENGTH = 1;
 export const NICKNAME_MAX_LENGTH = 8;
 export const ROOM_CODE_LENGTH = 4;

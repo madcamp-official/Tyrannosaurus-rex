@@ -29,8 +29,7 @@ function TeamPhaseContent({
       return <ExcavationTeamPanel team={team} players={players} />;
     case "ASSEMBLY":
       return <PuzzleTeamPanel team={team} players={players} />;
-    case "CHARGING":
-    case "PURIFICATION": {
+    case "CHARGING": {
       const crosshairs = Object.values(ephemeral.crosshairsByPlayer).filter((c) => c.teamId === team.id);
       return (
         <ChargingTeamPanel

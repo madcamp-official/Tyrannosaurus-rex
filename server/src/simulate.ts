@@ -10,7 +10,7 @@ function parsePlayersArg(argv: string[]): number {
   const index = argv.indexOf("--players");
   if (index === -1) return 4;
   const value = Number.parseInt(argv[index + 1] ?? "", 10);
-  return Number.isFinite(value) && value >= 2 && value <= 6 ? value : 4;
+  return Number.isFinite(value) && value >= 2 && value <= 10 ? value : 4;
 }
 
 function connect(origin: string, role: "HOST" | "PLAYER"): AppSocket {
@@ -32,7 +32,7 @@ async function main(): Promise<void> {
   await waitForConnect(host);
 
   const createAck = await new Promise<any>((resolve) =>
-    host.emit("room:create", { requestId: randomUUID(), settings: { maxPlayers: 6, roundDurationSec: 300, language: "ko" } }, resolve),
+    host.emit("room:create", { requestId: randomUUID(), settings: { maxPlayers: 10, roundDurationSec: 300, language: "ko" } }, resolve),
   );
   if (!createAck.ok) throw new Error(`room:create failed: ${createAck.error.code}`);
   const roomCode: string = createAck.data.roomCode;

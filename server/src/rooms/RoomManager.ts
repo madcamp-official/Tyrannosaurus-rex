@@ -47,7 +47,6 @@ import {
   applyEnergyFire,
   createShotTracking,
   expireChargingIfNeeded,
-  expirePurificationIfNeeded,
   type EnergyFireOutcome,
   type ShotTracking,
 } from "../game/energy.js";
@@ -65,7 +64,7 @@ export type ChargingTickUpdate = {
   core: CoreZone;
   nextChangeAt: number;
   coreChanged: boolean;
-  transition: "TO_PURIFICATION" | "TO_REVIVED_YRANNO" | null;
+  transition: "TO_REVIVED_YRANNO" | null;
 };
 
 export type RoomRecord = {
@@ -79,7 +78,7 @@ export type RoomRecord = {
   boneOrder: BoneId[];
   excavation: ExcavationRoomState;
   phaseDurations: Record<TeamId, PhaseDurations>;
-  /** CHARGING에 처음 진입한 시각. PURIFICATION을 거쳐도 리셋하지 않아 chargingMs 계산에 쓴다. */
+  /** CHARGING에 처음 진입한 시각. chargingMs 계산에 쓴다. */
   chargingStartedAt: Record<TeamId, number | null>;
   /** puzzle:move 속도 제한 계산용 마지막 이동 시각 (boneId별). */
   puzzleLastMoveAt: Record<TeamId, Map<BoneId, number>>;
@@ -129,7 +128,6 @@ function resetTeamGameplayState(team: TeamState, now: number): void {
     activeCore: "HEART",
     coreChangesAt: 0,
     form: "NONE",
-    purificationEndsAt: null,
   };
 }
 
@@ -142,7 +140,7 @@ function makeEmptyTeamState(teamId: TeamId, now: number): TeamState {
     playerIds: [],
     excavation: { points: 0, nextBoneAt: EXCAVATION_POINTS_PER_BONE, discoveredBoneIds: [], fossils: 0, efficiencyMultiplier: 1, debuffEndsAt: null },
     puzzle: { pieces: [], fixedCount: 0, completedAt: null },
-    charging: { energy: 0, stability: 100, activeCore: "HEART", coreChangesAt: 0, form: "NONE", purificationEndsAt: null },
+    charging: { energy: 0, stability: 100, activeCore: "HEART", coreChangesAt: 0, form: "NONE" },
   };
   resetTeamGameplayState(team, now);
   return team;
@@ -472,10 +470,10 @@ export class RoomManager {
     return released;
   }
 
-  /** §17.9. CHARGING/PURIFICATION 중에만 조준을 인정한다. 고빈도 이벤트라 revision을 올리지 않는다. */
+  /** §17.9. CHARGING 중에만 조준을 인정한다. 고빈도 이벤트라 revision을 올리지 않는다. */
   applyAim(room: RoomRecord, teamId: TeamId, playerId: PlayerId, input: AimUpdateInput, now: number): boolean {
     const phase = room.state.teams[teamId].phase;
-    if (phase !== "CHARGING" && phase !== "PURIFICATION") return false;
+    if (phase !== "CHARGING") return false;
     const accepted = applyAimUpdate(room, playerId, input, now);
     if (accepted) this.touch(room);
     return accepted;
@@ -513,11 +511,9 @@ export class RoomManager {
 
     for (const teamId of TEAM_IDS) {
       const team = room.state.teams[teamId];
-      if (team.phase !== "CHARGING" && team.phase !== "PURIFICATION") continue;
+      if (team.phase !== "CHARGING") continue;
 
-      const chargingTransition = expireChargingIfNeeded(room, teamId, now);
-      const purificationTransition = expirePurificationIfNeeded(room, teamId, now);
-      const transition = chargingTransition ?? purificationTransition;
+      const transition = expireChargingIfNeeded(room, teamId, now);
 
       const transform = computeTrexTransform(room, teamId, now);
       const { core, nextChangeAt } = computeActiveCore(room, teamId, now);
@@ -549,8 +545,6 @@ export class RoomManager {
         return 1 + team.puzzle.fixedCount / Math.max(1, team.puzzle.pieces.length);
       case "CHARGING":
         return 2 + team.charging.energy / 100;
-      case "PURIFICATION":
-        return 2.5 + team.charging.stability / 100;
       case "REVIVED":
         return 3 + (team.charging.form === "NORMAL" ? 1 : 0.5);
       default:

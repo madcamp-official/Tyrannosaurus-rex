@@ -6,6 +6,10 @@ export const PLAYER_COLOR_PALETTE: readonly string[] = [
   "#90BE6D",
   "#43AA8B",
   "#577590",
+  "#277DA1",
+  "#9D4EDD",
+  "#F72585",
+  "#4D908E",
 ];
 
 export function colorForJoinIndex(index: number): string {

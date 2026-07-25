@@ -89,7 +89,7 @@ func apply_full_snapshot(team_data: Dictionary) -> void:
 		if bool(piece_data.get("fixed", false)):
 			_snap_piece(bone_id, false)
 
-	if _phase == "CHARGING" or _phase == "PURIFICATION":
+	if _phase == "CHARGING":
 		var trex: Dictionary = team_data.get("trex", {})
 		if trex.has("position"):
 			_move_model_to(trex["position"])

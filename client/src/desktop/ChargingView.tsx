@@ -20,8 +20,6 @@ export function ChargingTeamPanel({
 }): JSX.Element {
   return (
     <div className="charging-view">
-      {team.phase === "PURIFICATION" && <p className="charging-view__warning">⚠️ 와이라노 위험! 정화 사격 중…</p>}
-
       <div className="stat-bar">
         <span>부활 에너지 {Math.round(team.charging.energy)}</span>
         <div className="progress-bar">

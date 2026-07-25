@@ -82,7 +82,17 @@ export const decorationCategorySchema: z.ZodType<DecorationCategory> = z.enum([
 export const roomCreateRequestSchema = z.object({
   requestId: requestIdSchema,
   settings: z.object({
-    maxPlayers: z.union([z.literal(2), z.literal(3), z.literal(4), z.literal(5), z.literal(6)]),
+    maxPlayers: z.union([
+      z.literal(2),
+      z.literal(3),
+      z.literal(4),
+      z.literal(5),
+      z.literal(6),
+      z.literal(7),
+      z.literal(8),
+      z.literal(9),
+      z.literal(10),
+    ]),
     roundDurationSec: z.literal(300),
     language: z.literal("ko"),
   }),
@@ -325,7 +335,6 @@ export interface ServerToClientEvents {
   "revival:formChanged": (
     evt: ServerEvent<{ teamId: TeamId; form: RoomState["teams"][TeamId]["charging"]["form"]; energy: number; stability: number }>,
   ) => void;
-  "revival:purificationStarted": (evt: ServerEvent<{ teamId: TeamId; endsAt: number }>) => void;
   "game:result": (evt: ServerEvent<GameResultEvent>) => void;
   "decoration:voteUpdated": (evt: ServerEvent<DecorationVoteResponse>) => void;
   "decoration:completed": (
