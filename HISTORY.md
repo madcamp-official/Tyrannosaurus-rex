@@ -207,3 +207,40 @@ npm run typecheck   # shared/server/client 전부 통과
 npm test             # shared 4, server 38, client 4 — 전부 통과
 npm run build        # 전체 프로덕션 빌드 성공
 ```
+
+## 2026-07-25 — Godot Web 실연동 첫 검증: export 성공, 브리지 버그 3건 수정
+
+로컬에서 Godot 4.7.1 CLI(`Downloads/Godot_v4.7.1-stable_win64.exe/`)를 찾아
+export template(1.28GB)을 설치하고, 이 저장소 최초로 **실제 Web export를
+돌려 브라우저에서 연동을 검증**했다. 그 과정에서 "문서 기준으로만 작성하고
+실행해본 적 없던" 경로의 버그가 연달아 드러났다.
+
+### 고친 버그
+
+1. **`web/shell.html` 템플릿 문법 오류** — `$GODOT_URL$`처럼 닫는 `$`를
+   붙였는데 Godot 셸 템플릿은 닫는 기호 없이 `$GODOT_URL`로 치환된다.
+   export 결과물에 `<script src="index.js$">`(404)와
+   `GODOT_CONFIG = {...}$;`(문법 오류)가 나가 엔진이 아예 부팅되지 않았다.
+2. **GODOT_READY 유실** — `JsBridge.gd`는 JSON *문자열*로 postMessage하는데
+   React `GodotBridge`는 객체만 통과시켜 핸드셰이크가 항상 버려졌고,
+   엔진이 정상 기동해도 15초 뒤 "3D 장면을 불러오지 못했습니다" 폴백이 떴다.
+   문자열이면 JSON.parse 후 검증하게 수정.
+3. **브리지 인스턴스 분리** — `useGodotBridge()`가 호출마다 새 인스턴스를
+   만들어 로비의 send가 iframe에 attach되지 않은 인스턴스로 나갔다. 모듈
+   싱글턴으로 공유. 덤으로 "다시 시도" 시 브리지가 옛 iframe에 붙어 있던
+   문제도 attach 이펙트를 reloadKey에 걸어 수정.
+
+### 홈 화면 재구성
+
+Godot 무대를 `position:fixed` 전체 화면 배경으로 깔고 방 코드·QR·팀 리스트를
+반투명 카드 오버레이로 올렸다. 소켓/방 생성 실패 시 "서버에 연결하는 중…" /
+실패 사유를 표시해 빈 화면이 되지 않게 했다.
+
+### 검증
+
+- `--headless --export-release Web` 성공: `index.html/js/wasm(39.5MB)/pck` 생성
+- 씬 로드 스모크: `--headless --quit-after 120`으로 `Main.tscn` 120프레임
+  무오류 실행 (전역 클래스 등록, skeleton.gltf import 포함)
+- `npm run simulate -- --players 2`: 방 생성→입장→시작 정상
+- typecheck/테스트(46개) 통과. 브라우저 육안 확인은 사용자 진행 중.
+- Godot이 처음 열리며 생성한 `.uid` 사이드카 7개도 커밋(4.4+ 권장).
