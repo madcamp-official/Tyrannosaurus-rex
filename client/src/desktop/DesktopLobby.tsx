@@ -59,14 +59,20 @@ export function DesktopLobby(): JSX.Element {
       if (evt.data.roomPhase === "LOBBY") setGameResult(null);
     });
     socket.on("excavation:progress", (evt) => setRoomState((prev) => (prev ? applyExcavationProgress(prev, evt.data) : prev)));
-    socket.on("excavation:boneFound", (evt) => setRoomState((prev) => (prev ? applyBoneFound(prev, evt.data) : prev)));
+    socket.on("excavation:boneFound", (evt) => {
+      setRoomState((prev) => (prev ? applyBoneFound(prev, evt.data) : prev));
+      bridge.send("BONE_DISCOVERED", { teamId: evt.data.teamId, boneId: evt.data.boneId, position: { x: 0.5, y: 0.5 } });
+    });
     socket.on("excavation:eventTriggered", (evt) => setRoomState((prev) => (prev ? applyExcavationEvent(prev, evt.data) : prev)));
     socket.on("team:phaseChanged", (evt) => setRoomState((prev) => (prev ? applyTeamPhaseChanged(prev, evt.data) : prev)));
     socket.on("puzzle:claimChanged", (evt) => setRoomState((prev) => (prev ? applyPuzzleClaimChanged(prev, evt.data) : prev)));
     socket.on("puzzle:pieceMoved", (evt) => setRoomState((prev) => (prev ? applyPuzzlePieceMoved(prev, evt.data) : prev)));
     socket.on("puzzle:piecePlaced", (evt) => setRoomState((prev) => (prev ? applyPuzzlePiecePlaced(prev, evt.data) : prev)));
     socket.on("energy:coreChanged", (evt) => setRoomState((prev) => (prev ? applyCoreChanged(prev, evt.data) : prev)));
-    socket.on("revival:formChanged", (evt) => setRoomState((prev) => (prev ? applyRevivalFormChanged(prev, evt.data) : prev)));
+    socket.on("revival:formChanged", (evt) => {
+      setRoomState((prev) => (prev ? applyRevivalFormChanged(prev, evt.data) : prev));
+      bridge.send("REVIVAL_RESULT", { teamId: evt.data.teamId, form: evt.data.form, purified: evt.data.form === "NORMAL" });
+    });
     socket.on("game:result", (evt) => {
       setRoomState((prev) => (prev ? applyGameResult(prev, evt.data) : prev));
       setGameResult(evt.data);
@@ -77,6 +83,13 @@ export function DesktopLobby(): JSX.Element {
         ...prev,
         trexByTeam: { ...prev.trexByTeam, [evt.data.teamId]: { position: evt.data.position, facing: evt.data.facing } },
       }));
+      bridge.send("TREX_TRANSFORM", {
+        teamId: evt.data.teamId,
+        position: evt.data.position,
+        rotationDeg: evt.data.rotationDeg,
+        facing: evt.data.facing,
+        poseId: evt.data.poseId,
+      });
     });
     socket.on("aim:playerMoved", (evt) => {
       setRoomState((prev) => {
@@ -105,12 +118,20 @@ export function DesktopLobby(): JSX.Element {
       window.setTimeout(() => {
         setEphemeral((prev) => ({ ...prev, hitFlashByTeam: { ...prev.hitFlashByTeam, [evt.data.teamId]: undefined } }));
       }, 250);
+      bridge.send("ENERGY_HIT", {
+        teamId: evt.data.teamId,
+        hitZone: evt.data.hitZone,
+        hitPoint: evt.data.hitPoint,
+        energy: evt.data.energyAfter,
+        stability: evt.data.stabilityAfter,
+      });
     });
 
     return () => {
       socket.close();
       socketRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
