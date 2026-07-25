@@ -1,0 +1,70 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+body {
+  margin: 0;
+  background: #10151c;
+  color: #f2f2f2;
+}
+
+.desktop-lobby,
+.mobile-join,
+.museum-page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+}
+
+.room-code {
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: 0.4em;
+  text-align: center;
+}
+
+.team-list {
+  display: flex;
+  gap: 24px;
+  justify-content: center;
+}
+
+.team-list__team {
+  min-width: 200px;
+}
+
+.godot-stage {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  margin-top: 24px;
+  background: #000;
+}
+
+.godot-stage__frame {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.godot-stage__fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: rgba(0, 0, 0, 0.75);
+}
+
+.error {
+  color: #ff6b6b;
+}
+
+.debug-panel {
+  margin-top: 16px;
+  font-size: 0.75rem;
+  opacity: 0.8;
+}
