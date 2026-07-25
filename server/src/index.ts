@@ -7,6 +7,11 @@ import { API_VERSION, type ClientToServerEvents, type ServerToClientEvents } fro
 import { loadEnv } from "./env.js";
 import { RoomManager } from "./rooms/RoomManager.js";
 import { registerRoomHandlers } from "./rooms/roomHandlers.js";
+import { registerExcavationHandlers } from "./rooms/excavationHandlers.js";
+import { registerPuzzleHandlers, sweepPuzzleClaims } from "./rooms/puzzleHandlers.js";
+import { registerAimHandlers } from "./rooms/aimHandlers.js";
+import { registerEnergyHandlers, tickRoomCharging } from "./rooms/energyHandlers.js";
+import { registerVotingHandlers, finalizeVotingTick } from "./rooms/votingHandlers.js";
 import type { InterServerEvents, SocketData } from "./rooms/socketData.js";
 
 const env = loadEnv();
@@ -81,12 +86,32 @@ const rooms = new RoomManager(env.PUBLIC_JOIN_ORIGIN);
 
 io.on("connection", (socket) => {
   registerRoomHandlers(io, socket, rooms);
+  registerExcavationHandlers(io, socket, rooms);
+  registerPuzzleHandlers(io, socket, rooms);
+  registerAimHandlers(io, socket, rooms);
+  registerEnergyHandlers(io, socket, rooms);
+  registerVotingHandlers(io, socket, rooms);
 });
 
 const idleSweepInterval = setInterval(() => {
   rooms.sweepIdleRooms(env.ROOM_IDLE_TTL_MS);
 }, 60_000);
 idleSweepInterval.unref();
+
+const claimSweepInterval = setInterval(() => {
+  for (const roomCode of rooms.listRoomCodes()) sweepPuzzleClaims(io, rooms, roomCode);
+}, 1_000);
+claimSweepInterval.unref();
+
+const chargingTickInterval = setInterval(() => {
+  for (const roomCode of rooms.listRoomCodes()) tickRoomCharging(io, rooms, roomCode);
+}, 100);
+chargingTickInterval.unref();
+
+const votingTickInterval = setInterval(() => {
+  for (const roomCode of rooms.listRoomCodes()) finalizeVotingTick(io, rooms, roomCode);
+}, 1_000);
+votingTickInterval.unref();
 
 httpServer.listen(env.SERVER_PORT, () => {
   // eslint-disable-next-line no-console
@@ -96,6 +121,9 @@ httpServer.listen(env.SERVER_PORT, () => {
 function shutdown(): void {
   shuttingDown = true;
   clearInterval(idleSweepInterval);
+  clearInterval(claimSweepInterval);
+  clearInterval(chargingTickInterval);
+  clearInterval(votingTickInterval);
   io.close();
   httpServer.close(() => process.exit(0));
   setTimeout(() => process.exit(1), 5_000).unref();

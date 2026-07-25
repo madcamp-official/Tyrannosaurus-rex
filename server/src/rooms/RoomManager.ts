@@ -3,27 +3,70 @@
 import { randomUUID } from "node:crypto";
 import {
   BONE_IDS,
+  CHARGING_DURATION_MS,
+  DECORATION_CATALOG,
+  DECORATION_VOTE_DURATION_MS,
+  EXCAVATION_POINTS_PER_BONE,
   MAX_PLAYERS,
   MAX_PLAYERS_PER_TEAM,
   MIN_PLAYERS,
+  NAME_CANDIDATES,
   NICKNAME_MAX_LENGTH,
   NICKNAME_MIN_LENGTH,
   ROOM_CODE_LENGTH,
   ROOM_CODE_MAX_GENERATION_ATTEMPTS,
   ROUND_DURATION_MS,
   TEAM_IDS,
+  type AimUpdateInput,
+  type BoneId,
+  type CoreZone,
+  type DecorationCategory,
+  type ExcavateInput,
   type PlayerId,
   type PublicPlayer,
   type RoomCode,
   type RoomState,
   type TeamId,
   type TeamState,
+  type Transform2D,
 } from "@trex/shared";
+import { castVote, pickWinner, tallyVotes } from "../game/voting.js";
 import { colorForJoinIndex } from "./colors.js";
+import { applyExcavateInput, createExcavationState, makeBoneOrder, type ExcavationRoomState } from "../game/excavation.js";
+import {
+  claimPiece,
+  movePiece,
+  placePiece,
+  releaseExpiredClaims,
+  type PuzzleClaimResult,
+  type PuzzleMoveResult,
+  type PuzzlePlaceResult,
+} from "../game/puzzle.js";
+import { applyAimUpdate, type AimState } from "../game/aim.js";
+import {
+  applyEnergyFire,
+  createShotTracking,
+  expireChargingIfNeeded,
+  expirePurificationIfNeeded,
+  type EnergyFireOutcome,
+  type ShotTracking,
+} from "../game/energy.js";
+import { computeActiveCore, computeTrexTransform, type TrexTransform } from "../game/charging.js";
 
 export type CreateRoomResult = { room: RoomRecord; joinUrl: string };
 export type JoinRoomError = "ROOM_NOT_FOUND" | "ROOM_ALREADY_STARTED" | "ROOM_FULL" | "NICKNAME_INVALID" | "NICKNAME_TAKEN";
 export type StartGameError = "ROOM_NOT_FOUND" | "WRONG_ROOM_PHASE" | "NOT_ENOUGH_PLAYERS" | "NOT_ALL_READY";
+
+export type PhaseDurations = { excavationMs: number | null; assemblyMs: number | null; chargingMs: number | null };
+
+export type ChargingTickUpdate = {
+  teamId: TeamId;
+  transform: TrexTransform;
+  core: CoreZone;
+  nextChangeAt: number;
+  coreChanged: boolean;
+  transition: "TO_PURIFICATION" | "TO_REVIVED_YRANNO" | null;
+};
 
 export type RoomRecord = {
   state: RoomState;
@@ -31,45 +74,97 @@ export type RoomRecord = {
   playerSocketIds: Map<PlayerId, string>;
   nextTeamForOddAssignment: TeamId;
   lastActivityAt: number;
+  /** 라운드 시작 시 생성되는 결정론적 시드. 발굴 이벤트·뼈 순서·티라노 이동 패턴에 공유된다 (§6.1, §6.3). */
+  roundSeed: string | null;
+  boneOrder: BoneId[];
+  excavation: ExcavationRoomState;
+  phaseDurations: Record<TeamId, PhaseDurations>;
+  /** CHARGING에 처음 진입한 시각. PURIFICATION을 거쳐도 리셋하지 않아 chargingMs 계산에 쓴다. */
+  chargingStartedAt: Record<TeamId, number | null>;
+  /** puzzle:move 속도 제한 계산용 마지막 이동 시각 (boneId별). */
+  puzzleLastMoveAt: Record<TeamId, Map<BoneId, number>>;
+  /** 플레이어별 최신 유효 조준 좌표 (§17.9). */
+  aimState: Map<PlayerId, AimState>;
+  /** 플레이어별 발사 쿨다운·shotId 중복 방지 상태 (§17.10). */
+  shotTracking: Map<PlayerId, ShotTracking>;
+  /** §7 티꾸 투표. 팀·카테고리별 플레이어 투표와 확정 선택. */
+  decorationVotes: Record<TeamId, Record<DecorationCategory, Map<PlayerId, string>>>;
+  decorationSelections: Record<TeamId, Partial<Record<DecorationCategory, string>>>;
+  nameVotes: Record<TeamId, Map<PlayerId, string>>;
+  nameSelections: Record<TeamId, string | null>;
+  votingEndsAt: number | null;
+  votingFinalized: boolean;
 };
 
+/** 게임 시작·재경기 때마다 팀별 발굴·퍼즐·충전 상태를 초기값으로 되돌린다. id/playerIds는 건드리지 않는다. */
+function resetTeamGameplayState(team: TeamState, now: number): void {
+  team.phase = "EXCAVATION";
+  team.phaseStartedAt = now;
+  team.phaseEndsAt = null;
+  team.excavation = {
+    points: 0,
+    nextBoneAt: EXCAVATION_POINTS_PER_BONE,
+    discoveredBoneIds: [],
+    fossils: 0,
+    efficiencyMultiplier: 1,
+    debuffEndsAt: null,
+  };
+  team.puzzle = {
+    pieces: BONE_IDS.map((boneId) => ({
+      boneId,
+      discovered: false,
+      fixed: false,
+      transform: { x: 0.5, y: 0.5, rotationDeg: 0 },
+      claimedBy: null,
+      claimToken: null,
+      claimExpiresAt: null,
+      lockedUntil: null,
+    })),
+    fixedCount: 0,
+    completedAt: null,
+  };
+  team.charging = {
+    energy: 0,
+    stability: 100,
+    activeCore: "HEART",
+    coreChangesAt: 0,
+    form: "NONE",
+    purificationEndsAt: null,
+  };
+}
+
 function makeEmptyTeamState(teamId: TeamId, now: number): TeamState {
-  return {
+  const team: TeamState = {
     id: teamId,
     phase: "EXCAVATION",
     phaseStartedAt: now,
     phaseEndsAt: null,
     playerIds: [],
-    excavation: {
-      points: 0,
-      nextBoneAt: 60,
-      discoveredBoneIds: [],
-      fossils: 0,
-      efficiencyMultiplier: 1,
-      debuffEndsAt: null,
-    },
-    puzzle: {
-      pieces: BONE_IDS.map((boneId) => ({
-        boneId,
-        discovered: false,
-        fixed: false,
-        transform: { x: 0.5, y: 0.5, rotationDeg: 0 },
-        claimedBy: null,
-        claimToken: null,
-        claimExpiresAt: null,
-        lockedUntil: null,
-      })),
-      fixedCount: 0,
-      completedAt: null,
-    },
-    charging: {
-      energy: 0,
-      stability: 100,
-      activeCore: "HEART",
-      coreChangesAt: 0,
-      form: "NONE",
-      purificationEndsAt: null,
-    },
+    excavation: { points: 0, nextBoneAt: EXCAVATION_POINTS_PER_BONE, discoveredBoneIds: [], fossils: 0, efficiencyMultiplier: 1, debuffEndsAt: null },
+    puzzle: { pieces: [], fixedCount: 0, completedAt: null },
+    charging: { energy: 0, stability: 100, activeCore: "HEART", coreChangesAt: 0, form: "NONE", purificationEndsAt: null },
+  };
+  resetTeamGameplayState(team, now);
+  return team;
+}
+
+function makeVoteState(): Pick<
+  RoomRecord,
+  "decorationVotes" | "decorationSelections" | "nameVotes" | "nameSelections" | "votingEndsAt" | "votingFinalized"
+> {
+  const emptyDecorationVotes = (): Record<DecorationCategory, Map<PlayerId, string>> => ({
+    HAT: new Map(),
+    GLASSES: new Map(),
+    NECK: new Map(),
+    BACKGROUND: new Map(),
+  });
+  return {
+    decorationVotes: { A: emptyDecorationVotes(), B: emptyDecorationVotes() },
+    decorationSelections: { A: {}, B: {} },
+    nameVotes: { A: new Map(), B: new Map() },
+    nameSelections: { A: null, B: null },
+    votingEndsAt: null,
+    votingFinalized: false,
   };
 }
 
@@ -149,6 +244,18 @@ export class RoomManager {
       playerSocketIds: new Map(),
       nextTeamForOddAssignment: "A",
       lastActivityAt: now,
+      roundSeed: null,
+      boneOrder: [],
+      excavation: createExcavationState(now),
+      phaseDurations: {
+        A: { excavationMs: null, assemblyMs: null, chargingMs: null },
+        B: { excavationMs: null, assemblyMs: null, chargingMs: null },
+      },
+      chargingStartedAt: { A: null, B: null },
+      puzzleLastMoveAt: { A: new Map(), B: new Map() },
+      aimState: new Map(),
+      shotTracking: new Map(),
+      ...makeVoteState(),
     };
     this.rooms.set(roomCode, room);
     return { room, joinUrl: this.joinUrlFor(roomCode) };
@@ -251,15 +358,297 @@ export class RoomManager {
     room.state.roomPhase = "PLAYING";
     room.state.roundStartedAt = now;
     room.state.roundEndsAt = now + ROUND_DURATION_MS;
+    room.state.winner = { teamId: null, reason: null };
+    room.roundSeed = seed;
+    room.boneOrder = makeBoneOrder(seed);
+    room.excavation = createExcavationState(now);
+    room.phaseDurations = {
+      A: { excavationMs: null, assemblyMs: null, chargingMs: null },
+      B: { excavationMs: null, assemblyMs: null, chargingMs: null },
+    };
+    room.chargingStartedAt = { A: null, B: null };
+    room.puzzleLastMoveAt = { A: new Map(), B: new Map() };
+    room.aimState = new Map();
+    room.shotTracking = new Map();
+    Object.assign(room, makeVoteState());
     for (const teamId of TEAM_IDS) {
-      const team = room.state.teams[teamId];
-      team.phase = "EXCAVATION";
-      team.phaseStartedAt = now;
-      team.phaseEndsAt = null;
+      resetTeamGameplayState(room.state.teams[teamId], now);
     }
     this.touch(room);
     this.bumpRevision(room);
     return { seed, roundStartedAt: now, roundEndsAt: room.state.roundEndsAt };
+  }
+
+  /** §17.14, §21. 팀·닉네임·색상은 유지하고 게임 데이터만 초기화해 로비로 되돌린다. */
+  rematchRoom(room: RoomRecord, now: number): void {
+    room.state.roomPhase = "LOBBY";
+    room.state.roundStartedAt = null;
+    room.state.roundEndsAt = null;
+    room.state.winner = { teamId: null, reason: null };
+    for (const player of room.state.players) {
+      player.ready = false;
+      player.stats = { excavationInputs: 0, puzzleCorrect: 0, puzzleWrong: 0, shots: 0, hits: 0, coreHits: 0, energyContributed: 0 };
+    }
+    for (const teamId of TEAM_IDS) {
+      resetTeamGameplayState(room.state.teams[teamId], now);
+    }
+    Object.assign(room, makeVoteState());
+    this.touch(room);
+    this.bumpRevision(room);
+  }
+
+  /** 팀 발굴 판정을 적용하고 phase 전환이 필요하면 함께 처리한다. */
+  applyExcavation(room: RoomRecord, teamId: TeamId, playerId: PlayerId, input: ExcavateInput, now: number) {
+    const result = applyExcavateInput(room, teamId, playerId, input, now);
+    if (!result.accepted) return result;
+
+    this.touch(room);
+    if (result.phaseCompleted) {
+      const team = room.state.teams[teamId];
+      room.phaseDurations[teamId].excavationMs = now - team.phaseStartedAt;
+      team.phase = "ASSEMBLY";
+      team.phaseStartedAt = now;
+      team.phaseEndsAt = null;
+    }
+    this.bumpRevision(room);
+    return result;
+  }
+
+  applyPuzzleClaim(room: RoomRecord, teamId: TeamId, playerId: PlayerId, boneId: BoneId, now: number): PuzzleClaimResult {
+    const result = claimPiece(room, teamId, playerId, boneId, now);
+    if (result.ok) {
+      this.touch(room);
+      this.bumpRevision(room);
+    }
+    return result;
+  }
+
+  applyPuzzleMove(
+    room: RoomRecord,
+    teamId: TeamId,
+    playerId: PlayerId,
+    boneId: BoneId,
+    claimToken: string,
+    transform: Transform2D,
+    now: number,
+  ): PuzzleMoveResult {
+    const result = movePiece(room, teamId, playerId, boneId, claimToken, transform, now);
+    if (result.ok) this.touch(room);
+    return result;
+  }
+
+  applyPuzzlePlace(
+    room: RoomRecord,
+    teamId: TeamId,
+    playerId: PlayerId,
+    boneId: BoneId,
+    claimToken: string,
+    transform: Transform2D,
+    now: number,
+  ): PuzzlePlaceResult {
+    const result = placePiece(room, teamId, playerId, boneId, claimToken, transform, now);
+    if (!result.ok) return result;
+
+    this.touch(room);
+    if (result.phaseCompleted) {
+      const team = room.state.teams[teamId];
+      room.phaseDurations[teamId].assemblyMs = now - team.phaseStartedAt;
+      team.phase = "CHARGING";
+      team.phaseStartedAt = now;
+      team.phaseEndsAt = now + CHARGING_DURATION_MS;
+      room.chargingStartedAt[teamId] = now;
+    }
+    this.bumpRevision(room);
+    return result;
+  }
+
+  /** 5초 무입력 조작권 만료를 능동적으로 정리한다 (배경 스윕용). */
+  releaseExpiredPuzzleClaims(room: RoomRecord, teamId: TeamId, now: number): BoneId[] {
+    const released = releaseExpiredClaims(room, teamId, now);
+    if (released.length > 0) {
+      this.touch(room);
+      this.bumpRevision(room);
+    }
+    return released;
+  }
+
+  /** §17.9. CHARGING/PURIFICATION 중에만 조준을 인정한다. 고빈도 이벤트라 revision을 올리지 않는다. */
+  applyAim(room: RoomRecord, teamId: TeamId, playerId: PlayerId, input: AimUpdateInput, now: number): boolean {
+    const phase = room.state.teams[teamId].phase;
+    if (phase !== "CHARGING" && phase !== "PURIFICATION") return false;
+    const accepted = applyAimUpdate(room, playerId, input, now);
+    if (accepted) this.touch(room);
+    return accepted;
+  }
+
+  getAimState(room: RoomRecord, playerId: PlayerId): AimState | undefined {
+    return room.aimState.get(playerId);
+  }
+
+  /** §17.10. 사격 판정 + 정상/와이라노 도달 시 라운드 승패까지 확정한다. */
+  fireEnergy(
+    room: RoomRecord,
+    teamId: TeamId,
+    playerId: PlayerId,
+    shotId: string,
+    now: number,
+  ): EnergyFireOutcome & { roundFinalized: boolean } {
+    const outcome = applyEnergyFire(room, teamId, playerId, shotId, now);
+    if (!outcome.accepted) return { ...outcome, roundFinalized: false };
+
+    this.touch(room);
+    let roundFinalized = false;
+    if (outcome.justReachedRevived) {
+      room.phaseDurations[teamId].chargingMs = room.chargingStartedAt[teamId] !== null ? now - room.chargingStartedAt[teamId]! : null;
+      roundFinalized = this.checkRoundCompletion(room, now);
+    }
+    this.bumpRevision(room);
+    return { ...outcome, roundFinalized };
+  }
+
+  /** 배경 틱(§6.3 10Hz)에서 팀별 티라노 위치·코어 로테이션·시간 초과를 처리한다. */
+  tickCharging(room: RoomRecord, now: number): { updates: ChargingTickUpdate[]; roundFinalized: boolean } {
+    const updates: ChargingTickUpdate[] = [];
+    let roundFinalized = false;
+
+    for (const teamId of TEAM_IDS) {
+      const team = room.state.teams[teamId];
+      if (team.phase !== "CHARGING" && team.phase !== "PURIFICATION") continue;
+
+      const chargingTransition = expireChargingIfNeeded(room, teamId, now);
+      const purificationTransition = expirePurificationIfNeeded(room, teamId, now);
+      const transition = chargingTransition ?? purificationTransition;
+
+      const transform = computeTrexTransform(room, teamId, now);
+      const { core, nextChangeAt } = computeActiveCore(room, teamId, now);
+      const coreChanged = team.charging.activeCore !== core;
+      if (coreChanged) {
+        team.charging.activeCore = core;
+        team.charging.coreChangesAt = nextChangeAt;
+      }
+
+      updates.push({ teamId, transform, core, nextChangeAt, coreChanged, transition });
+
+      if (transition) {
+        this.touch(room);
+        this.bumpRevision(room);
+        if (transition === "TO_REVIVED_YRANNO") {
+          room.phaseDurations[teamId].chargingMs = room.chargingStartedAt[teamId] !== null ? now - room.chargingStartedAt[teamId]! : null;
+          if (this.checkRoundCompletion(room, now)) roundFinalized = true;
+        }
+      }
+    }
+    return { updates, roundFinalized };
+  }
+
+  private teamProgressScore(team: TeamState): number {
+    switch (team.phase) {
+      case "EXCAVATION":
+        return 0 + team.excavation.discoveredBoneIds.length / BONE_IDS.length;
+      case "ASSEMBLY":
+        return 1 + team.puzzle.fixedCount / Math.max(1, team.puzzle.pieces.length);
+      case "CHARGING":
+        return 2 + team.charging.energy / 100;
+      case "PURIFICATION":
+        return 2.5 + team.charging.stability / 100;
+      case "REVIVED":
+        return 3 + (team.charging.form === "NORMAL" ? 1 : 0.5);
+      default:
+        return 0;
+    }
+  }
+
+  /** 정상 부활, 양 팀 모두 와이라노로 종료, 라운드 시간 초과 중 하나라도 해당되면 승패를 확정한다. */
+  checkRoundCompletion(room: RoomRecord, now: number): boolean {
+    if (room.state.roomPhase !== "PLAYING") return false;
+
+    for (const teamId of TEAM_IDS) {
+      const team = room.state.teams[teamId];
+      if (team.phase === "REVIVED" && team.charging.form === "NORMAL") {
+        this.finalizeRoundWinner(room, teamId, "NORMAL_REVIVAL");
+        return true;
+      }
+    }
+
+    const bothRevived = TEAM_IDS.every((teamId) => room.state.teams[teamId].phase === "REVIVED");
+    if (bothRevived) {
+      // 여기 도달했다는 것은 둘 다 정상(NORMAL)이 아니라 와이라노로 끝났다는 뜻이다 (정상은 위에서 즉시 처리됨).
+      this.finalizeRoundWinner(room, null, "DRAW");
+      return true;
+    }
+
+    if (room.state.roundEndsAt !== null && now >= room.state.roundEndsAt) {
+      const scoreA = this.teamProgressScore(room.state.teams.A);
+      const scoreB = this.teamProgressScore(room.state.teams.B);
+      if (scoreA === scoreB) {
+        this.finalizeRoundWinner(room, null, "DRAW");
+      } else {
+        this.finalizeRoundWinner(room, scoreA > scoreB ? "A" : "B", "TIME_LIMIT");
+      }
+      return true;
+    }
+    return false;
+  }
+
+  private finalizeRoundWinner(room: RoomRecord, teamId: TeamId | null, reason: NonNullable<RoomState["winner"]["reason"]>): void {
+    room.state.roomPhase = "RESULT";
+    room.state.winner = { teamId, reason };
+    // §7 "결과 화면에서 20초 동안 진행한다": 결과 확정과 동시에 티꾸 투표 창을 연다.
+    room.state.roomPhase = "DECORATION";
+    room.votingEndsAt = Date.now() + DECORATION_VOTE_DURATION_MS;
+    this.touch(room);
+    this.bumpRevision(room);
+  }
+
+  castDecorationVote(room: RoomRecord, teamId: TeamId, playerId: PlayerId, category: DecorationCategory, itemId: string): boolean {
+    if (room.state.roomPhase !== "DECORATION" || room.votingFinalized) return false;
+    const allowed = DECORATION_CATALOG[category].map((item) => item.id);
+    const ok = castVote(room.decorationVotes[teamId][category], playerId, itemId, allowed);
+    if (ok) this.touch(room);
+    return ok;
+  }
+
+  tallyDecorationVote(room: RoomRecord, teamId: TeamId, category: DecorationCategory) {
+    return tallyVotes(room.decorationVotes[teamId][category]);
+  }
+
+  castNameVote(room: RoomRecord, teamId: TeamId, playerId: PlayerId, candidateId: string): boolean {
+    if (room.state.roomPhase !== "DECORATION" || room.votingFinalized) return false;
+    const allowed = NAME_CANDIDATES.map((c) => c.id);
+    const ok = castVote(room.nameVotes[teamId], playerId, candidateId, allowed);
+    if (ok) this.touch(room);
+    return ok;
+  }
+
+  tallyNameVote(room: RoomRecord, teamId: TeamId) {
+    return tallyVotes(room.nameVotes[teamId]);
+  }
+
+  /** 투표 마감 시각이 지나면 팀별 카테고리·이름 선택을 확정한다. 두 번 실행되지 않는다. */
+  finalizeVotingIfDue(room: RoomRecord, now: number): boolean {
+    if (room.state.roomPhase !== "DECORATION" || room.votingFinalized) return false;
+    if (room.votingEndsAt === null || now < room.votingEndsAt) return false;
+
+    let randomCursor = 0;
+    for (const teamId of TEAM_IDS) {
+      const categories = Object.keys(DECORATION_CATALOG) as DecorationCategory[];
+      for (const category of categories) {
+        const counts = tallyVotes(room.decorationVotes[teamId][category]);
+        const allowed = DECORATION_CATALOG[category].map((item) => item.id);
+        const winner = pickWinner(counts, allowed, randomCursor);
+        randomCursor += 1;
+        if (winner) room.decorationSelections[teamId][category] = winner;
+      }
+      const nameCounts = tallyVotes(room.nameVotes[teamId]);
+      const nameAllowed = NAME_CANDIDATES.map((c) => c.id);
+      room.nameSelections[teamId] = pickWinner(nameCounts, nameAllowed, randomCursor);
+      randomCursor += 1;
+    }
+
+    room.votingFinalized = true;
+    this.touch(room);
+    this.bumpRevision(room);
+    return true;
   }
 
   setHostConnected(room: RoomRecord, connected: boolean): void {
@@ -307,6 +696,10 @@ export class RoomManager {
 
   private bumpRevision(room: RoomRecord): void {
     room.state.revision += 1;
+  }
+
+  listRoomCodes(): RoomCode[] {
+    return Array.from(this.rooms.keys());
   }
 
   /** §22.4 ROOM_IDLE_TTL_MS. 로비에서 오래 방치된 방을 정리한다. */

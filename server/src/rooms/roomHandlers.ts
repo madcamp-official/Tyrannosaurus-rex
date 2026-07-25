@@ -1,50 +1,32 @@
 /** Plan.md §16~18, §21. 로비 관련 Socket.IO 이벤트 핸들러 (Day1 범위). */
 
-import type { Server, Socket } from "socket.io";
 import {
+  gameRematchRequestSchema,
   gameStartRequestSchema,
   playerSetReadyRequestSchema,
   roomCreateRequestSchema,
   roomJoinRequestSchema,
   roomRequestStateRequestSchema,
   type ApiError,
-  type ClientToServerEvents,
   type RoomCreateResponse,
   type RoomJoinResponse,
   type RoomState,
-  type ServerEvent,
-  type ServerToClientEvents,
 } from "@trex/shared";
-import { randomUUID } from "node:crypto";
 import type { RoomManager } from "./RoomManager.js";
-import type { InterServerEvents, SocketData } from "./socketData.js";
+import type { AppServer, AppSocket } from "./types.js";
 import { ackErr, ackOk } from "../validation/ack.js";
 import { IdempotencyCache } from "../validation/idempotency.js";
 import { TokenBucketLimiter } from "../validation/rateLimit.js";
-
-type AppServer = Server<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
-type AppSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>;
+import { hostChannel, roomChannel, teamChannel } from "./channels.js";
+import { broadcastRoomState, toServerEvent } from "./broadcast.js";
 
 const idempotency = new IdempotencyCache();
 const roomCreateLimiter = new TokenBucketLimiter(1, 1 / 60);
 const roomJoinLimiter = new TokenBucketLimiter(2, 2);
 const setReadyLimiter = new TokenBucketLimiter(2, 2);
 const gameStartLimiter = new TokenBucketLimiter(1, 1);
+const rematchLimiter = new TokenBucketLimiter(1, 1);
 const requestStateLimiter = new TokenBucketLimiter(1, 1 / 5);
-
-function socketRoomChannel(roomCode: string): string {
-  return `room:${roomCode}`;
-}
-function hostChannel(roomCode: string): string {
-  return `host:${roomCode}`;
-}
-function teamChannel(roomCode: string, teamId: string): string {
-  return `team:${roomCode}:${teamId}`;
-}
-
-function toServerEvent<T>(roomCode: string, revision: number, data: T): ServerEvent<T> {
-  return { eventId: randomUUID(), serverTime: Date.now(), roomCode, revision, data };
-}
 
 export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: RoomManager): void {
   socket.on("room:create", (req, ack) => {
@@ -68,7 +50,7 @@ export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: Ro
       return ack(res);
     }
     socket.data.roomCode = created.room.state.roomCode;
-    void socket.join([socketRoomChannel(created.room.state.roomCode), hostChannel(created.room.state.roomCode)]);
+    void socket.join([roomChannel(created.room.state.roomCode), hostChannel(created.room.state.roomCode)]);
 
     const res = ackOk(parsed.data.requestId, {
       roomCode: created.room.state.roomCode,
@@ -104,7 +86,7 @@ export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: Ro
     socket.data.roomCode = result.room.state.roomCode;
     socket.data.playerId = result.playerId;
     void socket.join([
-      socketRoomChannel(result.room.state.roomCode),
+      roomChannel(result.room.state.roomCode),
       teamChannel(result.room.state.roomCode, result.teamId),
     ]);
 
@@ -119,7 +101,7 @@ export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: Ro
     ack(res);
 
     const joinedPlayer = publicState.players.find((p) => p.id === result.playerId)!;
-    io.to(socketRoomChannel(result.room.state.roomCode)).emit(
+    io.to(roomChannel(result.room.state.roomCode)).emit(
       "room:playerJoined",
       toServerEvent(result.room.state.roomCode, publicState.revision, joinedPlayer),
     );
@@ -175,9 +157,37 @@ export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: Ro
     const state = rooms.getPublicState(room);
     ack(ackOk(parsed.data.requestId, { roundStartedAt, roundEndsAt, seed, state }));
 
-    io.to(socketRoomChannel(roomCode)).emit(
+    io.to(roomChannel(roomCode)).emit(
       "room:phaseChanged",
       toServerEvent(roomCode, state.revision, { from: "LOBBY", to: "PLAYING", endsAt: roundEndsAt }),
+    );
+    broadcastRoomState(io, rooms, roomCode);
+  });
+
+  socket.on("game:rematch", (req, ack) => {
+    if (!rematchLimiter.tryConsume(socket.id)) {
+      return ack(ackErr(req?.requestId ?? "unknown", "RATE_LIMITED", "too many game:rematch attempts", true));
+    }
+    const parsed = gameRematchRequestSchema.safeParse(req);
+    if (!parsed.success) {
+      return ack(ackErr(req?.requestId ?? "unknown", "INVALID_PAYLOAD", parsed.error.message, true));
+    }
+    const roomCode = socket.data.roomCode;
+    if (socket.data.role !== "HOST" || !roomCode) {
+      return ack(ackErr(parsed.data.requestId, "HOST_ONLY", "only the room host may request a rematch", false));
+    }
+    const room = rooms.getRoom(roomCode);
+    if (!room) {
+      return ack(ackErr(parsed.data.requestId, "ROOM_NOT_FOUND", "room no longer exists", false));
+    }
+
+    rooms.rematchRoom(room, Date.now());
+    const state = rooms.getPublicState(room);
+    ack(ackOk(parsed.data.requestId, { state }));
+
+    io.to(roomChannel(roomCode)).emit(
+      "room:phaseChanged",
+      toServerEvent(roomCode, state.revision, { from: "RESULT", to: "LOBBY", endsAt: null }),
     );
     broadcastRoomState(io, rooms, roomCode);
   });
@@ -213,7 +223,7 @@ export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: Ro
       const room = rooms.findRoomByHostSocket(socket.id);
       if (room) {
         const roomCode = room.state.roomCode;
-        io.to(socketRoomChannel(roomCode)).emit(
+        io.to(roomChannel(roomCode)).emit(
           "room:closed",
           toServerEvent(roomCode, room.state.revision, { reason: "HOST_DISCONNECTED" }),
         );
@@ -230,13 +240,6 @@ export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: Ro
   });
 }
 
-function broadcastRoomState(io: AppServer, rooms: RoomManager, roomCode: string): void {
-  const room = rooms.getRoom(roomCode);
-  if (!room) return;
-  const state = rooms.getPublicState(room);
-  io.to(socketRoomChannel(roomCode)).emit("room:state", toServerEvent(roomCode, state.revision, state));
-}
-
 function broadcastPlayerConnectionChanged(
   io: AppServer,
   rooms: RoomManager,
@@ -246,7 +249,7 @@ function broadcastPlayerConnectionChanged(
 ): void {
   const room = rooms.getRoom(roomCode);
   if (!room) return;
-  io.to(socketRoomChannel(roomCode)).emit(
+  io.to(roomChannel(roomCode)).emit(
     "room:playerConnectionChanged",
     toServerEvent(roomCode, room.state.revision, { playerId, connected }),
   );

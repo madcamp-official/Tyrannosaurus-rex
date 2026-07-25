@@ -2,11 +2,28 @@
 
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
-import type { Ack, GameStartResponse, RoomCreateResponse, RoomState, TeamId } from "@trex/shared";
+import type { Ack, GameResultEvent, GameStartResponse, PlayerId, RoomCreateResponse, RoomState, TeamId } from "@trex/shared";
 import { connectSocket, type AppSocket } from "../socket";
 import { GodotStage, useGodotBridge } from "../godot/GodotStage";
 import { DebugPanel } from "../DebugPanel";
 import { newRequestId } from "../util/requestId";
+import { PlayArea, type ChargingEphemeral } from "./PlayArea";
+import { ResultView } from "./ResultView";
+import {
+  applyBoneFound,
+  applyCoreChanged,
+  applyExcavationEvent,
+  applyExcavationProgress,
+  applyGameResult,
+  applyPuzzleClaimChanged,
+  applyPuzzlePieceMoved,
+  applyPuzzlePiecePlaced,
+  applyRevivalFormChanged,
+  applyShotResolved,
+  applyTeamPhaseChanged,
+} from "../roomStateReducer";
+
+const CROSSHAIR_STALE_MS = 700;
 
 export function DesktopLobby(): JSX.Element {
   const socketRef = useRef<AppSocket | null>(null);
@@ -14,6 +31,8 @@ export function DesktopLobby(): JSX.Element {
   const [joinUrl, setJoinUrl] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
+  const [ephemeral, setEphemeral] = useState<ChargingEphemeral>({ trexByTeam: {}, crosshairsByPlayer: {}, hitFlashByTeam: {} });
+  const [gameResult, setGameResult] = useState<GameResultEvent | null>(null);
   const { bridge } = useGodotBridge();
 
   useEffect(() => {
@@ -35,12 +54,103 @@ export function DesktopLobby(): JSX.Element {
       );
     });
 
-    socket.on("room:state", (evt) => setRoomState(evt.data));
+    socket.on("room:state", (evt) => {
+      setRoomState(evt.data);
+      if (evt.data.roomPhase === "LOBBY") setGameResult(null);
+    });
+    socket.on("excavation:progress", (evt) => setRoomState((prev) => (prev ? applyExcavationProgress(prev, evt.data) : prev)));
+    socket.on("excavation:boneFound", (evt) => {
+      setRoomState((prev) => (prev ? applyBoneFound(prev, evt.data) : prev));
+      bridge.send("BONE_DISCOVERED", { teamId: evt.data.teamId, boneId: evt.data.boneId, position: { x: 0.5, y: 0.5 } });
+    });
+    socket.on("excavation:eventTriggered", (evt) => setRoomState((prev) => (prev ? applyExcavationEvent(prev, evt.data) : prev)));
+    socket.on("team:phaseChanged", (evt) => setRoomState((prev) => (prev ? applyTeamPhaseChanged(prev, evt.data) : prev)));
+    socket.on("puzzle:claimChanged", (evt) => setRoomState((prev) => (prev ? applyPuzzleClaimChanged(prev, evt.data) : prev)));
+    socket.on("puzzle:pieceMoved", (evt) => setRoomState((prev) => (prev ? applyPuzzlePieceMoved(prev, evt.data) : prev)));
+    socket.on("puzzle:piecePlaced", (evt) => setRoomState((prev) => (prev ? applyPuzzlePiecePlaced(prev, evt.data) : prev)));
+    socket.on("energy:coreChanged", (evt) => setRoomState((prev) => (prev ? applyCoreChanged(prev, evt.data) : prev)));
+    socket.on("revival:formChanged", (evt) => {
+      setRoomState((prev) => (prev ? applyRevivalFormChanged(prev, evt.data) : prev));
+      bridge.send("REVIVAL_RESULT", { teamId: evt.data.teamId, form: evt.data.form, purified: evt.data.form === "NORMAL" });
+    });
+    socket.on("game:result", (evt) => {
+      setRoomState((prev) => (prev ? applyGameResult(prev, evt.data) : prev));
+      setGameResult(evt.data);
+    });
+
+    socket.on("trex:transform", (evt) => {
+      setEphemeral((prev) => ({
+        ...prev,
+        trexByTeam: { ...prev.trexByTeam, [evt.data.teamId]: { position: evt.data.position, facing: evt.data.facing } },
+      }));
+      bridge.send("TREX_TRANSFORM", {
+        teamId: evt.data.teamId,
+        position: evt.data.position,
+        rotationDeg: evt.data.rotationDeg,
+        facing: evt.data.facing,
+        poseId: evt.data.poseId,
+      });
+    });
+    socket.on("aim:playerMoved", (evt) => {
+      setRoomState((prev) => {
+        if (!prev) return prev;
+        const player = prev.players.find((p) => p.id === evt.data.playerId);
+        if (!player) return prev;
+        setEphemeral((ePrev) => ({
+          ...ePrev,
+          crosshairsByPlayer: {
+            ...ePrev.crosshairsByPlayer,
+            [evt.data.playerId]: {
+              playerId: evt.data.playerId,
+              teamId: evt.data.teamId,
+              point: evt.data.point,
+              color: player.color,
+              receivedAt: Date.now(),
+            },
+          },
+        }));
+        return prev;
+      });
+    });
+    socket.on("energy:shotResolved", (evt) => {
+      setRoomState((prev) => (prev ? applyShotResolved(prev, evt.data) : prev));
+      setEphemeral((prev) => ({ ...prev, hitFlashByTeam: { ...prev.hitFlashByTeam, [evt.data.teamId]: evt.data.hit ? "HIT" : "MISS" } }));
+      window.setTimeout(() => {
+        setEphemeral((prev) => ({ ...prev, hitFlashByTeam: { ...prev.hitFlashByTeam, [evt.data.teamId]: undefined } }));
+      }, 250);
+      bridge.send("ENERGY_HIT", {
+        teamId: evt.data.teamId,
+        hitZone: evt.data.hitZone,
+        hitPoint: evt.data.hitPoint,
+        energy: evt.data.energyAfter,
+        stability: evt.data.stabilityAfter,
+      });
+    });
 
     return () => {
       socket.close();
       socketRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      const cutoff = Date.now() - CROSSHAIR_STALE_MS;
+      setEphemeral((prev) => {
+        const next: Record<PlayerId, ChargingEphemeral["crosshairsByPlayer"][string]> = {};
+        let changed = false;
+        for (const [playerId, crosshair] of Object.entries(prev.crosshairsByPlayer)) {
+          if (crosshair.receivedAt < cutoff) {
+            changed = true;
+            continue;
+          }
+          next[playerId] = crosshair;
+        }
+        return changed ? { ...prev, crosshairsByPlayer: next } : prev;
+      });
+    }, 500);
+    return () => window.clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -85,7 +195,10 @@ export function DesktopLobby(): JSX.Element {
         </section>
       )}
 
-      {roomState && roomState.roomPhase !== "LOBBY" && <p>라운드가 진행 중입니다.</p>}
+      {roomState && roomState.roomPhase === "PLAYING" && <PlayArea roomState={roomState} ephemeral={ephemeral} />}
+      {roomState && (roomState.roomPhase === "RESULT" || roomState.roomPhase === "DECORATION") && (
+        <ResultView roomState={roomState} gameResult={gameResult} socket={socketRef.current} />
+      )}
 
       <GodotStage />
       <DebugPanel bridge={bridge} />

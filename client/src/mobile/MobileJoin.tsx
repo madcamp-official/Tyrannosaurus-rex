@@ -5,6 +5,16 @@ import { useParams } from "react-router-dom";
 import type { Ack, PlayerId, RoomJoinResponse, RoomState, TeamId } from "@trex/shared";
 import { connectSocket, type AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
+import { ExcavationControls } from "./ExcavationControls";
+import { PuzzleControls } from "./PuzzleControls";
+import { AimControls } from "./AimControls";
+import { DecorationVote } from "./DecorationVote";
+import {
+  applyPuzzleClaimChanged,
+  applyPuzzlePieceMoved,
+  applyPuzzlePiecePlaced,
+  applyTeamPhaseChanged,
+} from "../roomStateReducer";
 
 type JoinStatus = "FORM" | "JOINING" | "JOINED" | "ERROR";
 
@@ -35,6 +45,10 @@ export function MobileJoin(): JSX.Element {
     const socket = connectSocket("PLAYER");
     socketRef.current = socket;
     socket.on("room:state", (evt) => setRoomState(evt.data));
+    socket.on("team:phaseChanged", (evt) => setRoomState((prev) => (prev ? applyTeamPhaseChanged(prev, evt.data) : prev)));
+    socket.on("puzzle:claimChanged", (evt) => setRoomState((prev) => (prev ? applyPuzzleClaimChanged(prev, evt.data) : prev)));
+    socket.on("puzzle:pieceMoved", (evt) => setRoomState((prev) => (prev ? applyPuzzlePieceMoved(prev, evt.data) : prev)));
+    socket.on("puzzle:piecePlaced", (evt) => setRoomState((prev) => (prev ? applyPuzzlePiecePlaced(prev, evt.data) : prev)));
 
     socket.on("connect", () => {
       socket.emit(
@@ -85,10 +99,27 @@ export function MobileJoin(): JSX.Element {
     );
   }
 
-  if (roomState?.roomPhase !== "LOBBY") {
+  if (roomState && (roomState.roomPhase === "RESULT" || roomState.roomPhase === "DECORATION") && playerId) {
+    const socket = socketRef.current;
     return (
       <main className="mobile-join">
-        <p>게임이 진행 중입니다. 데스크탑 화면을 확인하세요.</p>
+        <h1>결과</h1>
+        {roomState.winner.teamId && <p>{roomState.winner.teamId}팀 승리!</p>}
+        {!roomState.winner.teamId && <p>무승부</p>}
+        {socket && <DecorationVote socket={socket} />}
+      </main>
+    );
+  }
+
+  if (roomState && roomState.roomPhase !== "LOBBY" && teamId) {
+    const team = roomState.teams[teamId];
+    const socket = socketRef.current;
+    return (
+      <main className="mobile-join">
+        {team.phase === "EXCAVATION" && socket && <ExcavationControls socket={socket} />}
+        {team.phase === "ASSEMBLY" && socket && <PuzzleControls socket={socket} team={team} />}
+        {(team.phase === "CHARGING" || team.phase === "PURIFICATION") && socket && <AimControls socket={socket} />}
+        {team.phase === "REVIVED" && <p>{team.charging.form === "NORMAL" ? "🦖 부활 완료!" : "🦖 와이라노가 되어버렸어요."} 데스크탑 화면을 확인하세요.</p>}
       </main>
     );
   }
@@ -99,7 +130,7 @@ export function MobileJoin(): JSX.Element {
       <button type="button" onClick={toggleReady}>
         {ready ? "준비 완료 ✅ (취소)" : "준비하기"}
       </button>
-      <p>다른 팀원 {roomState.players.filter((p) => p.teamId === teamId && p.id !== playerId).length}명</p>
+      <p>다른 팀원 {roomState?.players.filter((p) => p.teamId === teamId && p.id !== playerId).length ?? 0}명</p>
     </main>
   );
 }

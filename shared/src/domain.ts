@@ -5,27 +5,39 @@ export type PlayerId = string;
 export type SocketId = string;
 export type RequestId = string; // UUID v4
 
+/**
+ * 원본 Stan 골격의 254개 세부 메시를 퍼즐용 대형 해부학 조각 13개로 묶는다.
+ * Godot 쪽 실제 노드 매핑은 desktop-godot/scripts/TrexPuzzleModel.gd 참고.
+ */
 export type BoneId =
   | "SKULL"
   | "JAW"
+  | "NECK"
   | "SPINE"
+  | "RIBCAGE"
   | "PELVIS"
-  | "ARMS"
-  | "LEGS"
-  | "RIBS"
-  | "TAIL_FRONT"
-  | "TAIL_REAR";
+  | "ARM_LEFT"
+  | "ARM_RIGHT"
+  | "LEG_LEFT"
+  | "LEG_RIGHT"
+  | "TAIL_BASE"
+  | "TAIL_MIDDLE"
+  | "TAIL_TIP";
 
 export const BONE_IDS: readonly BoneId[] = [
   "SKULL",
   "JAW",
+  "NECK",
   "SPINE",
+  "RIBCAGE",
   "PELVIS",
-  "ARMS",
-  "LEGS",
-  "RIBS",
-  "TAIL_FRONT",
-  "TAIL_REAR",
+  "ARM_LEFT",
+  "ARM_RIGHT",
+  "LEG_LEFT",
+  "LEG_RIGHT",
+  "TAIL_BASE",
+  "TAIL_MIDDLE",
+  "TAIL_TIP",
 ];
 
 export type TeamId = "A" | "B";

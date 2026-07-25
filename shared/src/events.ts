@@ -47,13 +47,17 @@ export const transform2DSchema: z.ZodType<Transform2D> = normalizedPointSchema.a
 export const boneIdSchema: z.ZodType<BoneId> = z.enum([
   "SKULL",
   "JAW",
+  "NECK",
   "SPINE",
+  "RIBCAGE",
   "PELVIS",
-  "ARMS",
-  "LEGS",
-  "RIBS",
-  "TAIL_FRONT",
-  "TAIL_REAR",
+  "ARM_LEFT",
+  "ARM_RIGHT",
+  "LEG_LEFT",
+  "LEG_RIGHT",
+  "TAIL_BASE",
+  "TAIL_MIDDLE",
+  "TAIL_TIP",
 ]);
 
 export const teamIdSchema: z.ZodType<TeamId> = z.enum(["A", "B"]);
@@ -193,6 +197,7 @@ export const decorationVoteRequestSchema = z.object({
 });
 export type DecorationVoteRequest = z.infer<typeof decorationVoteRequestSchema>;
 export type DecorationVoteResponse = {
+  teamId: TeamId;
   category: DecorationCategory;
   counts: Record<string, number>;
   selectedItemId: string | null;
@@ -204,7 +209,7 @@ export const nameVoteRequestSchema = z.object({
   candidateId: z.string().min(1),
 });
 export type NameVoteRequest = z.infer<typeof nameVoteRequestSchema>;
-export type NameVoteResponse = { counts: Record<string, number>; selectedName: string | null; votingEndsAt: number };
+export type NameVoteResponse = { teamId: TeamId; counts: Record<string, number>; selectedName: string | null; votingEndsAt: number };
 
 export const gameRematchRequestSchema = z.object({
   requestId: requestIdSchema,
@@ -309,7 +314,7 @@ export interface ServerToClientEvents {
     evt: ServerEvent<{ teamId: TeamId; boneId: BoneId; transform: Transform2D; playerId: PlayerId }>,
   ) => void;
   "puzzle:piecePlaced": (
-    evt: ServerEvent<{ teamId: TeamId; boneId: BoneId; correct: boolean; teamPhase: TeamPhase }>,
+    evt: ServerEvent<{ teamId: TeamId; boneId: BoneId; correct: boolean; teamPhase: TeamPhase; fixedTransform?: Transform2D }>,
   ) => void;
   "aim:playerMoved": (
     evt: ServerEvent<{ playerId: PlayerId; teamId: TeamId; point: NormalizedPoint; active: boolean }>,
