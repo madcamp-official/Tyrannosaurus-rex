@@ -493,17 +493,18 @@ Tyrannosaurus-rex/
 │  │  ├─ socket.ts
 │  │  └─ main.tsx
 │  └─ vite.config.ts
-└─ godot/
+└─ desktop-godot/
    ├─ project.godot
    ├─ export_presets.cfg
    ├─ scenes/
    ├─ scripts/
+   ├─ shaders/
    ├─ assets/
    └─ web/
       └─ shell.html
 ```
 
-`godot/`은 원본 프로젝트이고 `client/public/godot/`은 빌드 산출물이다. 원본 에셋이나 GDScript를 `client/public`에서 직접 수정하지 않는다.
+`desktop-godot/`은 원본 프로젝트이고 `client/public/godot/`은 빌드 산출물이다. 원본 에셋이나 GDScript를 `client/public`에서 직접 수정하지 않는다.
 
 ### 10.4 라우트와 포트
 
@@ -534,7 +535,7 @@ npm install
 # Node 서버와 Vite 실행
 npm run dev
 
-# Godot Web Export 후 client/public/godot에 복사
+# Godot Web Export(desktop-godot/) 후 client/public/godot에 복사
 npm run build:godot
 
 # Godot을 포함한 전체 프로덕션 빌드
@@ -552,7 +553,7 @@ npm run dev:tunnel
 `build:godot`은 Godot CLI의 headless export를 호출한다.
 
 ```bash
-godot --headless --path godot --export-release Web ../client/public/godot/index.html
+godot --headless --path desktop-godot --export-release Web ../client/public/godot/index.html
 ```
 
 CI에서는 Godot 버전을 고정하고 `client/public/godot/index.wasm`, `.pck`, `.js`, `.html`이 모두 생성되었는지 검사한다. 개발 중에는 GDScript나 3D 에셋을 변경했을 때만 Godot을 다시 export하며 React·서버 변경에는 기존 export를 재사용한다.
