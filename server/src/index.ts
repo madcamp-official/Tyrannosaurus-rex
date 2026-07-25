@@ -11,6 +11,7 @@ import { registerExcavationHandlers } from "./rooms/excavationHandlers.js";
 import { registerPuzzleHandlers, sweepPuzzleClaims } from "./rooms/puzzleHandlers.js";
 import { registerAimHandlers } from "./rooms/aimHandlers.js";
 import { registerEnergyHandlers, tickRoomCharging } from "./rooms/energyHandlers.js";
+import { registerVotingHandlers, finalizeVotingTick } from "./rooms/votingHandlers.js";
 import type { InterServerEvents, SocketData } from "./rooms/socketData.js";
 
 const env = loadEnv();
@@ -89,6 +90,7 @@ io.on("connection", (socket) => {
   registerPuzzleHandlers(io, socket, rooms);
   registerAimHandlers(io, socket, rooms);
   registerEnergyHandlers(io, socket, rooms);
+  registerVotingHandlers(io, socket, rooms);
 });
 
 const idleSweepInterval = setInterval(() => {
@@ -106,6 +108,11 @@ const chargingTickInterval = setInterval(() => {
 }, 100);
 chargingTickInterval.unref();
 
+const votingTickInterval = setInterval(() => {
+  for (const roomCode of rooms.listRoomCodes()) finalizeVotingTick(io, rooms, roomCode);
+}, 1_000);
+votingTickInterval.unref();
+
 httpServer.listen(env.SERVER_PORT, () => {
   // eslint-disable-next-line no-console
   console.log(`[server] listening on :${env.SERVER_PORT} (env=${env.NODE_ENV})`);
@@ -116,6 +123,7 @@ function shutdown(): void {
   clearInterval(idleSweepInterval);
   clearInterval(claimSweepInterval);
   clearInterval(chargingTickInterval);
+  clearInterval(votingTickInterval);
   io.close();
   httpServer.close(() => process.exit(0));
   setTimeout(() => process.exit(1), 5_000).unref();

@@ -197,6 +197,7 @@ export const decorationVoteRequestSchema = z.object({
 });
 export type DecorationVoteRequest = z.infer<typeof decorationVoteRequestSchema>;
 export type DecorationVoteResponse = {
+  teamId: TeamId;
   category: DecorationCategory;
   counts: Record<string, number>;
   selectedItemId: string | null;
@@ -208,7 +209,7 @@ export const nameVoteRequestSchema = z.object({
   candidateId: z.string().min(1),
 });
 export type NameVoteRequest = z.infer<typeof nameVoteRequestSchema>;
-export type NameVoteResponse = { counts: Record<string, number>; selectedName: string | null; votingEndsAt: number };
+export type NameVoteResponse = { teamId: TeamId; counts: Record<string, number>; selectedName: string | null; votingEndsAt: number };
 
 export const gameRematchRequestSchema = z.object({
   requestId: requestIdSchema,

@@ -112,7 +112,7 @@ describe("energy:fire", () => {
     expect(room.state.teams.A.phase).toBe("REVIVED");
     expect(room.state.teams.A.charging.form).toBe("NORMAL");
     expect(outcome?.roundFinalized).toBe(true);
-    expect(room.state.roomPhase).toBe("RESULT");
+    expect(room.state.roomPhase).toBe("DECORATION");
     expect(room.state.winner).toEqual({ teamId: "A", reason: "NORMAL_REVIVAL" });
   });
 });
@@ -158,7 +158,7 @@ describe("charging tick transitions", () => {
 
     rooms.tickCharging(room, now);
     expect(room.state.teams.B.phase).toBe("REVIVED");
-    expect(room.state.roomPhase).toBe("RESULT");
+    expect(room.state.roomPhase).toBe("DECORATION");
     expect(room.state.winner).toEqual({ teamId: null, reason: "DRAW" });
   });
 
@@ -170,7 +170,7 @@ describe("charging tick transitions", () => {
 
     const finalized = rooms.checkRoundCompletion(room, Date.now());
     expect(finalized).toBe(true);
-    expect(room.state.roomPhase).toBe("RESULT");
+    expect(room.state.roomPhase).toBe("DECORATION");
     expect(room.state.winner.reason === "TIME_LIMIT" || room.state.winner.reason === "DRAW").toBe(true);
   });
 });

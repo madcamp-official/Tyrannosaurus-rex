@@ -1,6 +1,7 @@
 /** Plan.md §16~18, §21. 로비 관련 Socket.IO 이벤트 핸들러 (Day1 범위). */
 
 import {
+  gameRematchRequestSchema,
   gameStartRequestSchema,
   playerSetReadyRequestSchema,
   roomCreateRequestSchema,
@@ -24,6 +25,7 @@ const roomCreateLimiter = new TokenBucketLimiter(1, 1 / 60);
 const roomJoinLimiter = new TokenBucketLimiter(2, 2);
 const setReadyLimiter = new TokenBucketLimiter(2, 2);
 const gameStartLimiter = new TokenBucketLimiter(1, 1);
+const rematchLimiter = new TokenBucketLimiter(1, 1);
 const requestStateLimiter = new TokenBucketLimiter(1, 1 / 5);
 
 export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: RoomManager): void {
@@ -158,6 +160,34 @@ export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: Ro
     io.to(roomChannel(roomCode)).emit(
       "room:phaseChanged",
       toServerEvent(roomCode, state.revision, { from: "LOBBY", to: "PLAYING", endsAt: roundEndsAt }),
+    );
+    broadcastRoomState(io, rooms, roomCode);
+  });
+
+  socket.on("game:rematch", (req, ack) => {
+    if (!rematchLimiter.tryConsume(socket.id)) {
+      return ack(ackErr(req?.requestId ?? "unknown", "RATE_LIMITED", "too many game:rematch attempts", true));
+    }
+    const parsed = gameRematchRequestSchema.safeParse(req);
+    if (!parsed.success) {
+      return ack(ackErr(req?.requestId ?? "unknown", "INVALID_PAYLOAD", parsed.error.message, true));
+    }
+    const roomCode = socket.data.roomCode;
+    if (socket.data.role !== "HOST" || !roomCode) {
+      return ack(ackErr(parsed.data.requestId, "HOST_ONLY", "only the room host may request a rematch", false));
+    }
+    const room = rooms.getRoom(roomCode);
+    if (!room) {
+      return ack(ackErr(parsed.data.requestId, "ROOM_NOT_FOUND", "room no longer exists", false));
+    }
+
+    rooms.rematchRoom(room, Date.now());
+    const state = rooms.getPublicState(room);
+    ack(ackOk(parsed.data.requestId, { state }));
+
+    io.to(roomChannel(roomCode)).emit(
+      "room:phaseChanged",
+      toServerEvent(roomCode, state.revision, { from: "RESULT", to: "LOBBY", endsAt: null }),
     );
     broadcastRoomState(io, rooms, roomCode);
   });

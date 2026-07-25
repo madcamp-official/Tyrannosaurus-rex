@@ -4,10 +4,13 @@ import { randomUUID } from "node:crypto";
 import {
   BONE_IDS,
   CHARGING_DURATION_MS,
+  DECORATION_CATALOG,
+  DECORATION_VOTE_DURATION_MS,
   EXCAVATION_POINTS_PER_BONE,
   MAX_PLAYERS,
   MAX_PLAYERS_PER_TEAM,
   MIN_PLAYERS,
+  NAME_CANDIDATES,
   NICKNAME_MAX_LENGTH,
   NICKNAME_MIN_LENGTH,
   ROOM_CODE_LENGTH,
@@ -17,6 +20,7 @@ import {
   type AimUpdateInput,
   type BoneId,
   type CoreZone,
+  type DecorationCategory,
   type ExcavateInput,
   type PlayerId,
   type PublicPlayer,
@@ -26,6 +30,7 @@ import {
   type TeamState,
   type Transform2D,
 } from "@trex/shared";
+import { castVote, pickWinner, tallyVotes } from "../game/voting.js";
 import { colorForJoinIndex } from "./colors.js";
 import { applyExcavateInput, createExcavationState, makeBoneOrder, type ExcavationRoomState } from "../game/excavation.js";
 import {
@@ -82,6 +87,13 @@ export type RoomRecord = {
   aimState: Map<PlayerId, AimState>;
   /** 플레이어별 발사 쿨다운·shotId 중복 방지 상태 (§17.10). */
   shotTracking: Map<PlayerId, ShotTracking>;
+  /** §7 티꾸 투표. 팀·카테고리별 플레이어 투표와 확정 선택. */
+  decorationVotes: Record<TeamId, Record<DecorationCategory, Map<PlayerId, string>>>;
+  decorationSelections: Record<TeamId, Partial<Record<DecorationCategory, string>>>;
+  nameVotes: Record<TeamId, Map<PlayerId, string>>;
+  nameSelections: Record<TeamId, string | null>;
+  votingEndsAt: number | null;
+  votingFinalized: boolean;
 };
 
 /** 게임 시작·재경기 때마다 팀별 발굴·퍼즐·충전 상태를 초기값으로 되돌린다. id/playerIds는 건드리지 않는다. */
@@ -134,6 +146,26 @@ function makeEmptyTeamState(teamId: TeamId, now: number): TeamState {
   };
   resetTeamGameplayState(team, now);
   return team;
+}
+
+function makeVoteState(): Pick<
+  RoomRecord,
+  "decorationVotes" | "decorationSelections" | "nameVotes" | "nameSelections" | "votingEndsAt" | "votingFinalized"
+> {
+  const emptyDecorationVotes = (): Record<DecorationCategory, Map<PlayerId, string>> => ({
+    HAT: new Map(),
+    GLASSES: new Map(),
+    NECK: new Map(),
+    BACKGROUND: new Map(),
+  });
+  return {
+    decorationVotes: { A: emptyDecorationVotes(), B: emptyDecorationVotes() },
+    decorationSelections: { A: {}, B: {} },
+    nameVotes: { A: new Map(), B: new Map() },
+    nameSelections: { A: null, B: null },
+    votingEndsAt: null,
+    votingFinalized: false,
+  };
 }
 
 function isNicknameSafe(nickname: string): boolean {
@@ -223,6 +255,7 @@ export class RoomManager {
       puzzleLastMoveAt: { A: new Map(), B: new Map() },
       aimState: new Map(),
       shotTracking: new Map(),
+      ...makeVoteState(),
     };
     this.rooms.set(roomCode, room);
     return { room, joinUrl: this.joinUrlFor(roomCode) };
@@ -337,12 +370,31 @@ export class RoomManager {
     room.puzzleLastMoveAt = { A: new Map(), B: new Map() };
     room.aimState = new Map();
     room.shotTracking = new Map();
+    Object.assign(room, makeVoteState());
     for (const teamId of TEAM_IDS) {
       resetTeamGameplayState(room.state.teams[teamId], now);
     }
     this.touch(room);
     this.bumpRevision(room);
     return { seed, roundStartedAt: now, roundEndsAt: room.state.roundEndsAt };
+  }
+
+  /** §17.14, §21. 팀·닉네임·색상은 유지하고 게임 데이터만 초기화해 로비로 되돌린다. */
+  rematchRoom(room: RoomRecord, now: number): void {
+    room.state.roomPhase = "LOBBY";
+    room.state.roundStartedAt = null;
+    room.state.roundEndsAt = null;
+    room.state.winner = { teamId: null, reason: null };
+    for (const player of room.state.players) {
+      player.ready = false;
+      player.stats = { excavationInputs: 0, puzzleCorrect: 0, puzzleWrong: 0, shots: 0, hits: 0, coreHits: 0, energyContributed: 0 };
+    }
+    for (const teamId of TEAM_IDS) {
+      resetTeamGameplayState(room.state.teams[teamId], now);
+    }
+    Object.assign(room, makeVoteState());
+    this.touch(room);
+    this.bumpRevision(room);
   }
 
   /** 팀 발굴 판정을 적용하고 phase 전환이 필요하면 함께 처리한다. */
@@ -541,8 +593,62 @@ export class RoomManager {
   private finalizeRoundWinner(room: RoomRecord, teamId: TeamId | null, reason: NonNullable<RoomState["winner"]["reason"]>): void {
     room.state.roomPhase = "RESULT";
     room.state.winner = { teamId, reason };
+    // §7 "결과 화면에서 20초 동안 진행한다": 결과 확정과 동시에 티꾸 투표 창을 연다.
+    room.state.roomPhase = "DECORATION";
+    room.votingEndsAt = Date.now() + DECORATION_VOTE_DURATION_MS;
     this.touch(room);
     this.bumpRevision(room);
+  }
+
+  castDecorationVote(room: RoomRecord, teamId: TeamId, playerId: PlayerId, category: DecorationCategory, itemId: string): boolean {
+    if (room.state.roomPhase !== "DECORATION" || room.votingFinalized) return false;
+    const allowed = DECORATION_CATALOG[category].map((item) => item.id);
+    const ok = castVote(room.decorationVotes[teamId][category], playerId, itemId, allowed);
+    if (ok) this.touch(room);
+    return ok;
+  }
+
+  tallyDecorationVote(room: RoomRecord, teamId: TeamId, category: DecorationCategory) {
+    return tallyVotes(room.decorationVotes[teamId][category]);
+  }
+
+  castNameVote(room: RoomRecord, teamId: TeamId, playerId: PlayerId, candidateId: string): boolean {
+    if (room.state.roomPhase !== "DECORATION" || room.votingFinalized) return false;
+    const allowed = NAME_CANDIDATES.map((c) => c.id);
+    const ok = castVote(room.nameVotes[teamId], playerId, candidateId, allowed);
+    if (ok) this.touch(room);
+    return ok;
+  }
+
+  tallyNameVote(room: RoomRecord, teamId: TeamId) {
+    return tallyVotes(room.nameVotes[teamId]);
+  }
+
+  /** 투표 마감 시각이 지나면 팀별 카테고리·이름 선택을 확정한다. 두 번 실행되지 않는다. */
+  finalizeVotingIfDue(room: RoomRecord, now: number): boolean {
+    if (room.state.roomPhase !== "DECORATION" || room.votingFinalized) return false;
+    if (room.votingEndsAt === null || now < room.votingEndsAt) return false;
+
+    let randomCursor = 0;
+    for (const teamId of TEAM_IDS) {
+      const categories = Object.keys(DECORATION_CATALOG) as DecorationCategory[];
+      for (const category of categories) {
+        const counts = tallyVotes(room.decorationVotes[teamId][category]);
+        const allowed = DECORATION_CATALOG[category].map((item) => item.id);
+        const winner = pickWinner(counts, allowed, randomCursor);
+        randomCursor += 1;
+        if (winner) room.decorationSelections[teamId][category] = winner;
+      }
+      const nameCounts = tallyVotes(room.nameVotes[teamId]);
+      const nameAllowed = NAME_CANDIDATES.map((c) => c.id);
+      room.nameSelections[teamId] = pickWinner(nameCounts, nameAllowed, randomCursor);
+      randomCursor += 1;
+    }
+
+    room.votingFinalized = true;
+    this.touch(room);
+    this.bumpRevision(room);
+    return true;
   }
 
   setHostConnected(room: RoomRecord, connected: boolean): void {
