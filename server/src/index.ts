@@ -9,6 +9,7 @@ import { RoomManager } from "./rooms/RoomManager.js";
 import { registerRoomHandlers } from "./rooms/roomHandlers.js";
 import { registerExcavationHandlers } from "./rooms/excavationHandlers.js";
 import { registerPuzzleHandlers, sweepPuzzleClaims } from "./rooms/puzzleHandlers.js";
+import { registerAimHandlers } from "./rooms/aimHandlers.js";
 import type { InterServerEvents, SocketData } from "./rooms/socketData.js";
 
 const env = loadEnv();
@@ -85,6 +86,7 @@ io.on("connection", (socket) => {
   registerRoomHandlers(io, socket, rooms);
   registerExcavationHandlers(io, socket, rooms);
   registerPuzzleHandlers(io, socket, rooms);
+  registerAimHandlers(io, socket, rooms);
 });
 
 const idleSweepInterval = setInterval(() => {

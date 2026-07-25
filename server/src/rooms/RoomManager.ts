@@ -14,6 +14,7 @@ import {
   ROOM_CODE_MAX_GENERATION_ATTEMPTS,
   ROUND_DURATION_MS,
   TEAM_IDS,
+  type AimUpdateInput,
   type BoneId,
   type ExcavateInput,
   type PlayerId,
@@ -35,6 +36,7 @@ import {
   type PuzzleMoveResult,
   type PuzzlePlaceResult,
 } from "../game/puzzle.js";
+import { applyAimUpdate, type AimState } from "../game/aim.js";
 
 export type CreateRoomResult = { room: RoomRecord; joinUrl: string };
 export type JoinRoomError = "ROOM_NOT_FOUND" | "ROOM_ALREADY_STARTED" | "ROOM_FULL" | "NICKNAME_INVALID" | "NICKNAME_TAKEN";
@@ -57,6 +59,8 @@ export type RoomRecord = {
   chargingStartedAt: Record<TeamId, number | null>;
   /** puzzle:move 속도 제한 계산용 마지막 이동 시각 (boneId별). */
   puzzleLastMoveAt: Record<TeamId, Map<BoneId, number>>;
+  /** 플레이어별 최신 유효 조준 좌표 (§17.9). */
+  aimState: Map<PlayerId, AimState>;
 };
 
 /** 게임 시작·재경기 때마다 팀별 발굴·퍼즐·충전 상태를 초기값으로 되돌린다. id/playerIds는 건드리지 않는다. */
@@ -196,6 +200,7 @@ export class RoomManager {
       },
       chargingStartedAt: { A: null, B: null },
       puzzleLastMoveAt: { A: new Map(), B: new Map() },
+      aimState: new Map(),
     };
     this.rooms.set(roomCode, room);
     return { room, joinUrl: this.joinUrlFor(roomCode) };
@@ -308,6 +313,7 @@ export class RoomManager {
     };
     room.chargingStartedAt = { A: null, B: null };
     room.puzzleLastMoveAt = { A: new Map(), B: new Map() };
+    room.aimState = new Map();
     for (const teamId of TEAM_IDS) {
       resetTeamGameplayState(room.state.teams[teamId], now);
     }
@@ -389,6 +395,19 @@ export class RoomManager {
       this.bumpRevision(room);
     }
     return released;
+  }
+
+  /** §17.9. CHARGING/PURIFICATION 중에만 조준을 인정한다. 고빈도 이벤트라 revision을 올리지 않는다. */
+  applyAim(room: RoomRecord, teamId: TeamId, playerId: PlayerId, input: AimUpdateInput, now: number): boolean {
+    const phase = room.state.teams[teamId].phase;
+    if (phase !== "CHARGING" && phase !== "PURIFICATION") return false;
+    const accepted = applyAimUpdate(room, playerId, input, now);
+    if (accepted) this.touch(room);
+    return accepted;
+  }
+
+  getAimState(room: RoomRecord, playerId: PlayerId): AimState | undefined {
+    return room.aimState.get(playerId);
   }
 
   setHostConnected(room: RoomRecord, connected: boolean): void {
