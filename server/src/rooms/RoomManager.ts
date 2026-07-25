@@ -3,6 +3,7 @@
 import { randomUUID } from "node:crypto";
 import {
   BONE_IDS,
+  CHARGING_DURATION_MS,
   EXCAVATION_POINTS_PER_BONE,
   MAX_PLAYERS,
   MAX_PLAYERS_PER_TEAM,
@@ -21,9 +22,19 @@ import {
   type RoomState,
   type TeamId,
   type TeamState,
+  type Transform2D,
 } from "@trex/shared";
 import { colorForJoinIndex } from "./colors.js";
 import { applyExcavateInput, createExcavationState, makeBoneOrder, type ExcavationRoomState } from "../game/excavation.js";
+import {
+  claimPiece,
+  movePiece,
+  placePiece,
+  releaseExpiredClaims,
+  type PuzzleClaimResult,
+  type PuzzleMoveResult,
+  type PuzzlePlaceResult,
+} from "../game/puzzle.js";
 
 export type CreateRoomResult = { room: RoomRecord; joinUrl: string };
 export type JoinRoomError = "ROOM_NOT_FOUND" | "ROOM_ALREADY_STARTED" | "ROOM_FULL" | "NICKNAME_INVALID" | "NICKNAME_TAKEN";
@@ -44,6 +55,8 @@ export type RoomRecord = {
   phaseDurations: Record<TeamId, PhaseDurations>;
   /** CHARGING에 처음 진입한 시각. PURIFICATION을 거쳐도 리셋하지 않아 chargingMs 계산에 쓴다. */
   chargingStartedAt: Record<TeamId, number | null>;
+  /** puzzle:move 속도 제한 계산용 마지막 이동 시각 (boneId별). */
+  puzzleLastMoveAt: Record<TeamId, Map<BoneId, number>>;
 };
 
 /** 게임 시작·재경기 때마다 팀별 발굴·퍼즐·충전 상태를 초기값으로 되돌린다. id/playerIds는 건드리지 않는다. */
@@ -182,6 +195,7 @@ export class RoomManager {
         B: { excavationMs: null, assemblyMs: null, chargingMs: null },
       },
       chargingStartedAt: { A: null, B: null },
+      puzzleLastMoveAt: { A: new Map(), B: new Map() },
     };
     this.rooms.set(roomCode, room);
     return { room, joinUrl: this.joinUrlFor(roomCode) };
@@ -293,6 +307,7 @@ export class RoomManager {
       B: { excavationMs: null, assemblyMs: null, chargingMs: null },
     };
     room.chargingStartedAt = { A: null, B: null };
+    room.puzzleLastMoveAt = { A: new Map(), B: new Map() };
     for (const teamId of TEAM_IDS) {
       resetTeamGameplayState(room.state.teams[teamId], now);
     }
@@ -316,6 +331,64 @@ export class RoomManager {
     }
     this.bumpRevision(room);
     return result;
+  }
+
+  applyPuzzleClaim(room: RoomRecord, teamId: TeamId, playerId: PlayerId, boneId: BoneId, now: number): PuzzleClaimResult {
+    const result = claimPiece(room, teamId, playerId, boneId, now);
+    if (result.ok) {
+      this.touch(room);
+      this.bumpRevision(room);
+    }
+    return result;
+  }
+
+  applyPuzzleMove(
+    room: RoomRecord,
+    teamId: TeamId,
+    playerId: PlayerId,
+    boneId: BoneId,
+    claimToken: string,
+    transform: Transform2D,
+    now: number,
+  ): PuzzleMoveResult {
+    const result = movePiece(room, teamId, playerId, boneId, claimToken, transform, now);
+    if (result.ok) this.touch(room);
+    return result;
+  }
+
+  applyPuzzlePlace(
+    room: RoomRecord,
+    teamId: TeamId,
+    playerId: PlayerId,
+    boneId: BoneId,
+    claimToken: string,
+    transform: Transform2D,
+    now: number,
+  ): PuzzlePlaceResult {
+    const result = placePiece(room, teamId, playerId, boneId, claimToken, transform, now);
+    if (!result.ok) return result;
+
+    this.touch(room);
+    if (result.phaseCompleted) {
+      const team = room.state.teams[teamId];
+      room.phaseDurations[teamId].assemblyMs = now - team.phaseStartedAt;
+      team.phase = "CHARGING";
+      team.phaseStartedAt = now;
+      team.phaseEndsAt = now + CHARGING_DURATION_MS;
+      room.chargingStartedAt[teamId] = now;
+    }
+    this.bumpRevision(room);
+    return result;
+  }
+
+  /** 5초 무입력 조작권 만료를 능동적으로 정리한다 (배경 스윕용). */
+  releaseExpiredPuzzleClaims(room: RoomRecord, teamId: TeamId, now: number): BoneId[] {
+    const released = releaseExpiredClaims(room, teamId, now);
+    if (released.length > 0) {
+      this.touch(room);
+      this.bumpRevision(room);
+    }
+    return released;
   }
 
   setHostConnected(room: RoomRecord, connected: boolean): void {
@@ -363,6 +436,10 @@ export class RoomManager {
 
   private bumpRevision(room: RoomRecord): void {
     room.state.revision += 1;
+  }
+
+  listRoomCodes(): RoomCode[] {
+    return Array.from(this.rooms.keys());
   }
 
   /** §22.4 ROOM_IDLE_TTL_MS. 로비에서 오래 방치된 방을 정리한다. */

@@ -21,8 +21,11 @@ export const PUZZLE_MAX_CONCURRENT_CLAIMS_PER_TEAM = 2;
 export const PUZZLE_CLAIM_TTL_MS = 5_000;
 export const PUZZLE_MOVE_MAX_HZ = 20;
 export const PUZZLE_WRONG_PLACEMENT_LOCK_MS = 2_000;
+// 조각 자체의 픽셀 크기가 데이터 모델에 없어, 0~1 정규화 캔버스에 대한 비율로 직접 적용한다.
 export const PUZZLE_POSITION_TOLERANCE_RATIO = 0.12;
 export const PUZZLE_ROTATION_TOLERANCE_DEG = 15;
+export const PUZZLE_MAX_POSITION_SPEED_PER_SECOND = 1.5; // 화면 너비 배수/초
+export const PUZZLE_MAX_ROTATION_SPEED_PER_SECOND = 360; // 도/초
 
 export const CHARGING_DURATION_MS = 90_000;
 export const CHARGING_TREX_TRANSFORM_HZ = 10;
