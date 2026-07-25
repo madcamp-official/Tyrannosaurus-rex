@@ -178,7 +178,7 @@ function emitTransitionEvents(io: AppServer, rooms: RoomManager, roomCode: strin
         stability: team.charging.stability,
       }),
     );
-  } else if (update.transition === "TO_REVIVED_ZOMBIE") {
+  } else if (update.transition === "TO_REVIVED_YRANNO") {
     io.to(channel).emit(
       "team:phaseChanged",
       toServerEvent(roomCode, room.state.revision, { teamId: update.teamId, from: "PURIFICATION", to: "REVIVED", endsAt: null }),

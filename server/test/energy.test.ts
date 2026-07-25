@@ -118,7 +118,7 @@ describe("energy:fire", () => {
 });
 
 describe("charging tick transitions", () => {
-  it("turns a team into a zombie in PURIFICATION once the charging timer expires", () => {
+  it("turns a team into a yranno in PURIFICATION once the charging timer expires", () => {
     const { rooms, room } = setupChargingRoom();
     const now = Date.now();
     room.state.teams.A.phaseEndsAt = now - 1;
@@ -127,31 +127,31 @@ describe("charging tick transitions", () => {
     const teamAUpdate = updates.find((u) => u.teamId === "A");
     expect(teamAUpdate?.transition).toBe("TO_PURIFICATION");
     expect(room.state.teams.A.phase).toBe("PURIFICATION");
-    expect(room.state.teams.A.charging.form).toBe("ZOMBIE");
+    expect(room.state.teams.A.charging.form).toBe("YRANNO");
     expect(room.state.teams.A.charging.purificationEndsAt).not.toBeNull();
   });
 
-  it("locks in as a permanent zombie if purification times out without reaching stability target", () => {
+  it("locks in as a permanent yranno if purification times out without reaching stability target", () => {
     const { rooms, room } = setupChargingRoom();
     room.state.teams.A.phase = "PURIFICATION";
-    room.state.teams.A.charging.form = "ZOMBIE";
+    room.state.teams.A.charging.form = "YRANNO";
     room.state.teams.A.charging.stability = STABILITY_TARGET - 1;
     const now = Date.now();
     room.state.teams.A.charging.purificationEndsAt = now - 1;
 
     const { updates } = rooms.tickCharging(room, now);
     const teamAUpdate = updates.find((u) => u.teamId === "A");
-    expect(teamAUpdate?.transition).toBe("TO_REVIVED_ZOMBIE");
+    expect(teamAUpdate?.transition).toBe("TO_REVIVED_YRANNO");
     expect(room.state.teams.A.phase).toBe("REVIVED");
-    expect(room.state.teams.A.charging.form).toBe("ZOMBIE");
+    expect(room.state.teams.A.charging.form).toBe("YRANNO");
   });
 
-  it("finalizes as a DRAW once both teams end up REVIVED as zombies", () => {
+  it("finalizes as a DRAW once both teams end up REVIVED as yrannos", () => {
     const { rooms, room } = setupChargingRoom();
     room.state.teams.A.phase = "REVIVED";
-    room.state.teams.A.charging.form = "ZOMBIE";
+    room.state.teams.A.charging.form = "YRANNO";
     room.state.teams.B.phase = "PURIFICATION";
-    room.state.teams.B.charging.form = "ZOMBIE";
+    room.state.teams.B.charging.form = "YRANNO";
     room.state.teams.B.charging.stability = 10;
     const now = Date.now();
     room.state.teams.B.charging.purificationEndsAt = now - 1;

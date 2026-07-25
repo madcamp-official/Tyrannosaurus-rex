@@ -1,4 +1,4 @@
-/** Plan.md §5.1 에너지 사격 화면. 티라노 위치, 크로스헤어, 에너지/안정도, 좀비 경고. */
+/** Plan.md §5.1 에너지 사격 화면. 티라노 위치, 크로스헤어, 에너지/안정도, 와이라노 경고. */
 
 import { ENERGY_TARGET, STABILITY_TARGET, type NormalizedPoint, type PublicPlayer, type TeamState } from "@trex/shared";
 
@@ -20,7 +20,7 @@ export function ChargingTeamPanel({
 }): JSX.Element {
   return (
     <div className="charging-view">
-      {team.phase === "PURIFICATION" && <p className="charging-view__warning">⚠️ 좀비 위험! 정화 사격 중…</p>}
+      {team.phase === "PURIFICATION" && <p className="charging-view__warning">⚠️ 와이라노 위험! 정화 사격 중…</p>}
 
       <div className="stat-bar">
         <span>부활 에너지 {Math.round(team.charging.energy)}</span>

@@ -65,7 +65,7 @@ export type ChargingTickUpdate = {
   core: CoreZone;
   nextChangeAt: number;
   coreChanged: boolean;
-  transition: "TO_PURIFICATION" | "TO_REVIVED_ZOMBIE" | null;
+  transition: "TO_PURIFICATION" | "TO_REVIVED_YRANNO" | null;
 };
 
 export type RoomRecord = {
@@ -485,7 +485,7 @@ export class RoomManager {
     return room.aimState.get(playerId);
   }
 
-  /** §17.10. 사격 판정 + 정상/좀비 도달 시 라운드 승패까지 확정한다. */
+  /** §17.10. 사격 판정 + 정상/와이라노 도달 시 라운드 승패까지 확정한다. */
   fireEnergy(
     room: RoomRecord,
     teamId: TeamId,
@@ -532,7 +532,7 @@ export class RoomManager {
       if (transition) {
         this.touch(room);
         this.bumpRevision(room);
-        if (transition === "TO_REVIVED_ZOMBIE") {
+        if (transition === "TO_REVIVED_YRANNO") {
           room.phaseDurations[teamId].chargingMs = room.chargingStartedAt[teamId] !== null ? now - room.chargingStartedAt[teamId]! : null;
           if (this.checkRoundCompletion(room, now)) roundFinalized = true;
         }
@@ -558,7 +558,7 @@ export class RoomManager {
     }
   }
 
-  /** 정상 부활, 양 팀 모두 좀비로 종료, 라운드 시간 초과 중 하나라도 해당되면 승패를 확정한다. */
+  /** 정상 부활, 양 팀 모두 와이라노로 종료, 라운드 시간 초과 중 하나라도 해당되면 승패를 확정한다. */
   checkRoundCompletion(room: RoomRecord, now: number): boolean {
     if (room.state.roomPhase !== "PLAYING") return false;
 
@@ -572,7 +572,7 @@ export class RoomManager {
 
     const bothRevived = TEAM_IDS.every((teamId) => room.state.teams[teamId].phase === "REVIVED");
     if (bothRevived) {
-      // 여기 도달했다는 것은 둘 다 정상(NORMAL)이 아니라 좀비로 끝났다는 뜻이다 (정상은 위에서 즉시 처리됨).
+      // 여기 도달했다는 것은 둘 다 정상(NORMAL)이 아니라 와이라노로 끝났다는 뜻이다 (정상은 위에서 즉시 처리됨).
       this.finalizeRoundWinner(room, null, "DRAW");
       return true;
     }

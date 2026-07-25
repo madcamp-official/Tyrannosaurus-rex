@@ -44,7 +44,7 @@ function TeamPhaseContent({
     }
     case "REVIVED":
       return (
-        <p className="phase-placeholder">{team.charging.form === "NORMAL" ? "🦖 정상 부활 완료!" : "🧟 좀비 상태로 종료됐어요."} 결과를 기다리는 중…</p>
+        <p className="phase-placeholder">{team.charging.form === "NORMAL" ? "🦖 정상 부활 완료!" : "🦖 와이라노가 되어버렸어요."} 결과를 기다리는 중…</p>
       );
     default:
       return <p className="phase-placeholder">대기 중…</p>;

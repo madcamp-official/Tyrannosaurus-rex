@@ -119,7 +119,7 @@ export function MobileJoin(): JSX.Element {
         {team.phase === "EXCAVATION" && socket && <ExcavationControls socket={socket} />}
         {team.phase === "ASSEMBLY" && socket && <PuzzleControls socket={socket} team={team} />}
         {(team.phase === "CHARGING" || team.phase === "PURIFICATION") && socket && <AimControls socket={socket} />}
-        {team.phase === "REVIVED" && <p>{team.charging.form === "NORMAL" ? "🦖 부활 완료!" : "🧟 좀비가 되어버렸어요."} 데스크탑 화면을 확인하세요.</p>}
+        {team.phase === "REVIVED" && <p>{team.charging.form === "NORMAL" ? "🦖 부활 완료!" : "🦖 와이라노가 되어버렸어요."} 데스크탑 화면을 확인하세요.</p>}
       </main>
     );
   }

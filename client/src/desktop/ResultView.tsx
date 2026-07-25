@@ -117,7 +117,7 @@ export function ResultView({
               <h3>
                 {teamId}팀 {finalNames[teamId] ? `— ${finalNames[teamId]}` : ""}
               </h3>
-              <p>{teamResult?.form === "ZOMBIE" ? "🧟 좀비 티라노" : "🦖 정상 부활"}</p>
+              <p>{teamResult?.form === "YRANNO" ? "🦖 와이라노..." : "🦖 정상 부활"}</p>
               <ul>
                 <li>발굴 {formatMs(teamResult?.excavationMs ?? null)}</li>
                 <li>조립 {formatMs(teamResult?.assemblyMs ?? null)}</li>

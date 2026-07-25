@@ -1,4 +1,4 @@
-/** Plan.md §6.3, §17.10, §3. 서버 권위 사격 판정과 정상·좀비·정화 상태 전환. */
+/** Plan.md §6.3, §17.10, §3. 서버 권위 사격 판정과 정상·와이라노·정화 상태 전환. */
 
 import {
   AIM_STALE_MS,
@@ -34,7 +34,7 @@ export type EnergyFireOutcome = {
   teamPhaseAfter: TeamPhase;
   aimPoint: { x: number; y: number } | null;
   hitPoint: { x: number; y: number } | null;
-  /** REVIVED에 새로 도달했다면(정상 또는 좀비 확정) true. 룸 승패 확정 처리를 트리거한다. */
+  /** REVIVED에 새로 도달했다면(정상 또는 와이라노 확정) true. 룸 승패 확정 처리를 트리거한다. */
   justReachedRevived: boolean;
 };
 
@@ -130,26 +130,26 @@ export function applyEnergyFire(
   };
 }
 
-/** CHARGING 제한 시간(90초)이 지났는데 에너지를 못 채웠으면 좀비로 정화 단계에 들어간다. */
+/** CHARGING 제한 시간(90초)이 지났는데 에너지를 못 채웠으면 와이라노로 정화 단계에 들어간다. */
 export function expireChargingIfNeeded(room: RoomRecord, teamId: TeamId, now: number): "TO_PURIFICATION" | null {
   const team = room.state.teams[teamId];
   if (team.phase !== "CHARGING") return null;
   if (team.phaseEndsAt === null || now < team.phaseEndsAt) return null;
 
   team.phase = "PURIFICATION";
-  team.charging.form = "ZOMBIE";
+  team.charging.form = "YRANNO";
   team.charging.purificationEndsAt = now + PURIFICATION_DURATION_MS;
   return "TO_PURIFICATION";
 }
 
-/** 정화 제한 시간(10초)이 지나도록 안정도를 못 채우면 좀비인 채로 라운드가 끝난다. */
-export function expirePurificationIfNeeded(room: RoomRecord, teamId: TeamId, now: number): "TO_REVIVED_ZOMBIE" | null {
+/** 정화 제한 시간(10초)이 지나도록 안정도를 못 채우면 와이라노인 채로 라운드가 끝난다. */
+export function expirePurificationIfNeeded(room: RoomRecord, teamId: TeamId, now: number): "TO_REVIVED_YRANNO" | null {
   const team = room.state.teams[teamId];
   if (team.phase !== "PURIFICATION") return null;
   if (team.charging.purificationEndsAt === null || now < team.charging.purificationEndsAt) return null;
 
   team.phase = "REVIVED";
-  team.charging.form = "ZOMBIE";
+  team.charging.form = "YRANNO";
   team.charging.purificationEndsAt = null;
-  return "TO_REVIVED_ZOMBIE";
+  return "TO_REVIVED_YRANNO";
 }

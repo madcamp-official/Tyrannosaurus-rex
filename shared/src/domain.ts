@@ -45,10 +45,10 @@ export const TEAM_IDS: readonly TeamId[] = ["A", "B"];
 
 export type SensorPermission = "UNKNOWN" | "GRANTED" | "DENIED" | "UNSUPPORTED";
 export type AimMode = "GYRO" | "TOUCHPAD";
-export type RevivalForm = "NONE" | "NORMAL" | "ZOMBIE";
+export type RevivalForm = "NONE" | "NORMAL" | "YRANNO";
 export type HitZone = "HEART" | "SKULL" | "SPINE" | "BONE" | "JOINT_OUTSIDE";
 export type CoreZone = "HEART" | "SKULL" | "SPINE";
-export type PoseId = "IDLE" | "WALK" | "ROAR" | "HIT" | "REVIVE" | "ZOMBIE";
+export type PoseId = "IDLE" | "WALK" | "ROAR" | "HIT" | "REVIVE";
 export type Facing = "LEFT" | "RIGHT";
 
 export type RoomPhase = "LOBBY" | "PLAYING" | "RESULT" | "DECORATION";
