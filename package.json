@@ -18,7 +18,8 @@
     "typecheck": "npm run build -w shared && npm run typecheck -w server && npm run typecheck -w client",
     "pretest": "npm run build -w shared",
     "test": "npm run test -w shared --if-present && npm run test -w server --if-present && npm run test -w client --if-present",
-    "simulate": "npm run simulate -w server --"
+    "simulate": "npm run simulate -w server --",
+    "autoplay": "npm run autoplay -w server --"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
