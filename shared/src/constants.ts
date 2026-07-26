@@ -44,7 +44,7 @@ export const STABILITY_TARGET = 100;
 export const CORE_HIT_RADIUS = 0.05;
 export const BONE_HIT_RADIUS = 0.18;
 export const JOINT_HIT_RADIUS = 0.28;
-export const CORE_ROTATION_INTERVAL_MS = 5_000;
+export const CORE_ROTATION_INTERVAL_MS = 15_000;
 export const TREX_MOVE_AMPLITUDE = 0.28; // 중심(0.5)에서 좌우로 흔들리는 폭
 export const TREX_MOVE_PERIOD_MS = 4_000;
 
