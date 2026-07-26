@@ -6,13 +6,13 @@ import type { Ack, PlayerId, RoomJoinResponse, RoomState, TeamId } from "@trex/s
 import { connectSocket, type AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
 import { ExcavationControls } from "./ExcavationControls";
-import { PuzzleControls } from "./PuzzleControls";
+import { DinoRunControls } from "./DinoRunControls";
 import { AimControls } from "./AimControls";
 import { DecorationVote } from "./DecorationVote";
 import {
-  applyPuzzleClaimChanged,
-  applyPuzzlePieceMoved,
-  applyPuzzlePiecePlaced,
+  applyDinoFinished,
+  applyDinoProgress,
+  applyDinoStarted,
   applyTeamPhaseChanged,
 } from "../roomStateReducer";
 
@@ -46,9 +46,9 @@ export function MobileJoin(): JSX.Element {
     socketRef.current = socket;
     socket.on("room:state", (evt) => setRoomState(evt.data));
     socket.on("team:phaseChanged", (evt) => setRoomState((prev) => (prev ? applyTeamPhaseChanged(prev, evt.data) : prev)));
-    socket.on("puzzle:claimChanged", (evt) => setRoomState((prev) => (prev ? applyPuzzleClaimChanged(prev, evt.data) : prev)));
-    socket.on("puzzle:pieceMoved", (evt) => setRoomState((prev) => (prev ? applyPuzzlePieceMoved(prev, evt.data) : prev)));
-    socket.on("puzzle:piecePlaced", (evt) => setRoomState((prev) => (prev ? applyPuzzlePiecePlaced(prev, evt.data) : prev)));
+    socket.on("dino:started", (evt) => setRoomState((prev) => (prev ? applyDinoStarted(prev, evt.data) : prev)));
+    socket.on("dino:progress", (evt) => setRoomState((prev) => (prev ? applyDinoProgress(prev, evt.data) : prev)));
+    socket.on("dino:finished", (evt) => setRoomState((prev) => (prev ? applyDinoFinished(prev, evt.data) : prev)));
 
     socket.on("connect", () => {
       socket.emit(
@@ -117,7 +117,7 @@ export function MobileJoin(): JSX.Element {
     return (
       <main className="mobile-join">
         {team.phase === "EXCAVATION" && socket && <ExcavationControls socket={socket} />}
-        {team.phase === "ASSEMBLY" && socket && <PuzzleControls socket={socket} team={team} />}
+        {team.phase === "ASSEMBLY" && socket && <DinoRunControls socket={socket} team={team} />}
         {team.phase === "CHARGING" && socket && <AimControls socket={socket} />}
         {team.phase === "REVIVED" && <p>{team.charging.form === "NORMAL" ? "🦖 부활 완료!" : "🦖 와이라노가 되어버렸어요."} 데스크탑 화면을 확인하세요.</p>}
       </main>

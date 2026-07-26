@@ -1,10 +1,10 @@
 /**
  * Plan.md §0.3 "고빈도 입력과 저빈도 전체 상태를 별도 이벤트로 나눈다".
- * room:state는 구조 변화(팀 배정, phase 전환)에만 오고, 발굴·퍼즐처럼 잦은 갱신은
+ * room:state는 구조 변화(팀 배정, phase 전환)에만 오고, 발굴·다이노런처럼 잦은 갱신은
  * 전용 이벤트로 온다. 데스크탑·모바일 모두 이 이벤트들을 로컬 RoomState에 합성해서 쓴다.
  */
 
-import type { BoneId, CoreZone, PlayerId, RevivalForm, RoomState, TeamId, Transform2D } from "@trex/shared";
+import type { BoneId, CoreZone, DinoRunGrade, PlayerId, RevivalForm, RoomState, TeamId } from "@trex/shared";
 
 export function applyExcavationProgress(
   state: RoomState,
@@ -41,10 +41,6 @@ export function applyBoneFound(state: RoomState, data: { teamId: TeamId; boneId:
           ...team.excavation,
           discoveredBoneIds: [...team.excavation.discoveredBoneIds, data.boneId],
         },
-        puzzle: {
-          ...team.puzzle,
-          pieces: team.puzzle.pieces.map((piece) => (piece.boneId === data.boneId ? { ...piece, discovered: true } : piece)),
-        },
       },
     },
   };
@@ -76,9 +72,9 @@ export function applyTeamPhaseChanged(
   };
 }
 
-export function applyPuzzleClaimChanged(
+export function applyDinoStarted(
   state: RoomState,
-  data: { teamId: TeamId; boneId: BoneId; claimedBy: PlayerId | null; expiresAt: number | null },
+  data: { teamId: TeamId; obstacleOffsetsMs: number[]; startedAt: number; endsAt: number },
 ): RoomState {
   const team = state.teams[data.teamId];
   return {
@@ -87,20 +83,40 @@ export function applyPuzzleClaimChanged(
       ...state.teams,
       [data.teamId]: {
         ...team,
-        puzzle: {
-          ...team.puzzle,
-          pieces: team.puzzle.pieces.map((piece) =>
-            piece.boneId === data.boneId ? { ...piece, claimedBy: data.claimedBy, claimExpiresAt: data.expiresAt } : piece,
-          ),
+        phase: "ASSEMBLY" as const,
+        phaseStartedAt: data.startedAt,
+        phaseEndsAt: data.endsAt,
+        dinoRun: { ...team.dinoRun, obstacleOffsetsMs: data.obstacleOffsetsMs },
+      },
+    },
+  };
+}
+
+export function applyDinoProgress(
+  state: RoomState,
+  data: { teamId: TeamId; playerId: PlayerId; obstacleIndex: number; clearedCount: number },
+): RoomState {
+  const team = state.teams[data.teamId];
+  const prev = team.dinoRun.clearedByPlayer[data.playerId] ?? [];
+  if (prev.includes(data.obstacleIndex)) return state;
+  return {
+    ...state,
+    teams: {
+      ...state.teams,
+      [data.teamId]: {
+        ...team,
+        dinoRun: {
+          ...team.dinoRun,
+          clearedByPlayer: { ...team.dinoRun.clearedByPlayer, [data.playerId]: [...prev, data.obstacleIndex] },
         },
       },
     },
   };
 }
 
-export function applyPuzzlePieceMoved(
+export function applyDinoFinished(
   state: RoomState,
-  data: { teamId: TeamId; boneId: BoneId; transform: Transform2D },
+  data: { teamId: TeamId; performance: number; grade: DinoRunGrade; startStability: number },
 ): RoomState {
   const team = state.teams[data.teamId];
   return {
@@ -109,34 +125,8 @@ export function applyPuzzlePieceMoved(
       ...state.teams,
       [data.teamId]: {
         ...team,
-        puzzle: {
-          ...team.puzzle,
-          pieces: team.puzzle.pieces.map((piece) => (piece.boneId === data.boneId ? { ...piece, transform: data.transform } : piece)),
-        },
-      },
-    },
-  };
-}
-
-export function applyPuzzlePiecePlaced(
-  state: RoomState,
-  data: { teamId: TeamId; boneId: BoneId; correct: boolean; fixedTransform?: Transform2D },
-): RoomState {
-  const team = state.teams[data.teamId];
-  const nextPieces = team.puzzle.pieces.map((piece) => {
-    if (piece.boneId !== data.boneId) return piece;
-    if (data.correct) {
-      return { ...piece, fixed: true, transform: data.fixedTransform ?? piece.transform, claimedBy: null, claimToken: null, claimExpiresAt: null };
-    }
-    return { ...piece, claimedBy: null, claimToken: null, claimExpiresAt: null };
-  });
-  return {
-    ...state,
-    teams: {
-      ...state.teams,
-      [data.teamId]: {
-        ...team,
-        puzzle: { ...team.puzzle, pieces: nextPieces, fixedCount: data.correct ? team.puzzle.fixedCount + 1 : team.puzzle.fixedCount },
+        dinoRun: { ...team.dinoRun, performance: data.performance, grade: data.grade },
+        charging: { ...team.charging, stability: data.startStability },
       },
     },
   };

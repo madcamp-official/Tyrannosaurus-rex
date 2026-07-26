@@ -8,7 +8,7 @@ import { loadEnv } from "./env.js";
 import { RoomManager } from "./rooms/RoomManager.js";
 import { registerRoomHandlers } from "./rooms/roomHandlers.js";
 import { registerExcavationHandlers } from "./rooms/excavationHandlers.js";
-import { registerPuzzleHandlers, sweepPuzzleClaims } from "./rooms/puzzleHandlers.js";
+import { registerDinoHandlers, tickRoomDinoRun } from "./rooms/dinoHandlers.js";
 import { registerAimHandlers } from "./rooms/aimHandlers.js";
 import { registerEnergyHandlers, tickRoomCharging } from "./rooms/energyHandlers.js";
 import { registerVotingHandlers, finalizeVotingTick } from "./rooms/votingHandlers.js";
@@ -44,6 +44,25 @@ app.get("/api/version", (_req, res) => {
     gitCommit: process.env.GIT_COMMIT ?? "unknown",
     godotAssetVersion: env.GODOT_ASSET_VERSION,
   });
+});
+
+// autoplay 봇이 방 코드를 손으로 옮겨 적지 않고 열린 로비를 찾을 수 있게 한다.
+// 방 코드는 어차피 4자리라 보안 경계가 아니지만, production에서는 노출하지 않는다.
+app.get("/api/debug/rooms", (_req, res) => {
+  if (env.NODE_ENV === "production") {
+    return res.status(404).json({ error: { code: "NOT_FOUND", message: "Endpoint not found" } });
+  }
+  const roomList = rooms.listRoomCodes().map((code) => {
+    const room = rooms.getRoom(code)!;
+    return {
+      code,
+      roomPhase: room.state.roomPhase,
+      hostConnected: room.state.hostConnected,
+      playerCount: room.state.players.length,
+      createdAt: room.state.createdAt,
+    };
+  });
+  res.status(200).json({ rooms: roomList });
 });
 
 app.use((req, res) => {
@@ -87,7 +106,7 @@ const rooms = new RoomManager(env.PUBLIC_JOIN_ORIGIN);
 io.on("connection", (socket) => {
   registerRoomHandlers(io, socket, rooms);
   registerExcavationHandlers(io, socket, rooms);
-  registerPuzzleHandlers(io, socket, rooms);
+  registerDinoHandlers(io, socket, rooms);
   registerAimHandlers(io, socket, rooms);
   registerEnergyHandlers(io, socket, rooms);
   registerVotingHandlers(io, socket, rooms);
@@ -98,13 +117,11 @@ const idleSweepInterval = setInterval(() => {
 }, 60_000);
 idleSweepInterval.unref();
 
-const claimSweepInterval = setInterval(() => {
-  for (const roomCode of rooms.listRoomCodes()) sweepPuzzleClaims(io, rooms, roomCode);
-}, 1_000);
-claimSweepInterval.unref();
-
 const chargingTickInterval = setInterval(() => {
-  for (const roomCode of rooms.listRoomCodes()) tickRoomCharging(io, rooms, roomCode);
+  for (const roomCode of rooms.listRoomCodes()) {
+    tickRoomDinoRun(io, rooms, roomCode);
+    tickRoomCharging(io, rooms, roomCode);
+  }
 }, 100);
 chargingTickInterval.unref();
 
@@ -121,7 +138,6 @@ httpServer.listen(env.SERVER_PORT, () => {
 function shutdown(): void {
   shuttingDown = true;
   clearInterval(idleSweepInterval);
-  clearInterval(claimSweepInterval);
   clearInterval(chargingTickInterval);
   clearInterval(votingTickInterval);
   io.close();

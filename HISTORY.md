@@ -244,3 +244,27 @@ Godot 무대를 `position:fixed` 전체 화면 배경으로 깔고 방 코드·Q
 - `npm run simulate -- --players 2`: 방 생성→입장→시작 정상
 - typecheck/테스트(46개) 통과. 브라우저 육안 확인은 사용자 진행 중.
 - Godot이 처음 열리며 생성한 `.uid` 사이드카 7개도 커밋(4.4+ 권장).
+
+## 2026-07-26 — 골격 조립을 30초 다이노런으로 교체
+
+퍼즐 드래그 조립(claim/move/place)을 전면 제거하고, 발굴이 끝나면 팀원 전원이
+동시에 개인 휴대폰에서 30초 다이노런을 달리는 방식으로 교체했다. 팀 클리어율로
+조립 형태를 평가한다(Plan.md §2.3, §6.2 재작성).
+
+- **서버 권위 판정**: 장애물 12개 스케줄을 라운드 시드로 생성해 양 팀 동일.
+  `dino:jump`는 서버 수신 시각 기준 ±450ms 창 판정, 플레이어당 장애물 1회.
+  30초 종료는 100ms 배경 틱이 처리하고 등급(완벽/양호/엉성/누더기)과
+  충전 시작 안정도(40+60×클리어율)를 확정한 뒤 CHARGING으로 전환한다.
+- **shared**: `TeamState.puzzle` → `dinoRun`, `PlayerStats.puzzleCorrect/Wrong` →
+  `dinoCleared`, 퍼즐 이벤트 3종 → `dino:jump`/`dino:started`/`dino:progress`/
+  `dino:finished`, PIECE_* 오류 코드 제거.
+- **클라이언트**: 모바일 `DinoRunControls`(탭 점프 러너, 장애물 위치는 서버
+  오프셋 역산 연출), 데스크탑 `DinoRunTeamPanel`(카운트다운·팀원별 클리어).
+  `dino:finished` 때 Godot에 13조각 전부 fixed로 `PUZZLE_STATE`를 보내 완성
+  스냅 연출 — TeamStage.gd는 수정 없이 호환된다.
+- **검증**: 다이노런 단위 테스트 6종(스케줄 결정론, 창 판정, 중복 거부,
+  30초 평가·안정도 스케일, 조기 종료 없음) 포함 전체 44개 통과. autoplay
+  봇도 다이노런 점프로 교체해 headless 완주(발굴→12/12 클리어→PERFECT→
+  정상 부활 승리) 확인.
+- 미검증: 실기기 모바일에서의 러너 체감(연출은 클라 시계 기준이라 서버와
+  수십 ms 어긋날 수 있음 — 판정은 서버 기준이라 공정성 문제는 없음).

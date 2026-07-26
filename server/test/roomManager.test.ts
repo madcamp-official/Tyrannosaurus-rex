@@ -41,17 +41,6 @@ describe("RoomManager", () => {
     if (!dup.ok) expect(dup.error).toBe("NICKNAME_TAKEN");
   });
 
-  it("masks claimToken in the public state snapshot", () => {
-    const rooms = makeManager();
-    const created = rooms.createRoom("host-socket-4")!;
-    const publicState = rooms.getPublicState(created.room);
-    for (const team of Object.values(publicState.teams)) {
-      for (const piece of team.puzzle.pieces) {
-        expect(piece.claimToken).toBeNull();
-      }
-    }
-  });
-
   it("only allows start once every connected player is ready", () => {
     const rooms = makeManager();
     const created = rooms.createRoom("host-socket-5")!;

@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
-import type { Ack, GameResultEvent, GameStartResponse, PlayerId, RoomCreateResponse, RoomState, TeamId } from "@trex/shared";
+import { BONE_IDS, PUZZLE_TARGET_TRANSFORMS, type Ack, type GameResultEvent, type GameStartResponse, type PlayerId, type RoomCreateResponse, type RoomState, type TeamId } from "@trex/shared";
 import { connectSocket, type AppSocket } from "../socket";
 import { GodotStage, useGodotBridge } from "../godot/GodotStage";
 import { DebugPanel } from "../DebugPanel";
@@ -15,9 +15,9 @@ import {
   applyExcavationEvent,
   applyExcavationProgress,
   applyGameResult,
-  applyPuzzleClaimChanged,
-  applyPuzzlePieceMoved,
-  applyPuzzlePiecePlaced,
+  applyDinoFinished,
+  applyDinoProgress,
+  applyDinoStarted,
   applyRevivalFormChanged,
   applyShotResolved,
   applyTeamPhaseChanged,
@@ -65,19 +65,14 @@ export function DesktopLobby(): JSX.Element {
     });
     socket.on("excavation:eventTriggered", (evt) => setRoomState((prev) => (prev ? applyExcavationEvent(prev, evt.data) : prev)));
     socket.on("team:phaseChanged", (evt) => setRoomState((prev) => (prev ? applyTeamPhaseChanged(prev, evt.data) : prev)));
-    socket.on("puzzle:claimChanged", (evt) => setRoomState((prev) => (prev ? applyPuzzleClaimChanged(prev, evt.data) : prev)));
-    socket.on("puzzle:pieceMoved", (evt) => {
-      setRoomState((prev) => {
-        const next = prev ? applyPuzzlePieceMoved(prev, evt.data) : prev;
-        if (next) sendPuzzleState(bridge, next, evt.data.teamId);
-        return next;
-      });
-    });
-    socket.on("puzzle:piecePlaced", (evt) => {
-      setRoomState((prev) => {
-        const next = prev ? applyPuzzlePiecePlaced(prev, evt.data) : prev;
-        if (next) sendPuzzleState(bridge, next, evt.data.teamId);
-        return next;
+    socket.on("dino:started", (evt) => setRoomState((prev) => (prev ? applyDinoStarted(prev, evt.data) : prev)));
+    socket.on("dino:progress", (evt) => setRoomState((prev) => (prev ? applyDinoProgress(prev, evt.data) : prev)));
+    socket.on("dino:finished", (evt) => {
+      setRoomState((prev) => (prev ? applyDinoFinished(prev, evt.data) : prev));
+      // 조립 평가 완료 — Godot에 13개 조각 전부 완성 스냅을 지시한다 (§12.3).
+      bridge.send("PUZZLE_STATE", {
+        teamId: evt.data.teamId,
+        pieces: BONE_IDS.map((boneId) => ({ boneId, transform: PUZZLE_TARGET_TRANSFORMS[boneId], fixed: true })),
       });
     });
     socket.on("energy:coreChanged", (evt) => setRoomState((prev) => (prev ? applyCoreChanged(prev, evt.data) : prev)));
@@ -258,23 +253,15 @@ function snapshotForTeam(team: RoomState["teams"][TeamId]) {
     phase: team.phase,
     excavationPoints: team.excavation.points,
     discoveredBoneIds: team.excavation.discoveredBoneIds,
-    puzzlePieces: team.puzzle.pieces.map((piece) => ({
-      boneId: piece.boneId,
-      transform: piece.transform,
-      fixed: piece.fixed,
+    puzzlePieces: BONE_IDS.map((boneId) => ({
+      boneId,
+      transform: PUZZLE_TARGET_TRANSFORMS[boneId],
+      // 다이노런 평가가 끝났거나 이미 사격/부활 단계면 조립 완료로 표시한다.
+      fixed: team.dinoRun.grade !== null || team.phase === "CHARGING" || team.phase === "REVIVED",
     })),
     trex: { position: { x: 0.5, y: 0.5 }, rotationDeg: 0, facing: "RIGHT" as const, poseId: "IDLE" as const },
     energy: team.charging.energy,
     stability: team.charging.stability,
     form: team.charging.form,
   };
-}
-
-function sendPuzzleState(bridge: ReturnType<typeof useGodotBridge>["bridge"], roomState: RoomState, teamId: TeamId): void {
-  const pieces = roomState.teams[teamId].puzzle.pieces.map((piece) => ({
-    boneId: piece.boneId,
-    transform: piece.transform,
-    fixed: piece.fixed,
-  }));
-  bridge.send("PUZZLE_STATE", { teamId, pieces });
 }

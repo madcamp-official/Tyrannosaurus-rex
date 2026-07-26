@@ -113,9 +113,9 @@ describe("applyExcavation via RoomManager", () => {
     expect(room.state.teams.A.phase).toBe("ASSEMBLY");
     expect(room.state.teams.A.excavation.discoveredBoneIds).toEqual(expectedOrder);
     expect(room.phaseDurations.A.excavationMs).not.toBeNull();
-    for (const piece of room.state.teams.A.puzzle.pieces) {
-      expect(piece.discovered).toBe(true);
-    }
+    // ASSEMBLY 진입과 함께 다이노런이 무장된다.
+    expect(room.state.teams.A.phaseEndsAt).not.toBeNull();
+    expect(room.state.teams.A.dinoRun.obstacleOffsetsMs.length).toBeGreaterThan(0);
   });
 
   it("does nothing once the team has already left EXCAVATION", () => {

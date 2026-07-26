@@ -2,7 +2,7 @@
 
 import type { PlayerId, RoomState, TeamId, TeamState } from "@trex/shared";
 import { ExcavationTeamPanel } from "./ExcavationView";
-import { PuzzleTeamPanel } from "./PuzzleView";
+import { DinoRunTeamPanel } from "./DinoRunView";
 import { ChargingTeamPanel, type CrosshairDisplay, type TrexDisplay } from "./ChargingView";
 
 const TEAM_IDS: readonly TeamId[] = ["A", "B"];
@@ -28,7 +28,7 @@ function TeamPhaseContent({
     case "EXCAVATION":
       return <ExcavationTeamPanel team={team} players={players} />;
     case "ASSEMBLY":
-      return <PuzzleTeamPanel team={team} players={players} />;
+      return <DinoRunTeamPanel team={team} players={players} />;
     case "CHARGING": {
       const crosshairs = Object.values(ephemeral.crosshairsByPlayer).filter((c) => c.teamId === team.id);
       return (

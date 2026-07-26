@@ -133,8 +133,6 @@ export function applyExcavateInput(
     team.excavation.discoveredBoneIds.push(boneId);
     team.excavation.nextBoneAt += EXCAVATION_POINTS_PER_BONE;
     boneAwards.push(boneId);
-    const piece = team.puzzle.pieces.find((p) => p.boneId === boneId);
-    if (piece) piece.discovered = true;
   }
 
   state.tick += 1;

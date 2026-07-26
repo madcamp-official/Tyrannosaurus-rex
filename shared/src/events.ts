@@ -8,6 +8,7 @@ import type {
   BoneId,
   CoreZone,
   DecorationCategory,
+  DinoRunGrade,
   Facing,
   HitZone,
   NormalizedPoint,
@@ -132,35 +133,16 @@ export const excavateInputSchema = z.object({
 });
 export type ExcavateInput = z.infer<typeof excavateInputSchema>;
 
-export const puzzleClaimRequestSchema = z.object({
+export const dinoJumpRequestSchema = z.object({
   requestId: requestIdSchema,
-  boneId: boneIdSchema,
-});
-export type PuzzleClaimRequest = z.infer<typeof puzzleClaimRequestSchema>;
-export type PuzzleClaimResponse = { boneId: BoneId; claimToken: string; expiresAt: number; transform: Transform2D };
-
-export const puzzleMoveInputSchema = z.object({
   seq: z.number().int().nonnegative(),
-  boneId: boneIdSchema,
-  claimToken: z.string(),
-  transform: transform2DSchema,
   clientTime: z.number(),
 });
-export type PuzzleMoveInput = z.infer<typeof puzzleMoveInputSchema>;
-
-export const puzzlePlaceRequestSchema = z.object({
-  requestId: requestIdSchema,
-  boneId: boneIdSchema,
-  claimToken: z.string(),
-  transform: transform2DSchema,
-});
-export type PuzzlePlaceRequest = z.infer<typeof puzzlePlaceRequestSchema>;
-export type PuzzlePlaceResponse = {
-  boneId: BoneId;
-  correct: boolean;
-  fixedTransform?: Transform2D;
-  lockedUntil?: number;
-  teamPhase: TeamPhase;
+export type DinoJumpRequest = z.infer<typeof dinoJumpRequestSchema>;
+export type DinoJumpResponse = {
+  cleared: boolean;
+  obstacleIndex: number | null;
+  clearedCount: number;
 };
 
 export const aimUpdateInputSchema = z.object({
@@ -287,9 +269,7 @@ export interface ClientToServerEvents {
   "player:setReady": (req: PlayerSetReadyRequest, ack: (res: Ack<PlayerSetReadyResponse>) => void) => void;
   "game:start": (req: GameStartRequest, ack: (res: Ack<GameStartResponse>) => void) => void;
   "excavate:input": (input: ExcavateInput) => void;
-  "puzzle:claim": (req: PuzzleClaimRequest, ack: (res: Ack<PuzzleClaimResponse>) => void) => void;
-  "puzzle:move": (input: PuzzleMoveInput) => void;
-  "puzzle:place": (req: PuzzlePlaceRequest, ack: (res: Ack<PuzzlePlaceResponse>) => void) => void;
+  "dino:jump": (req: DinoJumpRequest, ack: (res: Ack<DinoJumpResponse>) => void) => void;
   "aim:update": (input: AimUpdateInput) => void;
   "energy:fire": (req: EnergyFireRequest, ack: (res: Ack<EnergyFireResponse>) => void) => void;
   "sensor:status": (req: SensorStatusRequest, ack: (res: Ack<SensorStatusResponse>) => void) => void;
@@ -317,14 +297,14 @@ export interface ServerToClientEvents {
   "excavation:eventTriggered": (
     evt: ServerEvent<{ teamId: TeamId; kind: "STONE" | "FOSSIL" | "GOLD_BONE"; endsAt: number | null }>,
   ) => void;
-  "puzzle:claimChanged": (
-    evt: ServerEvent<{ teamId: TeamId; boneId: BoneId; claimedBy: PlayerId | null; expiresAt: number | null }>,
+  "dino:started": (
+    evt: ServerEvent<{ teamId: TeamId; obstacleOffsetsMs: number[]; startedAt: number; endsAt: number }>,
   ) => void;
-  "puzzle:pieceMoved": (
-    evt: ServerEvent<{ teamId: TeamId; boneId: BoneId; transform: Transform2D; playerId: PlayerId }>,
+  "dino:progress": (
+    evt: ServerEvent<{ teamId: TeamId; playerId: PlayerId; obstacleIndex: number; clearedCount: number }>,
   ) => void;
-  "puzzle:piecePlaced": (
-    evt: ServerEvent<{ teamId: TeamId; boneId: BoneId; correct: boolean; teamPhase: TeamPhase; fixedTransform?: Transform2D }>,
+  "dino:finished": (
+    evt: ServerEvent<{ teamId: TeamId; performance: number; grade: DinoRunGrade; startStability: number }>,
   ) => void;
   "aim:playerMoved": (
     evt: ServerEvent<{ playerId: PlayerId; teamId: TeamId; point: NormalizedPoint; active: boolean }>,

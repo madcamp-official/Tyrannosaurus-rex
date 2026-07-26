@@ -69,6 +69,15 @@ export function registerExcavationHandlers(io: AppServer, socket: AppSocket, roo
           endsAt: team.phaseEndsAt,
         }),
       );
+      io.to(channel).emit(
+        "dino:started",
+        toServerEvent(roomCode, room.state.revision, {
+          teamId,
+          obstacleOffsetsMs: team.dinoRun.obstacleOffsetsMs,
+          startedAt: team.phaseStartedAt,
+          endsAt: team.phaseEndsAt ?? 0,
+        }),
+      );
       io.to(channel).emit("room:state", toServerEvent(roomCode, room.state.revision, rooms.getPublicState(room)));
     }
   });
