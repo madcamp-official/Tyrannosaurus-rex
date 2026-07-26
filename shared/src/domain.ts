@@ -79,8 +79,6 @@ export type ErrorCode =
   | "RATE_LIMITED"
   | "DUPLICATE_REQUEST"
   | "BONE_NOT_AVAILABLE"
-  | "PIECE_ALREADY_CLAIMED"
-  | "PIECE_CLAIM_EXPIRED"
   | "SHOT_COOLDOWN"
   | "SERVER_ERROR";
 
@@ -107,8 +105,7 @@ export type Ack<T> =
 
 export type PlayerStats = {
   excavationInputs: number;
-  puzzleCorrect: number;
-  puzzleWrong: number;
+  dinoCleared: number;
   shots: number;
   hits: number;
   coreHits: number;
@@ -128,15 +125,17 @@ export type PublicPlayer = {
   stats: PlayerStats;
 };
 
-export type PuzzlePieceState = {
-  boneId: BoneId;
-  discovered: boolean;
-  fixed: boolean;
-  transform: Transform2D;
-  claimedBy: PlayerId | null;
-  claimToken: string | null; // room:state에서는 항상 null로 마스킹
-  claimExpiresAt: number | null;
-  lockedUntil: number | null;
+export type DinoRunGrade = "PERFECT" | "GOOD" | "CLUMSY" | "MESSY";
+
+/** Plan.md §6.2. 골격 조립 다이노런 상태. 판정은 전적으로 서버가 한다. */
+export type DinoRunState = {
+  /** phase 시작 기준 장애물 등장 오프셋(ms). 라운드 시드로 생성, 양 팀 동일. */
+  obstacleOffsetsMs: number[];
+  /** 플레이어별 클리어한 장애물 index 목록. */
+  clearedByPlayer: Record<PlayerId, number[]>;
+  /** 0~1 팀 클리어율. 30초 종료 시 확정. */
+  performance: number | null;
+  grade: DinoRunGrade | null;
 };
 
 export type TeamState = {
@@ -153,11 +152,7 @@ export type TeamState = {
     efficiencyMultiplier: number;
     debuffEndsAt: number | null;
   };
-  puzzle: {
-    pieces: PuzzlePieceState[];
-    fixedCount: number;
-    completedAt: number | null;
-  };
+  dinoRun: DinoRunState;
   charging: {
     energy: number; // 0~100
     stability: number; // 0~100

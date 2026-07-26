@@ -15,7 +15,6 @@ import { randomUUID } from "node:crypto";
 import {
   DECORATION_CATALOG,
   NAME_CANDIDATES,
-  PUZZLE_TARGET_TRANSFORMS,
   type BoneId,
   type ClientToServerEvents,
   type CoreZone,
@@ -29,7 +28,6 @@ import { CORE_OFFSETS } from "./game/charging.js";
 type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
 const EXCAVATE_TICK_MS = 100;
-const PUZZLE_STEP_MS = 400;
 const FIRE_TICK_MS = 400;
 const OVERALL_TIMEOUT_MS = 6 * 60_000;
 
@@ -63,7 +61,6 @@ type Blackboard = {
   trexByTeam: Partial<Record<TeamId, NormalizedPoint>>;
   coreByTeam: Partial<Record<TeamId, CoreZone>>;
   discoveredByTeam: Record<TeamId, Set<BoneId>>;
-  fixedByTeam: Record<TeamId, Set<BoneId>>;
   finished: boolean;
 };
 
@@ -74,7 +71,7 @@ type Bot = {
   teamId: TeamId;
   excavateSeq: number;
   aimSeq: number;
-  puzzleBusy: boolean;
+  jumpedObstacles: Set<number>;
 };
 
 function teamOf(board: Blackboard, teamId: TeamId): RoomState["teams"][TeamId] | null {
@@ -115,41 +112,21 @@ async function runBotLoop(bot: Bot, board: Blackboard, log: (msg: string) => voi
     }
 
     if (team.phase === "ASSEMBLY") {
-      // 조작권 충돌을 피하려고 팀의 첫 번째 봇만 퍼즐을 푼다.
-      const isSolver = team.playerIds[0] === bot.playerId;
-      if (!isSolver || bot.puzzleBusy) {
-        await sleep(300);
-        continue;
-      }
-      const discovered = board.discoveredByTeam[bot.teamId];
-      const fixed = board.fixedByTeam[bot.teamId];
-      const next = team.puzzle.pieces.find(
-        (p) => (p.discovered || discovered.has(p.boneId)) && !p.fixed && !fixed.has(p.boneId),
+      // 다이노런: 장애물 오프셋 시각에 맞춰 점프한다 (판정 창 ±450ms 안).
+      const offsets = team.dinoRun.obstacleOffsetsMs;
+      const elapsed = now - team.phaseStartedAt;
+      const dueIndex = offsets.findIndex(
+        (offset, i) => !bot.jumpedObstacles.has(i) && Math.abs(elapsed - offset) <= 200,
       );
-      if (!next) {
-        await sleep(300);
-        continue;
-      }
-      bot.puzzleBusy = true;
-      const claim = await ackEmit<{ boneId: BoneId; claimToken: string }>((ack) =>
-        bot.socket.emit("puzzle:claim", { requestId: randomUUID(), boneId: next.boneId }, ack),
-      );
-      if (claim.ok) {
-        const target = PUZZLE_TARGET_TRANSFORMS[next.boneId];
-        const place = await ackEmit<{ correct: boolean }>((ack) =>
-          bot.socket.emit(
-            "puzzle:place",
-            { requestId: randomUUID(), boneId: next.boneId, claimToken: claim.data.claimToken, transform: target },
-            ack,
-          ),
+      if (dueIndex !== -1) {
+        bot.jumpedObstacles.add(dueIndex);
+        bot.aimSeq += 1;
+        const res = await ackEmit<{ cleared: boolean; clearedCount: number }>((ack) =>
+          bot.socket.emit("dino:jump", { requestId: randomUUID(), seq: bot.aimSeq, clientTime: now }, ack),
         );
-        if (place.ok && place.data.correct) {
-          fixed.add(next.boneId);
-          log(`[${bot.nickname}] ${next.boneId} 조각 배치 완료 (${fixed.size}/13)`);
-        }
+        if (res.ok && res.data.cleared) log(`[${bot.nickname}] 장애물 클리어 (${res.data.clearedCount}/${offsets.length})`);
       }
-      bot.puzzleBusy = false;
-      await sleep(PUZZLE_STEP_MS);
+      await sleep(50);
       continue;
     }
 
@@ -201,13 +178,15 @@ async function main(): Promise<void> {
   const origin = process.env.SIMULATE_ORIGIN ?? "http://localhost:3001";
   const roomArg = parseArg(argv, "--room");
   const playerCount = Number.parseInt(parseArg(argv, "--players") ?? "4", 10);
+  // --idle: 봇이 입장·준비만 하고 게임은 하지 않는다. 사람이 직접 플레이할 때
+  // MIN_PLAYERS(2명)를 채우는 용도.
+  const idle = argv.includes("--idle");
 
   const board: Blackboard = {
     state: null,
     trexByTeam: {},
     coreByTeam: {},
     discoveredByTeam: { A: new Set(), B: new Set() },
-    fixedByTeam: { A: new Set(), B: new Set() },
     finished: false,
   };
   const log = (msg: string) => console.log(`[autoplay] ${msg}`);
@@ -215,9 +194,29 @@ async function main(): Promise<void> {
   let host: AppSocket | null = null;
   let roomCode: string;
 
-  if (roomArg) {
-    roomCode = roomArg;
-    log(`기존 방 ${roomCode}에 봇 ${playerCount}명 입장 시도`);
+  // --room이 없으면 서버에서 호스트가 붙어 있는 로비 방을 찾아 자동 입장한다.
+  // (서버가 재시작될 때마다 방 코드가 바뀌어 손으로 옮겨 적으면 자꾸 어긋난다.)
+  let detected: string | null = null;
+  if (!roomArg) {
+    try {
+      const res = await fetch(`${origin}/api/debug/rooms`);
+      if (res.ok) {
+        const body = (await res.json()) as {
+          rooms: Array<{ code: string; roomPhase: string; hostConnected: boolean; createdAt: number }>;
+        };
+        const lobby = body.rooms
+          .filter((r) => r.roomPhase === "LOBBY" && r.hostConnected)
+          .sort((a, b) => b.createdAt - a.createdAt)[0];
+        if (lobby) detected = lobby.code;
+      }
+    } catch {
+      // 서버가 debug 엔드포인트를 아직 안 가진 경우 등 — self-host로 넘어간다.
+    }
+  }
+
+  if (roomArg || detected) {
+    roomCode = (roomArg ?? detected)!;
+    log(roomArg ? `기존 방 ${roomCode}에 봇 ${playerCount}명 입장 시도` : `열려 있는 로비 방 ${roomCode}를 찾았습니다 — 봇 ${playerCount}명 입장`);
   } else {
     host = connect(origin, "HOST");
     await waitForConnect(host);
@@ -238,9 +237,17 @@ async function main(): Promise<void> {
     const joined = await ackEmit<{ playerId: string; teamId: TeamId; state: RoomState }>((ack) =>
       socket.emit("room:join", { requestId: randomUUID(), roomCode, nickname }, ack),
     );
-    if (!joined.ok) throw new Error(`room:join 실패(${nickname}): ${joined.error.code} ${joined.error.message}`);
+    if (!joined.ok) {
+      if (joined.error.code === "ROOM_NOT_FOUND") {
+        throw new Error(
+          `방 ${roomCode}가 서버에 없습니다. 서버가 재시작되면 방 코드가 바뀝니다 — ` +
+            `데스크탑 화면의 최신 코드를 쓰거나, --room 없이 "npm run autoplay"로 실행하면 열린 방을 자동으로 찾습니다.`,
+        );
+      }
+      throw new Error(`room:join 실패(${nickname}): ${joined.error.code} ${joined.error.message}`);
+    }
     board.state = joined.data.state;
-    const bot: Bot = { socket, nickname, playerId: joined.data.playerId, teamId: joined.data.teamId, excavateSeq: 0, aimSeq: 0, puzzleBusy: false };
+    const bot: Bot = { socket, nickname, playerId: joined.data.playerId, teamId: joined.data.teamId, excavateSeq: 0, aimSeq: 0, jumpedObstacles: new Set() };
     bots.push(bot);
     log(`${nickname} → ${bot.teamId}팀 입장`);
 
@@ -275,9 +282,6 @@ async function main(): Promise<void> {
     board.discoveredByTeam[evt.data.teamId].add(evt.data.boneId);
     log(`${evt.data.teamId}팀 뼈 발견: ${evt.data.boneId}`);
   });
-  bots[0]!.socket.on("puzzle:piecePlaced", (evt) => {
-    if (evt.data.correct) board.fixedByTeam[evt.data.teamId].add(evt.data.boneId);
-  });
   bots[0]!.socket.on("team:phaseChanged", (evt) => {
     // room:state가 항상 뒤따르지 않으므로 칠판의 팀 페이즈도 직접 갱신한다.
     if (board.state) board.state.teams[evt.data.teamId].phase = evt.data.to;
@@ -288,20 +292,25 @@ async function main(): Promise<void> {
     const started = await ackEmit((ack) => host!.emit("game:start", { requestId: randomUUID() }, ack));
     if (!started.ok) throw new Error("game:start 실패");
     log("게임 시작 (self-host)");
+  } else if (idle) {
+    log(`대기 봇 ${playerCount}명 준비 완료 — 봇은 게임을 하지 않습니다. QR/모바일로 입장해 직접 플레이하세요.`);
   } else {
     log(`봇 ${playerCount}명 준비 완료 — 데스크탑에서 "게임 시작"을 눌러주세요.`);
   }
 
+  // idle 모드는 사람이 로비에서 뜸 들이는 시간까지 감안해 넉넉히 잡는다.
   const timeout = setTimeout(() => {
     log("시간 초과 — 종료합니다.");
     process.exit(1);
-  }, OVERALL_TIMEOUT_MS);
+  }, idle ? 15 * 60_000 : OVERALL_TIMEOUT_MS);
 
-  await Promise.all([resultPromise, ...bots.map((bot) => runBotLoop(bot, board, log))]);
+  await Promise.all([resultPromise, ...(idle ? [] : bots.map((bot) => runBotLoop(bot, board, log)))]);
 
-  log("티꾸/이름 투표 중…");
-  for (const bot of bots) await castVotes(bot);
-  log("투표 완료. 데스크탑 결과 화면을 확인하세요. (20초 후 투표가 자동 확정됩니다)");
+  if (!idle) {
+    log("티꾸/이름 투표 중…");
+    for (const bot of bots) await castVotes(bot);
+    log("투표 완료. 데스크탑 결과 화면을 확인하세요. (20초 후 투표가 자동 확정됩니다)");
+  }
 
   clearTimeout(timeout);
   for (const bot of bots) bot.socket.close();

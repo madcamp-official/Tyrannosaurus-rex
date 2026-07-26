@@ -4,6 +4,7 @@ import { randomUUID } from "node:crypto";
 import {
   BONE_IDS,
   CHARGING_DURATION_MS,
+  DINO_RUN_DURATION_MS,
   DECORATION_CATALOG,
   DECORATION_VOTE_DURATION_MS,
   EXCAVATION_POINTS_PER_BONE,
@@ -33,15 +34,7 @@ import {
 import { castVote, pickWinner, tallyVotes } from "../game/voting.js";
 import { colorForJoinIndex } from "./colors.js";
 import { applyExcavateInput, createExcavationState, makeBoneOrder, type ExcavationRoomState } from "../game/excavation.js";
-import {
-  claimPiece,
-  movePiece,
-  placePiece,
-  releaseExpiredClaims,
-  type PuzzleClaimResult,
-  type PuzzleMoveResult,
-  type PuzzlePlaceResult,
-} from "../game/puzzle.js";
+import { applyDinoJump, finishDinoRunIfNeeded, makeObstacleSchedule, type DinoFinishResult, type DinoJumpOutcome } from "../game/dinoRun.js";
 import { applyAimUpdate, type AimState } from "../game/aim.js";
 import {
   applyEnergyFire,
@@ -80,8 +73,6 @@ export type RoomRecord = {
   phaseDurations: Record<TeamId, PhaseDurations>;
   /** CHARGING에 처음 진입한 시각. chargingMs 계산에 쓴다. */
   chargingStartedAt: Record<TeamId, number | null>;
-  /** puzzle:move 속도 제한 계산용 마지막 이동 시각 (boneId별). */
-  puzzleLastMoveAt: Record<TeamId, Map<BoneId, number>>;
   /** 플레이어별 최신 유효 조준 좌표 (§17.9). */
   aimState: Map<PlayerId, AimState>;
   /** 플레이어별 발사 쿨다운·shotId 중복 방지 상태 (§17.10). */
@@ -108,20 +99,7 @@ function resetTeamGameplayState(team: TeamState, now: number): void {
     efficiencyMultiplier: 1,
     debuffEndsAt: null,
   };
-  team.puzzle = {
-    pieces: BONE_IDS.map((boneId) => ({
-      boneId,
-      discovered: false,
-      fixed: false,
-      transform: { x: 0.5, y: 0.5, rotationDeg: 0 },
-      claimedBy: null,
-      claimToken: null,
-      claimExpiresAt: null,
-      lockedUntil: null,
-    })),
-    fixedCount: 0,
-    completedAt: null,
-  };
+  team.dinoRun = { obstacleOffsetsMs: [], clearedByPlayer: {}, performance: null, grade: null };
   team.charging = {
     energy: 0,
     stability: 100,
@@ -139,7 +117,7 @@ function makeEmptyTeamState(teamId: TeamId, now: number): TeamState {
     phaseEndsAt: null,
     playerIds: [],
     excavation: { points: 0, nextBoneAt: EXCAVATION_POINTS_PER_BONE, discoveredBoneIds: [], fossils: 0, efficiencyMultiplier: 1, debuffEndsAt: null },
-    puzzle: { pieces: [], fixedCount: 0, completedAt: null },
+    dinoRun: { obstacleOffsetsMs: [], clearedByPlayer: {}, performance: null, grade: null },
     charging: { energy: 0, stability: 100, activeCore: "HEART", coreChangesAt: 0, form: "NONE" },
   };
   resetTeamGameplayState(team, now);
@@ -250,7 +228,6 @@ export class RoomManager {
         B: { excavationMs: null, assemblyMs: null, chargingMs: null },
       },
       chargingStartedAt: { A: null, B: null },
-      puzzleLastMoveAt: { A: new Map(), B: new Map() },
       aimState: new Map(),
       shotTracking: new Map(),
       ...makeVoteState(),
@@ -314,8 +291,7 @@ export class RoomManager {
       orientationPermission: "UNKNOWN",
       stats: {
         excavationInputs: 0,
-        puzzleCorrect: 0,
-        puzzleWrong: 0,
+        dinoCleared: 0,
         shots: 0,
         hits: 0,
         coreHits: 0,
@@ -365,7 +341,6 @@ export class RoomManager {
       B: { excavationMs: null, assemblyMs: null, chargingMs: null },
     };
     room.chargingStartedAt = { A: null, B: null };
-    room.puzzleLastMoveAt = { A: new Map(), B: new Map() };
     room.aimState = new Map();
     room.shotTracking = new Map();
     Object.assign(room, makeVoteState());
@@ -385,7 +360,7 @@ export class RoomManager {
     room.state.winner = { teamId: null, reason: null };
     for (const player of room.state.players) {
       player.ready = false;
-      player.stats = { excavationInputs: 0, puzzleCorrect: 0, puzzleWrong: 0, shots: 0, hits: 0, coreHits: 0, energyContributed: 0 };
+      player.stats = { excavationInputs: 0, dinoCleared: 0, shots: 0, hits: 0, coreHits: 0, energyContributed: 0 };
     }
     for (const teamId of TEAM_IDS) {
       resetTeamGameplayState(room.state.teams[teamId], now);
@@ -406,68 +381,33 @@ export class RoomManager {
       room.phaseDurations[teamId].excavationMs = now - team.phaseStartedAt;
       team.phase = "ASSEMBLY";
       team.phaseStartedAt = now;
-      team.phaseEndsAt = null;
+      team.phaseEndsAt = now + DINO_RUN_DURATION_MS;
+      // 장애물 스케줄은 라운드 시드에서 파생되어 양 팀이 항상 동일하다 (§4).
+      team.dinoRun.obstacleOffsetsMs = makeObstacleSchedule(room.roundSeed ?? room.state.roomCode);
     }
     this.bumpRevision(room);
     return result;
   }
 
-  applyPuzzleClaim(room: RoomRecord, teamId: TeamId, playerId: PlayerId, boneId: BoneId, now: number): PuzzleClaimResult {
-    const result = claimPiece(room, teamId, playerId, boneId, now);
-    if (result.ok) {
-      this.touch(room);
-      this.bumpRevision(room);
-    }
-    return result;
+  /** §17.6 다이노런 점프. 고빈도라 revision은 올리지 않는다 (클리어 현황은 델타 이벤트로 전파). */
+  applyDinoJumpInput(room: RoomRecord, teamId: TeamId, playerId: PlayerId, now: number): DinoJumpOutcome {
+    const outcome = applyDinoJump(room, teamId, playerId, now);
+    if (outcome.accepted) this.touch(room);
+    return outcome;
   }
 
-  applyPuzzleMove(
-    room: RoomRecord,
-    teamId: TeamId,
-    playerId: PlayerId,
-    boneId: BoneId,
-    claimToken: string,
-    transform: Transform2D,
-    now: number,
-  ): PuzzleMoveResult {
-    const result = movePiece(room, teamId, playerId, boneId, claimToken, transform, now);
-    if (result.ok) this.touch(room);
-    return result;
-  }
-
-  applyPuzzlePlace(
-    room: RoomRecord,
-    teamId: TeamId,
-    playerId: PlayerId,
-    boneId: BoneId,
-    claimToken: string,
-    transform: Transform2D,
-    now: number,
-  ): PuzzlePlaceResult {
-    const result = placePiece(room, teamId, playerId, boneId, claimToken, transform, now);
-    if (!result.ok) return result;
-
-    this.touch(room);
-    if (result.phaseCompleted) {
-      const team = room.state.teams[teamId];
-      room.phaseDurations[teamId].assemblyMs = now - team.phaseStartedAt;
-      team.phase = "CHARGING";
-      team.phaseStartedAt = now;
-      team.phaseEndsAt = now + CHARGING_DURATION_MS;
-      room.chargingStartedAt[teamId] = now;
+  /** 다이노런 30초 종료를 배경 틱에서 처리한다. 전환이 일어난 팀의 평가 결과를 돌려준다. */
+  tickDinoRun(room: RoomRecord, now: number): Array<{ teamId: TeamId; result: DinoFinishResult }> {
+    const finished: Array<{ teamId: TeamId; result: DinoFinishResult }> = [];
+    for (const teamId of TEAM_IDS) {
+      const result = finishDinoRunIfNeeded(room, teamId, now);
+      if (result) {
+        finished.push({ teamId, result });
+        this.touch(room);
+        this.bumpRevision(room);
+      }
     }
-    this.bumpRevision(room);
-    return result;
-  }
-
-  /** 5초 무입력 조작권 만료를 능동적으로 정리한다 (배경 스윕용). */
-  releaseExpiredPuzzleClaims(room: RoomRecord, teamId: TeamId, now: number): BoneId[] {
-    const released = releaseExpiredClaims(room, teamId, now);
-    if (released.length > 0) {
-      this.touch(room);
-      this.bumpRevision(room);
-    }
-    return released;
+    return finished;
   }
 
   /** §17.9. CHARGING 중에만 조준을 인정한다. 고빈도 이벤트라 revision을 올리지 않는다. */
@@ -542,7 +482,11 @@ export class RoomManager {
       case "EXCAVATION":
         return 0 + team.excavation.discoveredBoneIds.length / BONE_IDS.length;
       case "ASSEMBLY":
-        return 1 + team.puzzle.fixedCount / Math.max(1, team.puzzle.pieces.length);
+        return (
+          1 +
+          Object.values(team.dinoRun.clearedByPlayer).reduce((sum, list) => sum + list.length, 0) /
+            Math.max(1, team.dinoRun.obstacleOffsetsMs.length * Math.max(1, team.playerIds.length))
+        );
       case "CHARGING":
         return 2 + team.charging.energy / 100;
       case "REVIVED":
@@ -665,23 +609,8 @@ export class RoomManager {
 
   /** 공개 상태 스냅샷. claimToken은 항상 마스킹한다(§15.2). */
   getPublicState(room: RoomRecord): RoomState {
-    return {
-      ...room.state,
-      teams: {
-        A: this.maskTeam(room.state.teams.A),
-        B: this.maskTeam(room.state.teams.B),
-      },
-    };
-  }
-
-  private maskTeam(team: TeamState): TeamState {
-    return {
-      ...team,
-      puzzle: {
-        ...team.puzzle,
-        pieces: team.puzzle.pieces.map((piece) => ({ ...piece, claimToken: null })),
-      },
-    };
+    // 다이노런 전환 후에는 마스킹할 비밀 상태가 없다 — 그대로 내보낸다.
+    return room.state;
   }
 
   private touch(room: RoomRecord): void {

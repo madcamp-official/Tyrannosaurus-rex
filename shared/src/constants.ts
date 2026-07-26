@@ -16,16 +16,21 @@ export const EXCAVATION_EVENT_STONE_CHANCE = 0.15;
 export const EXCAVATION_EVENT_FOSSIL_CHANCE = 0.1;
 export const EXCAVATION_EVENT_GOLD_BONE_CHANCE = 0.05;
 
-export const PUZZLE_PIECE_COUNT = CORE_BONE_COUNT;
-export const PUZZLE_MAX_CONCURRENT_CLAIMS_PER_TEAM = 2;
-export const PUZZLE_CLAIM_TTL_MS = 5_000;
-export const PUZZLE_MOVE_MAX_HZ = 20;
-export const PUZZLE_WRONG_PLACEMENT_LOCK_MS = 2_000;
-// 조각 자체의 픽셀 크기가 데이터 모델에 없어, 0~1 정규화 캔버스에 대한 비율로 직접 적용한다.
-export const PUZZLE_POSITION_TOLERANCE_RATIO = 0.12;
-export const PUZZLE_ROTATION_TOLERANCE_DEG = 15;
-export const PUZZLE_MAX_POSITION_SPEED_PER_SECOND = 1.5; // 화면 너비 배수/초
-export const PUZZLE_MAX_ROTATION_SPEED_PER_SECOND = 360; // 도/초
+// Plan.md §6.2 골격 조립 다이노런.
+export const DINO_RUN_DURATION_MS = 30_000;
+export const DINO_OBSTACLE_COUNT = 12;
+export const DINO_JUMP_WINDOW_MS = 450; // 장애물 시각 ±이 값 안의 점프만 클리어
+export const DINO_JUMP_MAX_PER_SECOND = 3;
+export const DINO_OBSTACLE_MIN_OFFSET_MS = 2_000;
+export const DINO_OBSTACLE_MAX_OFFSET_MS = 28_000;
+export const DINO_OBSTACLE_MIN_GAP_MS = 1_500;
+// 조립 평가 등급 경계 (클리어율)
+export const DINO_GRADE_PERFECT = 0.85;
+export const DINO_GRADE_GOOD = 0.6;
+export const DINO_GRADE_CLUMSY = 0.3;
+// 충전 시작 안정도 = BASE + RANGE × 클리어율
+export const CHARGING_START_STABILITY_BASE = 40;
+export const CHARGING_START_STABILITY_RANGE = 60;
 
 export const CHARGING_DURATION_MS = 90_000;
 export const CHARGING_TREX_TRANSFORM_HZ = 10;
