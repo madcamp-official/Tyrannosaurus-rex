@@ -8,7 +8,7 @@ Plan.md §23 Day1 범위(모노레포, 실시간 연결, 로비, React-Godot 최
 
 ### 변경 내역
 
-- **workspace**: 루트 npm workspaces(`shared`/`server`/`client`), 공통 `.gitignore`, `.env.example` 추가.
+- **workspace**: 루트 npm workspaces(`shared`/`backend`/`frontend`), 공통 `.gitignore`, `.env.example` 추가.
 - **shared**: 도메인 타입(`domain.ts`), 밸런스 상수(`constants.ts`), Zod 기반 Socket.IO 이벤트 계약(`events.ts`), React↔Godot 브리지 프로토콜(`render-protocol.ts`). 런타임 검증과 타입은 Zod 스키마에서 추론해 이중 정의를 피했다(Plan.md §20).
 - **server**: Socket.IO 권위 서버. 핸드셰이크 role/클라이언트 버전 검증, `RoomManager`(방 생성·입장·A/B 팀 자동 균형 배정·준비 상태·게임 시작), requestId 멱등성 캐시, 이벤트별 token bucket rate limit, `/api/health`·`/api/ready`·`/api/version`, 실기기 없이 로비 흐름을 검증하는 `simulate` 스크립트.
 - **client**: 데스크탑 로비(QR·방 코드·팀 리스트·시작 버튼), 모바일 입장/준비 화면, `GodotBridge`(GODOT_READY 핸드셰이크, 15초 타임아웃 시 2D 안전 화면, sequence 기반 메시지 무시), 브리지 진단 패널, `localStorage` 기반 박물관 스텁.
@@ -18,10 +18,10 @@ Plan.md §23 Day1 범위(모노레포, 실시간 연결, 로비, React-Godot 최
 ### 검증
 
 ```bash
-npm run typecheck                       # shared/server/client 전부 통과
-npm test                                # shared 4, server 5, client 4 테스트 통과
+npm run typecheck                       # shared/backend/frontend 전부 통과
+npm test                                # shared 4, backend 5, frontend 4 테스트 통과
 npm run build                           # 전체 프로덕션 빌드 성공
-npm run simulate -w server -- --players 6   # 호스트 1 + 플레이어 6 로비 흐름, 팀 A/B 3:3 배정 확인
+npm run simulate -w backend -- --players 6  # 호스트 1 + 플레이어 6 로비 흐름, 팀 A/B 3:3 배정 확인
 curl /api/health /api/ready /api/version    # 로컬 서버 기동 후 200 응답 확인
 ```
 
@@ -48,16 +48,16 @@ Plan.md §6.1/§14.2, 관련 서버 테스트를 모두 갱신했다.
 
 - 서버: `excavate:input` 판정. 플레이어별 1초 12회 상한(토큰 버킷), 팀 합산 초과분 50%
   효율 적용, 시드 기반 결정론적 뼈 발견 순서·발굴 이벤트(돌/화석/황금뼈)
-  (`server/src/game/excavation.ts`, `server/src/game/seededRandom.ts`).
+  (`backend/src/game/excavation.ts`, `backend/src/game/seededRandom.ts`).
 - 클라이언트: 모바일 흔들기(iOS 권한, 200ms 쿨다운)+탭 폴백, 데스크탑 발굴 게이지·발견
   뼈·기여도 HUD. 고빈도 이벤트를 `room:state`와 분리 구독해 로컬 합성하는
-  `client/src/roomStateReducer.ts` 패턴을 여기서 확립해 이후 단계에서 재사용했다.
+  `frontend/src/roomStateReducer.ts` 패턴을 여기서 확립해 이후 단계에서 재사용했다.
 
 ### Day3 — 골격 퍼즐
 
 - 서버: `puzzle:claim/move/place`. 팀당 동시 조작권 2개, claimToken 소유권 검증, 5초
   무입력 자동 만료(요청 시점 지연 정리 + 1초 주기 배경 스윕), 이동 속도 상한 클램프,
-  위치 12%·각도 15도 허용 오차, 오답 2초 잠금(`server/src/game/puzzle.ts`).
+  위치 12%·각도 15도 허용 오차, 오답 2초 잠금(`backend/src/game/puzzle.ts`).
 - 목표 좌표(`PUZZLE_TARGET_TRANSFORMS`)는 실루엣 아트가 없어 MVP 기본 레이아웃으로 정의.
 - 클라이언트: 모바일 뼈 선택→드래그 패드→회전→배치, 데스크탑 2D 실루엣 프리뷰.
 
@@ -74,7 +74,7 @@ Plan.md §6.1/§14.2, 관련 서버 테스트를 모두 갱신했다.
   시드). shotId 중복 방지, 350ms 쿨다운. 에너지 100 도달 시 정상 부활, CHARGING 90초
   초과 시 와이라노로 정화 단계 진입, 정화 10초 내 안정도 100 도달 시 정상, 실패 시 영구
   와이라노로 확정. 10Hz 배경 틱으로 `trex:transform`/`energy:coreChanged` 방송
-  (`server/src/game/charging.ts`, `server/src/game/energy.ts`).
+  (`backend/src/game/charging.ts`, `backend/src/game/energy.ts`).
 - 라운드 승패 확정: 정상 부활 즉시 승리, 양 팀 모두 와이라노면 DRAW, 300초 타임아웃 시 팀
   진행도 점수 비교(§3 "총합이 높은 팀"의 MVP 구현 — 정확한 공식이 Plan.md에 없어 직접
   정의했다).
@@ -102,7 +102,7 @@ P1으로 명시하고 있어, 서버·React 루프를 먼저 완성하는 쪽을
 
 ```bash
 npm run typecheck   # 전체 통과
-npm test             # shared 4 + server 40 + client 4 = 48개 전부 통과
+npm test             # shared 4 + backend 40 + frontend 4 = 48개 전부 통과
 npm run build        # 전체 프로덕션 빌드 성공
 ```
 
@@ -167,20 +167,20 @@ Plan.md가 "와이라노는 되돌릴 수 없는 최종 결과"로 재정의되�
 - `shared`: `TeamPhase`에서 `"PURIFICATION"` 제거, `TeamState.charging`에서
   `purificationEndsAt` 필드 제거, `PURIFICATION_DURATION_MS` 상수 삭제,
   `revival:purificationStarted` 이벤트 타입 삭제.
-- `server/game/energy.ts`: `expireChargingIfNeeded`가 CHARGING 90초 타임아웃 시
+- `backend/game/energy.ts`: `expireChargingIfNeeded`가 CHARGING 90초 타임아웃 시
   중간 단계 없이 바로 `REVIVED`/`YRANNO`로 확정하도록 변경(기존에는
   `PURIFICATION`을 거쳐 10초 뒤 재확정). `expirePurificationIfNeeded` 함수
   자체를 삭제하고, `applyEnergyFire`의 안정도 기반 역전 분기도 제거.
-- `server/rooms/RoomManager.ts`: `ChargingTickUpdate.transition`을
+- `backend/rooms/RoomManager.ts`: `ChargingTickUpdate.transition`을
   `"TO_REVIVED_YRANNO" | null`로 단순화, `tickCharging`/`applyAim`의
   `PURIFICATION` 분기 제거, `teamProgressScore`의 `PURIFICATION` case 제거.
-- `server/rooms/energyHandlers.ts`: `emitTransitionEvents`가 `TO_PURIFICATION`
+- `backend/rooms/energyHandlers.ts`: `emitTransitionEvents`가 `TO_PURIFICATION`
   분기 없이 `TO_REVIVED_YRANNO` 하나만 처리하도록 정리(`team:phaseChanged`의
   `from`도 `PURIFICATION`이 아닌 `CHARGING`으로 수정).
-- `client`: `ChargingView`의 "정화 사격 중" 경고 배너 제거, `PlayArea`/
+- `frontend`: `ChargingView`의 "정화 사격 중" 경고 배너 제거, `PlayArea`/
   `MobileJoin`의 `team.phase === "PURIFICATION"` 분기 제거.
 - `desktop-godot/TeamStage.gd`: `apply_full_snapshot`의 `PURIFICATION` 체크 제거.
-- `server/test/energy.test.ts`, `server/test/aim.test.ts`: `PURIFICATION`
+- `backend/test/energy.test.ts`, `backend/test/aim.test.ts`: `PURIFICATION`
   상태를 직접 세팅하던 테스트를 CHARGING 타임아웃이 바로 REVIVED/YRANNO로
   가는 흐름에 맞춰 다시 작성.
 
@@ -189,11 +189,11 @@ Plan.md가 "와이라노는 되돌릴 수 없는 최종 결과"로 재정의되�
 - `shared/constants.ts`: `MAX_PLAYERS` 6→10, `MAX_PLAYERS_PER_TEAM` 3→5.
 - `shared/events.ts`: `roomCreateRequestSchema.settings.maxPlayers` 리터럴
   유니언을 2~6에서 2~10으로 확장.
-- `server/rooms/colors.ts`: 플레이어 크로스헤어 색상 팔레트를 6색→10색으로
+- `backend/rooms/colors.ts`: 플레이어 크로스헤어 색상 팔레트를 6색→10색으로
   확장. 6색인 채로 두면 5인 팀에서 짝수 인덱스(0·2·4·6·8)가 6으로 나눈
   나머지가 겹쳐(0↔6, 2↔8) 같은 팀 안에서 두 플레이어가 같은 색을 받는
   버그가 생겨서 함께 고쳤다.
-- `server/simulate.ts`, `client/DesktopLobby.tsx`: `room:create`에 보내는
+- `backend/simulate.ts`, `frontend/DesktopLobby.tsx`: `room:create`에 보내는
   `maxPlayers` 예시값 6→10, `simulate --players` 상한도 6→10.
 - Plan.md 안에서 남아있던 "6명/3명" 하드캡 서술(§2.3 대기열, ROOM_FULL 설명,
   `RoomCreateRequest.maxPlayers` 타입, Day1/Day4 완료 기준, 최종 체크리스트,
@@ -203,8 +203,8 @@ Plan.md가 "와이라노는 되돌릴 수 없는 최종 결과"로 재정의되�
 ### 검증
 
 ```bash
-npm run typecheck   # shared/server/client 전부 통과
-npm test             # shared 4, server 38, client 4 — 전부 통과
+npm run typecheck   # shared/backend/frontend 전부 통과
+npm test             # shared 4, backend 38, frontend 4 — 전부 통과
 npm run build        # 전체 프로덕션 빌드 성공
 ```
 

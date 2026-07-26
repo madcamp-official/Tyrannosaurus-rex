@@ -5,21 +5,21 @@
   "description": "내 티라노사우루스 살려내!!! - 웹 기반 크로스플랫폼 팀 파티 게임",
   "workspaces": [
     "shared",
-    "server",
-    "client"
+    "backend",
+    "frontend"
   ],
   "scripts": {
     "predev": "npm run build -w shared",
-    "dev": "concurrently -n server,client -c blue,green \"npm run dev -w server\" \"npm run dev -w client\"",
+    "dev": "concurrently -n backend,frontend -c blue,green \"npm run dev -w backend\" \"npm run dev -w frontend\"",
     "dev:tunnel": "cloudflared tunnel --url http://localhost:5173",
-    "build": "npm run build -w shared && npm run build -w server && npm run build -w client",
-    "build:godot": "godot --headless --path desktop-godot --export-release Web ../client/public/godot/index.html",
-    "start": "node server/dist/index.js",
-    "typecheck": "npm run build -w shared && npm run typecheck -w server && npm run typecheck -w client",
+    "build": "npm run build -w shared && npm run build -w backend && npm run build -w frontend",
+    "build:godot": "godot --headless --path desktop-godot --export-release Web ../frontend/public/godot/index.html",
+    "start": "node backend/dist/index.js",
+    "typecheck": "npm run build -w shared && npm run typecheck -w backend && npm run typecheck -w frontend",
     "pretest": "npm run build -w shared",
-    "test": "npm run test -w shared --if-present && npm run test -w server --if-present && npm run test -w client --if-present",
-    "simulate": "npm run simulate -w server --",
-    "autoplay": "npm run autoplay -w server --"
+    "test": "npm run test -w shared --if-present && npm run test -w backend --if-present && npm run test -w frontend --if-present",
+    "simulate": "npm run simulate -w backend --",
+    "autoplay": "npm run autoplay -w backend --"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

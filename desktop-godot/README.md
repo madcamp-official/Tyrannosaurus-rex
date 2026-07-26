@@ -38,7 +38,7 @@ Three.js 프로토타입(뼈 캐기 굴착 데모)을 Godot 4.3+ 로 포팅한 �
 - 렌더러를 `gl_compatibility`(Compatibility)로 고정했다. 에디터에서 이 프로젝트를 처음 열면 렌더러 전환 대화상자가 뜰 수 있다.
 - `scripts/JsBridge.gd`, `scripts/RenderRouter.gd`를 오토로드로 등록했다. `JsBridge`는 Web export에서만 `JavaScriptBridge`로 `window.trexGodotReceive`를 등록하고 `GODOT_READY`를 보낸다. 에디터/데스크탑 실행에서는 `OS.has_feature("web")`이 false라 조용히 비활성화된다.
 - `web/shell.html`이 export preset의 커스텀 HTML shell이다. Godot 기본 `full-size.html` 템플릿에 `postMessage` 릴레이 스크립트만 추가했다.
-- `export_presets.cfg`는 싱글 스레드(`variant/thread_support=false`) Web 프리셋이며 `../client/public/godot/index.html`로 export한다.
+- `export_presets.cfg`는 싱글 스레드(`variant/thread_support=false`) Web 프리셋이며 `../frontend/public/godot/index.html`로 export한다.
 
 **아직 실행 검증 불가**: 이 환경에는 Godot 에디터·export 템플릿이 없어서 `export_presets.cfg`와 `web/shell.html`을 실제 export로 확인하지 못했다. 처음 `godot --headless --path desktop-godot --export-release Web ...`를 돌렸을 때:
 - `export_presets.cfg`가 에디터에 의해 자동으로 다시 쓰이며 옵션 키가 달라질 수 있다.
