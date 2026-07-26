@@ -11,12 +11,12 @@
 ```text
 Tyrannosaurus-rex/
 ├─ shared/          # 공유 타입, 상수, Zod 이벤트 스키마, 브리지 프로토콜 (@trex/shared)
-├─ server/          # Node.js + Socket.IO 권위 서버 (@trex/server)
-├─ client/          # React + Vite 데스크탑/모바일 클라이언트 (@trex/client)
-└─ desktop-godot/   # Godot 4 프로젝트. Web export 결과물은 client/public/godot/에 복사된다
+├─ backend/         # Node.js + Socket.IO 권위 서버 (@trex/backend)
+├─ frontend/        # React + Vite 데스크탑/모바일 클라이언트 (@trex/frontend)
+└─ desktop-godot/   # Godot 4 프로젝트. Web export 결과물은 frontend/public/godot/에 복사된다
 ```
 
-`shared`가 서버·클라이언트가 공유하는 유일한 타입/검증 소스다. `server`가 게임 결과에 영향을 주는 모든 판정을 수행하고, `client`는 Socket.IO 연결과 UI, Godot iframe 브리지를 담당하며, `desktop-godot`은 데스크탑 3D 표현만 담당한다 (Plan.md §10.2).
+`shared`가 백엔드·프론트엔드가 공유하는 유일한 타입/검증 소스다. `backend`가 게임 결과에 영향을 주는 모든 판정을 수행하고, `frontend`는 Socket.IO 연결과 UI, Godot iframe 브리지를 담당하며, `desktop-godot`은 데스크탑 3D 표현만 담당한다 (Plan.md §10.2).
 
 ## 요구 사항
 
@@ -31,7 +31,7 @@ npm install
 cp .env.example .env      # 필요하면 값을 수정한다
 ```
 
-`.env`는 `server/` 워크스페이스가 저장소 루트에서 읽는다 (Plan.md §22.6). 비밀값은 없고, 로컬 포트/오리진 설정만 있다.
+`.env`는 `backend/` 워크스페이스가 저장소 루트에서 읽는다 (Plan.md §22.6). 비밀값은 없고, 로컬 포트/오리진 설정만 있다.
 
 ## 개발 서버 실행
 
@@ -58,18 +58,18 @@ npm run dev:tunnel
 
 ## Godot Web export
 
-`desktop-godot/`가 원본 프로젝트이고 `client/public/godot/`는 빌드 산출물이다. 후자는 직접 수정하지 않는다.
+`desktop-godot/`가 원본 프로젝트이고 `frontend/public/godot/`는 빌드 산출물이다. 후자는 직접 수정하지 않는다.
 
 ```bash
 npm run build:godot
 ```
 
-Godot CLI(`godot --headless ...`)가 있어야 하며, 결과물은 `client/public/godot/index.{html,js,wasm,pck}`로 생성된다. React/서버 코드만 바꿨다면 다시 export할 필요 없다.
+Godot CLI(`godot --headless ...`)가 있어야 하며, 결과물은 `frontend/public/godot/index.{html,js,wasm,pck}`로 생성된다. React/백엔드 코드만 바꿨다면 다시 export할 필요 없다.
 
 ## 타입체크·테스트·빌드
 
 ```bash
-npm run typecheck   # shared → server → client 순서로 tsc
+npm run typecheck   # shared → backend → frontend 순서로 tsc
 npm test             # 각 워크스페이스의 vitest
 npm run build        # 전체 프로덕션 빌드 (Godot 제외)
 ```
@@ -79,7 +79,7 @@ npm run build        # 전체 프로덕션 빌드 (Godot 제외)
 실기기 여러 대 없이 로비 흐름(방 생성 → N명 입장 → 팀 배정 → 준비 → 시작)을 검증한다.
 
 ```bash
-npm run dev -w server        # 다른 터미널에서 서버만 띄워도 된다
+npm run dev -w backend       # 다른 터미널에서 백엔드만 띄워도 된다
 npm run simulate -- --players 6
 ```
 

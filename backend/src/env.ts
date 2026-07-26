@@ -5,7 +5,7 @@ import path from "node:path";
 import dotenv from "dotenv";
 import { z } from "zod";
 
-// 이 파일은 server/src/env.ts. 저장소 루트의 .env(.local)을 읽는다(§22.6).
+// 이 파일은 backend/src/env.ts. 저장소 루트의 .env(.local)을 읽는다(§22.6).
 const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
 dotenv.config({ path: path.join(repoRoot, ".env") });
 dotenv.config({ path: path.join(repoRoot, `.env.${process.env.NODE_ENV ?? "development"}.local`), override: true });

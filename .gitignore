@@ -21,4 +21,4 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 
-# Godot Web export artifacts live only under client/public/godot (see its own .gitignore)
+# Godot Web export artifacts live only under frontend/public/godot (see its own .gitignore)
