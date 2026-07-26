@@ -200,3 +200,30 @@ func reset() -> void:
 	for i in _vertex_count:
 		_height_field[i] = 0.0
 	_rebuild_geometry()
+
+## 메인 발굴 지형 주변을 채우는, 항상 잔디인 평면 타일 (dirtAmount=0 고정).
+static func build_flat_tile_mesh(size: float) -> ArrayMesh:
+	var half := size * 0.5
+	var verts := [
+		Vector3(-half, 0.0, -half),
+		Vector3(half, 0.0, -half),
+		Vector3(-half, 0.0, half),
+		Vector3(half, 0.0, half),
+	]
+	var uvs := [
+		Vector2(0.0, 0.0),
+		Vector2(1.0, 0.0),
+		Vector2(0.0, 1.0),
+		Vector2(1.0, 1.0),
+	]
+	var order := [0, 1, 2, 1, 3, 2]
+
+	var st := SurfaceTool.new()
+	st.begin(Mesh.PRIMITIVE_TRIANGLES)
+	for idx in order:
+		st.set_uv(uvs[idx])
+		st.set_color(Color(0.0, 0.0, 0.0, 1.0))
+		st.add_vertex(verts[idx])
+	st.generate_normals(true)
+	st.index()
+	return st.commit()
