@@ -44,7 +44,6 @@ export function battleStateFromRoom(
   if (!trex) return null; // 첫 트렉 틱(최대 100ms)이 아직 도착하지 않은 순간
 
   const now = Date.now();
-  const nextChangeAt = ephemeral.coreChangesAtByTeam[primaryTeamId] ?? now;
   const remainingSec = Math.min(
     ...chargingTeamIds.map((teamId) => {
       const endsAt = roomState.teams[teamId].phaseEndsAt;
@@ -58,7 +57,6 @@ export function battleStateFromRoom(
   return {
     remainingSec: Number.isFinite(remainingSec) ? remainingSec : 0,
     coreName: CORE_LABEL[trex.activeCore],
-    coreMoveInSec: Math.max(0, (nextChangeAt - now) / 1000),
     stage: stageFor((teamA.energy + teamB.energy) / 2),
     siteName: roomState.roomName,
     energyTarget: ENERGY_TARGET,

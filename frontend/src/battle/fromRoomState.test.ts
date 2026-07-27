@@ -80,7 +80,6 @@ describe("battleStateFromRoom", () => {
       trexByTeam: {
         A: { position: { x: 0.4, y: 0.5 }, facing: "LEFT", activeCore: "SKULL", corePosition: { x: 0.42, y: 0.46 } },
       },
-      coreChangesAtByTeam: { A: Date.now() + 5_000 },
     });
 
     const battle = battleStateFromRoom(roomState, ephemeral, ["A"]);
@@ -93,8 +92,6 @@ describe("battleStateFromRoom", () => {
     expect(battle!.teamA.coreHits).toBe(2);
     expect(battle!.teamB.players[0]!.name).toBe("프로스트핀");
     expect(battle!.siteName).toBe("테스트 발굴지");
-    expect(battle!.coreMoveInSec).toBeGreaterThan(4);
-    expect(battle!.coreMoveInSec).toBeLessThanOrEqual(5);
   });
 
   it("maps RIGHT facing to 1", () => {

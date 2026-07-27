@@ -51,9 +51,8 @@ export function BattleScreen({
             <span className="battle-timer__clock">{formatClock(battle.remainingSec)}</span>
             <div className="battle-timer__pill">
               <span className="battle-timer__dot" />
-              활성 코어 · {battle.coreName} · {Math.max(0, Math.ceil(battle.coreMoveInSec))}s
+              활성 코어 · {battle.coreName}
             </div>
-            {battle.coreMoveInSec <= 2 && <div className="battle-warning">⚠ 코어 이동 임박</div>}
           </div>
 
           <div className="battle-chip battle-chip--right">

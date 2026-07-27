@@ -1,4 +1,4 @@
-/** 목업 데이터로 자동 재생되는 데모 모드. 티라노 좌우 배회 + 주기적 코어 이동 + 랜덤 명중 이벤트. */
+/** 목업 데이터로 자동 재생되는 데모 모드. 티라노 좌우 배회 + 랜덤 명중 이벤트. */
 
 import { useEffect, useRef } from "react";
 import type { BattlePlayer, BattleState } from "./battleTypes";
@@ -7,19 +7,13 @@ import { useBattleController } from "./useBattleController";
 const TREX_LOOP_MS = 15000;
 // 좌우 사이드 스코어보드(폭 430px, 무대 22.4%)에 가려지지 않도록 안쪽 구간만 배회한다.
 const TREX_RANGE: [number, number] = [0.28, 0.72];
-const CORE_PERIOD_SEC = 7;
 const ENERGY_TARGET = 100;
 const ROUND_SEC = 180;
 const RESET_DELAY_MS = 3200;
 
-const BODY_PARTS: { name: string; dx: number; dy: number }[] = [
-  { name: "두개골", dx: 0.045, dy: -0.05 },
-  { name: "심장", dx: 0, dy: 0.01 },
-  { name: "척추", dx: -0.015, dy: -0.03 },
-  { name: "꼬리", dx: -0.06, dy: 0.02 },
-  { name: "앞다리", dx: 0.03, dy: 0.06 },
-  { name: "뒷다리", dx: -0.035, dy: 0.065 },
-];
+// 코어는 실제 게임과 마찬가지로 항상 심장 위치에 고정된다.
+const CORE_NAME = "심장";
+const CORE_OFFSET = { dx: 0, dy: 0.01 };
 
 const TREX_BASELINE_Y = 0.56;
 
@@ -34,8 +28,7 @@ function makePlayer(id: string, name: string): BattlePlayer {
 function initialBattle(): BattleState {
   return {
     remainingSec: ROUND_SEC,
-    coreName: "심장",
-    coreMoveInSec: CORE_PERIOD_SEC,
+    coreName: CORE_NAME,
     stage: 1,
     siteName: "노을 협곡 발굴지",
     energyTarget: ENERGY_TARGET,
@@ -51,7 +44,7 @@ function initialBattle(): BattleState {
       coreHits: 0,
       players: [makePlayer("b1", "프로스트핀"), makePlayer("b2", "아이스팽"), makePlayer("b3", "글레이셔"), makePlayer("b4", "블루레이")],
     },
-    trex: { x: TREX_RANGE[0], facing: 1, corePos: [TREX_RANGE[0], TREX_BASELINE_Y] },
+    trex: { x: TREX_RANGE[0], facing: 1, corePos: corePosFor(TREX_RANGE[0], 1) },
   };
 }
 
@@ -62,9 +55,8 @@ function trexXAt(elapsedMs: number): { x: number; facing: 1 | -1 } {
   return { x: hi - (hi - lo) * ((phase - 0.5) * 2), facing: -1 };
 }
 
-function corePosFor(trexX: number, facing: 1 | -1, partName: string): [number, number] {
-  const part = BODY_PARTS.find((p) => p.name === partName) ?? BODY_PARTS[1]!;
-  return [clamp01(trexX + part.dx * facing), clamp01(TREX_BASELINE_Y + part.dy)];
+function corePosFor(trexX: number, facing: 1 | -1): [number, number] {
+  return [clamp01(trexX + CORE_OFFSET.dx * facing), clamp01(TREX_BASELINE_Y + CORE_OFFSET.dy)];
 }
 
 function stageFor(avgEnergy: number): number {
@@ -79,7 +71,7 @@ export function useBattleDemo() {
   const startRef = useRef(Date.now());
   const resettingRef = useRef(false);
 
-  // 타이머 + 티라노 이동 + 코어 로테이션(200ms 틱)
+  // 타이머 + 티라노 이동(200ms 틱)
   useEffect(() => {
     const tick = window.setInterval(() => {
       const elapsed = Date.now() - startRef.current;
@@ -87,21 +79,12 @@ export function useBattleDemo() {
       update((prev) => {
         if (resettingRef.current) return prev;
         const nextRemaining = Math.max(0, prev.remainingSec - 0.2);
-        let coreMoveInSec = prev.coreMoveInSec - 0.2;
-        let coreName = prev.coreName;
-        if (coreMoveInSec <= 0) {
-          const candidates = BODY_PARTS.filter((p) => p.name !== prev.coreName);
-          coreName = candidates[Math.floor(Math.random() * candidates.length)]!.name;
-          coreMoveInSec = CORE_PERIOD_SEC;
-        }
         const avgEnergy = (prev.teamA.energy + prev.teamB.energy) / 2;
         return {
           ...prev,
           remainingSec: nextRemaining,
-          coreMoveInSec,
-          coreName,
           stage: stageFor(avgEnergy),
-          trex: { x, facing, corePos: corePosFor(x, facing, coreName) },
+          trex: { x, facing, corePos: corePosFor(x, facing) },
         };
       });
     }, 200);

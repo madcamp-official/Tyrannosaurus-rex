@@ -28,7 +28,6 @@ export interface BattleTrex {
 export interface BattleState {
   remainingSec: number;
   coreName: string;
-  coreMoveInSec: number;
   stage: number;
   teamA: BattleTeam;
   teamB: BattleTeam;
