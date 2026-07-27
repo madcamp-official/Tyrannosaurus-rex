@@ -257,6 +257,9 @@ export function DesktopLobby(): JSX.Element {
       <main className="desktop-lobby">
         <div className="home-screen">
           <div className="home-screen__scrim" />
+          <button type="button" className="home-screen__settings" aria-label="설정">
+            ⚙️
+          </button>
           <img className="home-screen__logo-mark" src="/images/logo.png" alt="내 티라노를 살려내!" />
           <div className="home-screen__corner">
             <button type="button" className="home-screen__cta" onClick={handleEnterFromHome} disabled={!connected || creating}>
@@ -295,14 +298,9 @@ export function DesktopLobby(): JSX.Element {
         {roomState?.roomPhase === "LOBBY" && (
           <section className="lobby-main">
             <h2 className="lobby-room-name">{roomState.roomName}</h2>
-            <div className="lobby-code-card">
-              <div className="lobby-code-card__code">
-                <span className="lobby-code-card__label">방 코드</span>
-                <span className="lobby-code-card__value">{roomState.roomCode}</span>
-              </div>
-              <div className="lobby-code-card__divider" />
+            <div className="lobby-code-card lobby-code-card--qr-only">
               <div className="lobby-code-card__qr">
-                {qrDataUrl && <img src={qrDataUrl} alt="입장 QR 코드" width={150} height={150} />}
+                {qrDataUrl && <img src={qrDataUrl} alt="입장 QR 코드" width={220} height={220} />}
                 <span>📱 스캔해서 입장</span>
               </div>
             </div>
