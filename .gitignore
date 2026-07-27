@@ -22,3 +22,6 @@ Thumbs.db
 !.vscode/extensions.json
 
 # Godot Web export artifacts live only under frontend/public/godot (see its own .gitignore)
+
+# design reference mockups, not part of the shipped app
+/기타/
