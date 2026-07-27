@@ -11,11 +11,22 @@ function TeamEnergyCard({ teamId, energy, target, totalHits, coreHits }: {
 }): JSX.Element {
   const remaining = Math.max(0, Math.round(((target - energy) / target) * 100));
   const pct = Math.min(100, (energy / target) * 100);
+  // 중앙(VS 배지) 쪽으로 팀명이 오도록 A팀은 캡션-팀명, B팀은 팀명-캡션 순으로 좌우 대칭.
+  const mirrored = teamId === "A";
   return (
     <div className={`battle-gauge battle-gauge--${teamId.toLowerCase()}`}>
       <div className="battle-gauge__top">
-        <span className="battle-gauge__team">{teamId}팀</span>
-        <span className="battle-gauge__caption">부활 에너지</span>
+        {mirrored ? (
+          <>
+            <span className="battle-gauge__caption">부활 에너지</span>
+            <span className="battle-gauge__team">{teamId}팀</span>
+          </>
+        ) : (
+          <>
+            <span className="battle-gauge__team">{teamId}팀</span>
+            <span className="battle-gauge__caption">부활 에너지</span>
+          </>
+        )}
       </div>
       <div className="battle-gauge__value">
         {Math.round(energy)}
