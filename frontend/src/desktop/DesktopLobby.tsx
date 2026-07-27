@@ -46,6 +46,7 @@ export function DesktopLobby(): JSX.Element {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
+  const [homeStarted, setHomeStarted] = useState(false);
   const [creating, setCreating] = useState(false);
   const [ephemeral, setEphemeral] = useState<ChargingEphemeral>({
     trexByTeam: {},
@@ -245,7 +246,28 @@ export function DesktopLobby(): JSX.Element {
     });
   }, [roomState, bridge]);
 
+  const handleEnterFromHome = () => {
+    setHomeStarted(true);
+  };
+
   const showHeader = !roomState || roomState.roomPhase === "LOBBY";
+
+  if (!homeStarted) {
+    return (
+      <main className="desktop-lobby">
+        <div className="home-screen">
+          <div className="home-screen__scrim" />
+          <img className="home-screen__logo-mark" src="/images/logo.png" alt="내 티라노를 살려내!" />
+          <div className="home-screen__corner">
+            <button type="button" className="home-screen__cta" onClick={handleEnterFromHome} disabled={!connected || creating}>
+              🦴 방 만들기
+            </button>
+            {!connected && <p className="home-screen__hint">서버에 연결하는 중…</p>}
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="desktop-lobby">
@@ -255,13 +277,8 @@ export function DesktopLobby(): JSX.Element {
       <div className="desktop-lobby__overlay">
         {showHeader && (
           <header className="lobby-header">
-            <span className="lobby-header__badge">
-              <span className="lobby-header__badge-dot" />
-            </span>
-            <div className="lobby-header__text">
-              <h1>내 티라노사우루스 살려내!!!</h1>
-              <p>죽은 티라노, 정말 살려드립니다</p>
-            </div>
+            <img className="lobby-header__logo" src="/images/logo.png" alt="내 티라노를 살려내!" />
+            <p className="lobby-header__subtitle">죽은 티라노, 정말 살려드립니다</p>
           </header>
         )}
 
