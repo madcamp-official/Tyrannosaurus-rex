@@ -2,7 +2,6 @@
 
 import type {
   BoneId,
-  DecorationCategory,
   Facing,
   MuseumTyranno,
   NormalizedPoint,
@@ -81,7 +80,6 @@ export type EnergyHitPayload = {
   stability: number;
 };
 export type RevivalResultPayload = { teamId: TeamId; form: RevivalForm; purified: boolean };
-export type DecorationStatePayload = { teamId: TeamId; selections: Partial<Record<DecorationCategory, string>> };
 export type MuseumEntriesPayload = { entries: MuseumTyranno[] };
 
 export type ReactToGodotMessage =
@@ -94,7 +92,6 @@ export type ReactToGodotMessage =
   | BridgeEnvelope<"TREX_TRANSFORM", TrexTransformPayload>
   | BridgeEnvelope<"ENERGY_HIT", EnergyHitPayload>
   | BridgeEnvelope<"REVIVAL_RESULT", RevivalResultPayload>
-  | BridgeEnvelope<"DECORATION_STATE", DecorationStatePayload>
   | BridgeEnvelope<"MUSEUM_ENTRIES", MuseumEntriesPayload>;
 
 // ---------------------------------------------------------------------------
