@@ -68,10 +68,13 @@ body {
   height: clamp(140px, 40vw, 220px);
   width: auto;
   filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.45));
+  /* 로고 PNG 하단 여백(약 20%) 상쇄 — 높이 clamp와 같은 비율로 함께 스케일 */
+  margin-bottom: clamp(-44px, -8.08vw, -28px);
 }
 
 .mobile-join__logo--small {
   height: clamp(100px, 28vw, 150px);
+  margin-bottom: clamp(-30px, -5.656vw, -20px);
 }
 
 .mobile-join__subtitle {
@@ -443,6 +446,9 @@ body {
 
 .lobby-main__center .lobby-header__logo {
   height: 280px;
+  /* 로고 PNG 하단에 여백이 baked-in 되어 있어(전체 높이의 약 20%),
+     그만큼을 상쇄해 서브타이틀과의 시각적 간격을 좁힌다. */
+  margin-bottom: -56px;
 }
 
 .lobby-code-card {
