@@ -97,6 +97,10 @@ export function finishDinoRunIfNeeded(room: RoomRecord, teamId: TeamId, now: num
   team.phaseEndsAt = now + CHARGING_DURATION_MS;
   team.charging.stability = startStability;
   room.chargingStartedAt[teamId] = now;
+  // 공유 스켈레톤은 방에서 먼저 CHARGING에 들어간 팀 기준으로 한 번만 시작된다 (§2.3).
+  if (room.sharedTrexStartedAt === null) {
+    room.sharedTrexStartedAt = now;
+  }
 
   return { performance, grade, startStability };
 }

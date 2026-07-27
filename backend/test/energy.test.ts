@@ -5,16 +5,16 @@ import { RoomManager, type RoomRecord } from "../src/rooms/RoomManager.js";
 import { computeActiveCore, computeTrexTransform, CORE_OFFSETS } from "../src/game/charging.js";
 
 /** 방의 실제 roundSeed로 계산한 정확한 코어 좌표를 조준해, 시드 값과 무관하게 코어 명중을 보장한다. */
-function aimAtCore(room: RoomRecord, teamId: "A" | "B", now: number) {
-  const trex = computeTrexTransform(room, teamId, now);
-  const { core } = computeActiveCore(room, teamId, now);
+function aimAtCore(room: RoomRecord, now: number) {
+  const trex = computeTrexTransform(room, now);
+  const { core } = computeActiveCore(room, now);
   const offset = CORE_OFFSETS[core];
   return { x: trex.position.x + offset.x, y: trex.position.y + offset.y };
 }
 
 function setupChargingRoom() {
   const rooms = new RoomManager("https://trex.example.com");
-  const created = rooms.createRoom("host-1")!;
+  const created = rooms.createRoom("host-1", "테스트 방", 5)!;
   const roomCode = created.room.state.roomCode;
   const a = rooms.joinRoom(roomCode, "A1", "socket-a1");
   const b = rooms.joinRoom(roomCode, "B1", "socket-b1");
@@ -27,7 +27,8 @@ function setupChargingRoom() {
   const now = Date.now();
   room.state.teams.A.phase = "CHARGING";
   room.chargingStartedAt.A = now;
-  room.aimState.set(a.playerId, { point: aimAtCore(room, "A", now), mode: "TOUCHPAD", calibrated: true, receivedAt: now, lastSeq: 1 });
+  room.sharedTrexStartedAt = now;
+  room.aimState.set(a.playerId, { point: aimAtCore(room, now), mode: "TOUCHPAD", calibrated: true, receivedAt: now, lastSeq: 1 });
 
   return { rooms, room, playerA: a.playerId, now };
 }
@@ -43,7 +44,7 @@ describe("energy:fire", () => {
 
   it("rejects fire with no recent aim update", () => {
     const rooms = new RoomManager("https://trex.example.com");
-    const created = rooms.createRoom("host-1")!;
+    const created = rooms.createRoom("host-1", "테스트 방", 5)!;
     const roomCode = created.room.state.roomCode;
     const a = rooms.joinRoom(roomCode, "A1", "socket-a1");
     const b = rooms.joinRoom(roomCode, "B1", "socket-b1");
@@ -97,23 +98,39 @@ describe("energy:fire", () => {
     expect(player.stats.coreHits).toBe(1);
   });
 
-  it("reaches NORMAL revival once energy hits the target and finalizes the round", () => {
+  it("reaches NORMAL revival once energy hits the target, scoring the game without ending the round early", () => {
     const { rooms, room, playerA } = setupChargingRoom();
     let now = Date.now();
     let outcome;
     let guard = 0;
     while (room.state.teams.A.charging.energy < ENERGY_TARGET && guard < 50) {
       now += SHOT_COOLDOWN_MS + 10;
-      room.aimState.set(playerA, { point: aimAtCore(room, "A", now), mode: "TOUCHPAD", calibrated: true, receivedAt: now, lastSeq: guard + 2 });
+      room.aimState.set(playerA, { point: aimAtCore(room, now), mode: "TOUCHPAD", calibrated: true, receivedAt: now, lastSeq: guard + 2 });
       outcome = rooms.fireEnergy(room, "A", playerA, randomUUID(), now);
       guard += 1;
     }
     expect(room.state.teams.A.charging.energy).toBeGreaterThanOrEqual(ENERGY_TARGET);
     expect(room.state.teams.A.phase).toBe("REVIVED");
     expect(room.state.teams.A.charging.form).toBe("NORMAL");
-    expect(outcome?.roundFinalized).toBe(true);
+    expect(room.state.teams.A.scores.charging).not.toBeNull();
+    // 팀 B는 아직 CHARGING을 마치지 않았으므로, 누적 점수제 하에서는 라운드가 아직 끝나지 않는다.
+    expect(outcome?.roundFinalized).toBe(false);
+    expect(room.state.roomPhase).toBe("PLAYING");
+  });
+
+  it("finalizes with the higher cumulative score once both teams are revived", () => {
+    const { rooms, room } = setupChargingRoom();
+    room.state.teams.A.phase = "REVIVED";
+    room.state.teams.A.charging.form = "NORMAL";
+    room.state.teams.A.scores = { excavation: 80, dinoRun: 80, charging: 80 };
+    room.state.teams.B.phase = "REVIVED";
+    room.state.teams.B.charging.form = "YRANNO";
+    room.state.teams.B.scores = { excavation: 40, dinoRun: 40, charging: 40 };
+
+    const finalized = rooms.checkRoundCompletion(room, Date.now());
+    expect(finalized).toBe(true);
     expect(room.state.roomPhase).toBe("DECORATION");
-    expect(room.state.winner).toEqual({ teamId: "A", reason: "NORMAL_REVIVAL" });
+    expect(room.state.winner).toEqual({ teamId: "A", reason: "SCORE_TOTAL" });
   });
 });
 

@@ -1,14 +1,17 @@
 /** Plan.md §5.1, §17.1, §17.4. 데스크탑 로비: 방 생성, QR, 팀 배정, 게임 시작. */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
 import {
   BONE_IDS,
-  MAX_PLAYERS_PER_TEAM,
+  DEFAULT_MAX_PLAYERS_PER_TEAM,
+  MAX_PLAYERS_PER_TEAM_CAP,
   PUZZLE_TARGET_TRANSFORMS,
+  ROOM_NAME_MAX_LENGTH,
+  TEAM_DISPLAY_NAMES,
+  TEAM_NAME_MAX_LENGTH,
   type Ack,
   type GameResultEvent,
-  type GameStartResponse,
   type PlayerId,
   type RoomCreateResponse,
   type RoomState,
@@ -35,6 +38,7 @@ import {
 } from "../roomStateReducer";
 
 const CROSSHAIR_STALE_MS = 700;
+const TEAM_EMBLEM: Record<TeamId, string> = { A: "🔥", B: "❄️" };
 
 export function DesktopLobby(): JSX.Element {
   const socketRef = useRef<AppSocket | null>(null);
@@ -45,7 +49,13 @@ export function DesktopLobby(): JSX.Element {
   const [connected, setConnected] = useState(false);
   const [homeStarted, setHomeStarted] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [ephemeral, setEphemeral] = useState<ChargingEphemeral>({ trexByTeam: {}, crosshairsByPlayer: {}, hitFlashByTeam: {} });
+  const [ephemeral, setEphemeral] = useState<ChargingEphemeral>({
+    trexByTeam: {},
+    crosshairsByPlayer: {},
+    hitFlashByTeam: {},
+    coreChangesAtByTeam: {},
+    battleShotEvents: [],
+  });
   const [gameResult, setGameResult] = useState<GameResultEvent | null>(null);
   const { bridge } = useGodotBridge();
 
@@ -76,7 +86,13 @@ export function DesktopLobby(): JSX.Element {
         pieces: BONE_IDS.map((boneId) => ({ boneId, transform: PUZZLE_TARGET_TRANSFORMS[boneId], fixed: true })),
       });
     });
-    socket.on("energy:coreChanged", (evt) => setRoomState((prev) => (prev ? applyCoreChanged(prev, evt.data) : prev)));
+    socket.on("energy:coreChanged", (evt) => {
+      setRoomState((prev) => (prev ? applyCoreChanged(prev, evt.data) : prev));
+      setEphemeral((prev) => ({
+        ...prev,
+        coreChangesAtByTeam: { ...prev.coreChangesAtByTeam, [evt.data.teamId]: evt.data.nextChangeAt },
+      }));
+    });
     socket.on("revival:formChanged", (evt) => {
       setRoomState((prev) => (prev ? applyRevivalFormChanged(prev, evt.data) : prev));
       bridge.send("REVIVAL_RESULT", { teamId: evt.data.teamId, form: evt.data.form, purified: evt.data.form === "NORMAL" });
@@ -89,7 +105,15 @@ export function DesktopLobby(): JSX.Element {
     socket.on("trex:transform", (evt) => {
       setEphemeral((prev) => ({
         ...prev,
-        trexByTeam: { ...prev.trexByTeam, [evt.data.teamId]: { position: evt.data.position, facing: evt.data.facing } },
+        trexByTeam: {
+          ...prev.trexByTeam,
+          [evt.data.teamId]: {
+            position: evt.data.position,
+            facing: evt.data.facing,
+            activeCore: evt.data.activeCore,
+            corePosition: evt.data.corePosition,
+          },
+        },
       }));
       bridge.send("TREX_TRANSFORM", {
         teamId: evt.data.teamId,
@@ -130,6 +154,30 @@ export function DesktopLobby(): JSX.Element {
       window.setTimeout(() => {
         setEphemeral((prev) => ({ ...prev, hitFlashByTeam: { ...prev.hitFlashByTeam, [evt.data.teamId]: undefined } }));
       }, 250);
+
+      // 배틀 화면의 발사 임팩트 연출용 — 900ms 뒤 스스로 사라지는 일회성 이벤트로만 취급한다.
+      const isCoreHit = evt.data.hitZone === "HEART" || evt.data.hitZone === "SKULL" || evt.data.hitZone === "SPINE";
+      const shotEventId = `${evt.data.playerId}-${evt.data.shotId}`;
+      const impactPoint = evt.data.hitPoint ?? evt.data.aimPoint;
+      setEphemeral((prev) => ({
+        ...prev,
+        battleShotEvents: [
+          ...prev.battleShotEvents,
+          {
+            id: shotEventId,
+            team: evt.data.teamId,
+            playerId: evt.data.playerId,
+            hit: evt.data.hit,
+            core: isCoreHit,
+            point: [impactPoint.x, impactPoint.y],
+            ts: Date.now(),
+          },
+        ],
+      }));
+      window.setTimeout(() => {
+        setEphemeral((prev) => ({ ...prev, battleShotEvents: prev.battleShotEvents.filter((e) => e.id !== shotEventId) }));
+      }, 900);
+
       bridge.send("ENERGY_HIT", {
         teamId: evt.data.teamId,
         hitZone: evt.data.hitZone,
@@ -170,31 +218,22 @@ export function DesktopLobby(): JSX.Element {
     QRCode.toDataURL(joinUrl, { margin: 1, width: 240 }).then(setQrDataUrl).catch(() => setQrDataUrl(null));
   }, [joinUrl]);
 
-  useEffect(() => {
-    if (!roomState) return;
-    bridge.sendFullSnapshot({
-      revision: roomState.revision,
-      teams: {
-        A: snapshotForTeam(roomState.teams.A),
-        B: snapshotForTeam(roomState.teams.B),
-      },
-    });
-  }, [roomState, bridge]);
-
-  const handleStart = () => {
-    setStartError(null);
-    socketRef.current?.emit("game:start", { requestId: newRequestId() }, (ack: Ack<GameStartResponse>) => {
-      if (!ack.ok) setStartError(ack.error.message);
-    });
-  };
-
-  const handleEnterFromHome = () => {
-    setHomeStarted(true);
+  const handleCreateRoom = (roomName: string, maxPlayersPerTeam: number, teamAName: string, teamBName: string) => {
     setStartError(null);
     setCreating(true);
     socketRef.current?.emit(
       "room:create",
-      { requestId: newRequestId(), settings: { maxPlayers: 10, roundDurationSec: 300, language: "ko" } },
+      {
+        requestId: newRequestId(),
+        roomName,
+        settings: {
+          maxPlayersPerTeam,
+          roundDurationSec: 300,
+          language: "ko",
+          teamAName: teamAName.trim() || undefined,
+          teamBName: teamBName.trim() || undefined,
+        },
+      },
       (ack: Ack<RoomCreateResponse>) => {
         setCreating(false);
         if (!ack.ok) {
@@ -207,6 +246,21 @@ export function DesktopLobby(): JSX.Element {
     );
   };
 
+  useEffect(() => {
+    if (!roomState) return;
+    bridge.sendFullSnapshot({
+      revision: roomState.revision,
+      teams: {
+        A: snapshotForTeam(roomState.teams.A),
+        B: snapshotForTeam(roomState.teams.B),
+      },
+    });
+  }, [roomState, bridge]);
+
+  const handleEnterFromHome = () => {
+    setHomeStarted(true);
+  };
+
   const showHeader = !roomState || roomState.roomPhase === "LOBBY";
 
   if (!homeStarted) {
@@ -214,6 +268,9 @@ export function DesktopLobby(): JSX.Element {
       <main className="desktop-lobby">
         <div className="home-screen">
           <div className="home-screen__scrim" />
+          <button type="button" className="home-screen__settings" aria-label="설정">
+            ⚙️
+          </button>
           <img className="home-screen__logo-mark" src="/images/logo.png" alt="내 티라노를 살려내!" />
           <div className="home-screen__corner">
             <button type="button" className="home-screen__cta" onClick={handleEnterFromHome} disabled={!connected || creating}>
@@ -239,33 +296,22 @@ export function DesktopLobby(): JSX.Element {
           </header>
         )}
 
-        {!roomState && (
+        {!roomState && !connected && (
           <section className="lobby-connecting">
-            {startError ? (
-              <div className="lobby-error-banner">
-                <span className="lobby-error-banner__icon">⚠</span>
-                <span>방을 만들지 못했습니다: {startError}</span>
-              </div>
-            ) : (
-              <>
-                <div className="lobby-spinner" />
-                <p className="lobby-connecting__title">서버에 연결하는 중…</p>
-                <p className="lobby-connecting__hint">잠시만 기다려주세요</p>
-              </>
-            )}
+            <div className="lobby-spinner" />
+            <p className="lobby-connecting__title">서버에 연결하는 중…</p>
+            <p className="lobby-connecting__hint">잠시만 기다려주세요</p>
           </section>
         )}
 
+        {!roomState && connected && <CreateRoomForm onCreate={handleCreateRoom} creating={creating} error={startError} />}
+
         {roomState?.roomPhase === "LOBBY" && (
           <section className="lobby-main">
-            <div className="lobby-code-card">
-              <div className="lobby-code-card__code">
-                <span className="lobby-code-card__label">방 코드</span>
-                <span className="lobby-code-card__value">{roomState.roomCode}</span>
-              </div>
-              <div className="lobby-code-card__divider" />
+            <h2 className="lobby-room-name">{roomState.roomName}</h2>
+            <div className="lobby-code-card lobby-code-card--qr-only">
               <div className="lobby-code-card__qr">
-                {qrDataUrl && <img src={qrDataUrl} alt="입장 QR 코드" width={150} height={150} />}
+                {qrDataUrl && <img src={qrDataUrl} alt="입장 QR 코드" width={220} height={220} />}
                 <span>📱 스캔해서 입장</span>
               </div>
             </div>
@@ -279,12 +325,7 @@ export function DesktopLobby(): JSX.Element {
 
             <LobbyTeams roomState={roomState} />
 
-            <div className="lobby-start">
-              <button type="button" className="lobby-start__button" onClick={handleStart}>
-                게임 시작
-              </button>
-              <p className="lobby-start__hint">호스트만 누를 수 있어요</p>
-            </div>
+            <p className="lobby-start__hint">전원 준비되면 자동으로 시작됩니다</p>
           </section>
         )}
 
@@ -299,19 +340,101 @@ export function DesktopLobby(): JSX.Element {
   );
 }
 
+function CreateRoomForm({
+  onCreate,
+  creating,
+  error,
+}: {
+  onCreate: (roomName: string, maxPlayersPerTeam: number, teamAName: string, teamBName: string) => void;
+  creating: boolean;
+  error: string | null;
+}): JSX.Element {
+  const [roomName, setRoomName] = useState("");
+  const [maxPlayersPerTeam, setMaxPlayersPerTeam] = useState(DEFAULT_MAX_PLAYERS_PER_TEAM);
+  const [teamAName, setTeamAName] = useState("");
+  const [teamBName, setTeamBName] = useState("");
+
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    const trimmed = roomName.trim();
+    if (trimmed.length === 0 || creating) return;
+    onCreate(trimmed, maxPlayersPerTeam, teamAName, teamBName);
+  };
+
+  return (
+    <section className="lobby-connecting">
+      <form className="lobby-create-card" onSubmit={handleSubmit}>
+        <label className="lobby-create-card__field">
+          <span>방 이름</span>
+          <input
+            className="lobby-create-card__input"
+            value={roomName}
+            onChange={(e) => setRoomName(e.target.value.slice(0, ROOM_NAME_MAX_LENGTH))}
+            maxLength={ROOM_NAME_MAX_LENGTH}
+            placeholder="방 이름을 입력하세요"
+            autoFocus
+          />
+        </label>
+        <label className="lobby-create-card__field">
+          <span>팀 A 이름</span>
+          <input
+            className="lobby-create-card__input"
+            value={teamAName}
+            onChange={(e) => setTeamAName(e.target.value.slice(0, TEAM_NAME_MAX_LENGTH))}
+            maxLength={TEAM_NAME_MAX_LENGTH}
+            placeholder={TEAM_DISPLAY_NAMES.A}
+          />
+        </label>
+        <label className="lobby-create-card__field">
+          <span>팀 B 이름</span>
+          <input
+            className="lobby-create-card__input"
+            value={teamBName}
+            onChange={(e) => setTeamBName(e.target.value.slice(0, TEAM_NAME_MAX_LENGTH))}
+            maxLength={TEAM_NAME_MAX_LENGTH}
+            placeholder={TEAM_DISPLAY_NAMES.B}
+          />
+        </label>
+        <label className="lobby-create-card__field">
+          <span>팀별 최대 인원</span>
+          <input
+            className="lobby-create-card__input"
+            type="number"
+            min={1}
+            max={MAX_PLAYERS_PER_TEAM_CAP}
+            value={maxPlayersPerTeam}
+            onChange={(e) => setMaxPlayersPerTeam(Math.min(MAX_PLAYERS_PER_TEAM_CAP, Math.max(1, Number(e.target.value) || 1)))}
+          />
+        </label>
+        {error && (
+          <div className="lobby-error-banner lobby-error-banner--inline">
+            <span className="lobby-error-banner__icon">⚠</span>
+            <span>{error}</span>
+          </div>
+        )}
+        <button type="submit" className="lobby-start__button" disabled={creating || roomName.trim().length === 0}>
+          방 만들기
+        </button>
+      </form>
+    </section>
+  );
+}
+
 function LobbyTeams({ roomState }: { roomState: RoomState }): JSX.Element {
   const teamIds: TeamId[] = ["A", "B"];
   return (
     <div className="lobby-teams">
       {teamIds.map((teamId) => {
         const players = roomState.players.filter((p) => p.teamId === teamId);
-        const emptySlots = Math.max(0, MAX_PLAYERS_PER_TEAM - players.length);
+        const emptySlots = Math.max(0, roomState.maxPlayersPerTeam - players.length);
         return (
           <div key={teamId} className={`lobby-team-card lobby-team-card--${teamId.toLowerCase()}`}>
             <div className="lobby-team-card__header">
-              <span className="lobby-team-card__name">{teamId === "A" ? "🔥 A팀" : "❄️ B팀"}</span>
+              <span className="lobby-team-card__name">
+                {TEAM_EMBLEM[teamId]} {roomState.teamNames[teamId]}
+              </span>
               <span className="lobby-team-card__count">
-                {players.length}/{MAX_PLAYERS_PER_TEAM}명
+                {players.length}/{roomState.maxPlayersPerTeam}명
               </span>
             </div>
             <ul className="lobby-team-card__list">

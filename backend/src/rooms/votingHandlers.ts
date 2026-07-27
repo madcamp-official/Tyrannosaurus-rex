@@ -1,12 +1,15 @@
 /** Plan.md §7, §17.12~17.13, §18. 티꾸/이름 투표 이벤트와 마감 처리. */
 
+import { randomUUID } from "node:crypto";
 import { NAME_CANDIDATES, decorationVoteRequestSchema, nameVoteRequestSchema } from "@trex/shared";
-import type { RoomManager } from "./RoomManager.js";
+import type { RoomManager, RoomRecord } from "./RoomManager.js";
 import type { AppServer, AppSocket } from "./types.js";
 import { roomChannel } from "./channels.js";
 import { toServerEvent } from "./broadcast.js";
 import { ackErr, ackOk } from "../validation/ack.js";
 import { TokenBucketLimiter } from "../validation/rateLimit.js";
+import { computeMvpRanking } from "../game/mvp.js";
+import { insertMuseumEntry } from "../db/museumDb.js";
 
 const decorationVoteLimiter = new TokenBucketLimiter(5, 5);
 const nameVoteLimiter = new TokenBucketLimiter(5, 5);
@@ -97,5 +100,36 @@ export function finalizeVotingTick(io: AppServer, rooms: RoomManager, roomCode: 
         votingEndsAt: room.votingEndsAt ?? Date.now(),
       }),
     );
+
+    saveMuseumEntry(room, teamId, selectedName);
   }
+}
+
+/** Plan.md §8. 티꾸/이름 투표가 끝난 시점에만 그 팀의 티라노를 박물관 DB에 기록한다. */
+function saveMuseumEntry(room: RoomRecord, teamId: "A" | "B", tyrannoName: string | null): void {
+  const team = room.state.teams[teamId];
+  const members = room.state.players.filter((p) => p.teamId === teamId);
+  const totalShots = members.reduce((sum, p) => sum + p.stats.shots, 0);
+  const totalHits = members.reduce((sum, p) => sum + p.stats.hits, 0);
+  const [mvp] = computeMvpRanking(members);
+
+  insertMuseumEntry({
+    id: randomUUID(),
+    roomName: room.state.roomName,
+    teamId,
+    teamName: room.state.teamNames[teamId],
+    isWinner: room.state.winner.teamId === teamId,
+    form: team.charging.form,
+    tyrannoName,
+    teamMembers: members.map((p) => p.nickname),
+    mvpNickname: mvp ? mvp.nickname : null,
+    mvpScore: mvp ? mvp.score : null,
+    decorations: room.decorationSelections[teamId],
+    excavationMs: room.phaseDurations[teamId].excavationMs,
+    assemblyMs: room.phaseDurations[teamId].assemblyMs,
+    chargingMs: room.phaseDurations[teamId].chargingMs,
+    accuracy: totalShots > 0 ? totalHits / totalShots : 0,
+    fossils: team.excavation.fossils,
+    createdAt: Date.now(),
+  });
 }

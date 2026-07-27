@@ -1,12 +1,14 @@
 /** Plan.md §17.10, §18. 사격 판정과 배경 충전 틱(10Hz) 브로드캐스트. */
 
-import { energyFireRequestSchema } from "@trex/shared";
+import { energyFireRequestSchema, totalGameScore } from "@trex/shared";
 import type { RoomManager, ChargingTickUpdate } from "./RoomManager.js";
 import type { AppServer, AppSocket } from "./types.js";
 import { roomChannel } from "./channels.js";
 import { broadcastRoomState, toServerEvent } from "./broadcast.js";
 import { ackErr, ackOk } from "../validation/ack.js";
 import { TokenBucketLimiter } from "../validation/rateLimit.js";
+import { computeMvpRanking } from "../game/mvp.js";
+import { CORE_OFFSETS } from "../game/charging.js";
 
 const fireLimiter = new TokenBucketLimiter(4, 4);
 
@@ -99,9 +101,12 @@ export function broadcastResultIfFinalized(io: AppServer, rooms: RoomManager, ro
           excavationMs: durations.excavationMs,
           assemblyMs: durations.assemblyMs,
           chargingMs: durations.chargingMs,
+          scores: team.scores,
+          totalScore: totalGameScore(team.scores),
         };
       }),
       players: room.state.players,
+      mvp: computeMvpRanking(room.state.players),
     }),
   );
   broadcastRoomState(io, rooms, roomCode);
@@ -117,6 +122,7 @@ export function tickRoomCharging(io: AppServer, rooms: RoomManager, roomCode: st
   const channel = roomChannel(roomCode);
 
   for (const update of updates) {
+    const coreOffset = CORE_OFFSETS[update.core];
     io.to(channel).emit(
       "trex:transform",
       toServerEvent(roomCode, room.state.revision, {
@@ -126,6 +132,8 @@ export function tickRoomCharging(io: AppServer, rooms: RoomManager, roomCode: st
         facing: update.transform.facing,
         poseId: update.transform.poseId,
         effectiveAt: now,
+        activeCore: update.core,
+        corePosition: { x: update.transform.position.x + coreOffset.x, y: update.transform.position.y + coreOffset.y },
       }),
     );
 

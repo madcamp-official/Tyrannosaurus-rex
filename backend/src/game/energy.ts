@@ -84,8 +84,8 @@ export function applyEnergyFire(
     if (oldest !== undefined) tracking.recentShotIds.delete(oldest);
   }
 
-  const trex = computeTrexTransform(room, teamId, now);
-  const { core } = computeActiveCore(room, teamId, now);
+  const trex = computeTrexTransform(room, now);
+  const { core } = computeActiveCore(room, now);
   const { hitZone, energyDelta, stabilityDelta } = resolveHit(aim.point, trex.position, core);
 
   team.charging.energy = Math.max(0, Math.min(ENERGY_TARGET, team.charging.energy + energyDelta));

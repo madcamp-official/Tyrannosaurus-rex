@@ -18,6 +18,16 @@ import {
 
 type JoinStatus = "FORM" | "JOINING" | "JOINED" | "ERROR";
 
+function describeConnectError(message: string): string {
+  if (message.includes("timeout")) return "서버 연결 시간 초과 — Wi-Fi가 같은지 확인해주세요.";
+  if (message.includes("xhr poll error") || message.includes("websocket error")) {
+    return "서버에 연결할 수 없어요 — PC와 같은 Wi-Fi에 연결돼 있는지 확인해주세요.";
+  }
+  if (message.includes("invalid handshake")) return "연결 정보가 올바르지 않아요. 새로고침 후 다시 시도해주세요.";
+  if (message.includes("unsupported client version")) return "앱 버전이 서버와 맞지 않아요. 새로고침 후 다시 시도해주세요.";
+  return `서버 연결 실패: ${message}`;
+}
+
 export function MobileJoin(): JSX.Element {
   const { code } = useParams<{ code: string }>();
   const socketRef = useRef<AppSocket | null>(null);
@@ -67,6 +77,10 @@ export function MobileJoin(): JSX.Element {
         },
       );
     });
+    socket.on("connect_error", (err) => {
+      setStatus("ERROR");
+      setError(describeConnectError(err.message));
+    });
   };
 
   const toggleReady = () => {
@@ -104,7 +118,7 @@ export function MobileJoin(): JSX.Element {
     return (
       <main className="mobile-join">
         <h1>결과</h1>
-        {roomState.winner.teamId && <p>{roomState.winner.teamId}팀 승리!</p>}
+        {roomState.winner.teamId && <p>{roomState.teamNames[roomState.winner.teamId]} 승리!</p>}
         {!roomState.winner.teamId && <p>무승부</p>}
         {socket && <DecorationVote socket={socket} />}
       </main>
@@ -126,7 +140,7 @@ export function MobileJoin(): JSX.Element {
 
   return (
     <main className="mobile-join">
-      <p>{teamId}팀으로 입장했습니다.</p>
+      <p>{teamId && roomState ? roomState.teamNames[teamId] : ""}으로 입장했습니다.</p>
       <button type="button" onClick={toggleReady}>
         {ready ? "준비 완료 ✅ (취소)" : "준비하기"}
       </button>

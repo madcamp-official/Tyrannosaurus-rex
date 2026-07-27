@@ -109,8 +109,8 @@ body {
 
 .home-screen__corner {
   position: absolute;
-  left: 32px;
-  bottom: 32px;
+  left: 96px;
+  bottom: 96px;
   z-index: 1;
   display: flex;
   flex-direction: column;
@@ -118,34 +118,52 @@ body {
   gap: 8px;
 }
 
+.home-screen__settings {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  z-index: 2;
+  width: 52px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  background: rgba(61, 42, 18, 0.55);
+  border: 2px solid rgba(255, 248, 236, 0.6);
+  border-radius: 50%;
+  color: #faf5ea;
+  cursor: pointer;
+  backdrop-filter: blur(2px);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.home-screen__settings:hover {
+  background: rgba(61, 42, 18, 0.8);
+  transform: scale(1.06);
+}
+
 .home-screen__cta {
   background: #e8c34a;
   color: #3d2a12;
   font-family: "Baloo 2", sans-serif;
   font-weight: 800;
-  font-size: 28px;
-  padding: 14px 60px;
+  font-size: 19px;
+  padding: 10px 38px;
   border: none;
-  border-radius: 20px;
-  box-shadow: 0 6px 0 #b8933a;
+  border-radius: 16px;
+  box-shadow: 0 5px 0 #b8933a;
   cursor: pointer;
-  animation: home-cta-pulse 2.2s ease-in-out infinite;
+  transition: transform 0.15s ease-out;
+}
+
+.home-screen__cta:hover:not(:disabled) {
+  transform: scale(1.05);
 }
 
 .home-screen__cta:disabled {
   cursor: not-allowed;
   opacity: 0.7;
-  animation: none;
-}
-
-@keyframes home-cta-pulse {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.007);
-  }
 }
 
 .home-screen__hint {
@@ -221,9 +239,9 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-start;
   gap: clamp(20px, 3vh, 36px);
-  padding: 24px 0 100px;
+  padding: clamp(8px, 1.5vh, 16px) 0 100px;
 }
 
 .lobby-code-card {
@@ -238,34 +256,6 @@ body {
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
   flex-wrap: wrap;
   justify-content: center;
-}
-
-.lobby-code-card__code {
-  text-align: center;
-}
-
-.lobby-code-card__label {
-  display: block;
-  font-size: 15px;
-  font-weight: 700;
-  color: rgba(255, 248, 236, 0.65);
-  letter-spacing: 2px;
-}
-
-.lobby-code-card__value {
-  font-family: "JetBrains Mono", monospace;
-  font-size: clamp(48px, 6vw, 72px);
-  font-weight: 700;
-  letter-spacing: 8px;
-  color: #fff8ec;
-  line-height: 1.1;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
-}
-
-.lobby-code-card__divider {
-  width: 1px;
-  align-self: stretch;
-  background: rgba(255, 240, 220, 0.25);
 }
 
 .lobby-code-card__qr {
@@ -286,6 +276,19 @@ body {
   font-size: 13px;
   font-weight: 700;
   color: rgba(255, 248, 236, 0.75);
+}
+
+.lobby-code-card--qr-only {
+  padding: 20px 32px;
+}
+
+.lobby-code-card--qr-only .lobby-code-card__qr img {
+  width: 220px;
+  height: 220px;
+}
+
+.lobby-code-card--qr-only .lobby-code-card__qr span {
+  font-size: 16px;
 }
 
 .lobby-teams {
@@ -429,6 +432,50 @@ body {
   color: rgba(255, 248, 236, 0.7);
   margin-top: 8px;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+/* ---------- 방 만들기 폼 ---------- */
+
+.lobby-create-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(420px, 90vw);
+  background: rgba(255, 250, 240, 0.16);
+  backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgba(255, 240, 220, 0.35);
+  border-radius: 24px;
+  padding: 28px 32px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.lobby-create-card__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(255, 248, 236, 0.75);
+}
+
+.lobby-create-card__input {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 240, 220, 0.35);
+  background: rgba(0, 0, 0, 0.28);
+  color: #fff8ec;
+  font-size: 16px;
+  font-family: inherit;
+}
+
+.lobby-room-name {
+  margin: 0;
+  text-align: center;
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 800;
+  font-size: clamp(20px, 2.4vw, 28px);
+  color: #fff8ec;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 
 .godot-stage {
@@ -722,6 +769,24 @@ body {
   50% {
     box-shadow: 0 0 14px 2px rgba(200, 60, 50, 0.35);
   }
+}
+
+/* 사격 단계(경기 3): 공유 스켈레톤 아레나가 두 팀 패널 사이 중앙 열에 하나만 뜬다. */
+.play-area__shared-arena {
+  flex: 1.4;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+}
+
+.play-area__shared-arena .charging-view__arena {
+  margin: 0;
+}
+
+/* 공유 아레나가 떠 있을 땐 좌우 팀 패널을 50% 고정폭 대신 유동 비율(1:1.4:1)로 좁힌다. */
+.play-area__team--sidebar {
+  flex: 1 1 0%;
 }
 
 .phase-placeholder {

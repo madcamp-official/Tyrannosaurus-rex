@@ -19,13 +19,14 @@
     "pretest": "npm run build -w shared",
     "test": "npm run test -w shared --if-present && npm run test -w backend --if-present && npm run test -w frontend --if-present",
     "simulate": "npm run simulate -w backend --",
-    "autoplay": "npm run autoplay -w backend --"
+    "autoplay": "npm run autoplay -w backend --",
+    "deploy": "bash scripts/deploy.sh"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
     "typescript": "^5.5.4"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.5.0"
   }
 }

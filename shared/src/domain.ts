@@ -138,6 +138,18 @@ export type DinoRunState = {
   grade: DinoRunGrade | null;
 };
 
+/** Plan.md §2.3, §3. 경기 1~3(발굴·다이노런·사격) 각각의 점수. 완료 전에는 null. 0~100 스케일. */
+export type GameScores = {
+  excavation: number | null;
+  dinoRun: number | null;
+  charging: number | null;
+};
+
+/** 세 경기 점수를 합산한 팀 총점. 미완료 경기는 0점으로 취급한다. */
+export function totalGameScore(scores: GameScores): number {
+  return (scores.excavation ?? 0) + (scores.dinoRun ?? 0) + (scores.charging ?? 0);
+}
+
 export type TeamState = {
   id: TeamId;
   phase: TeamPhase;
@@ -160,14 +172,28 @@ export type TeamState = {
     coreChangesAt: number;
     form: RevivalForm;
   };
+  scores: GameScores;
 };
 
-export type WinnerReason = "NORMAL_REVIVAL" | "OPPONENT_DISCONNECTED" | "TIME_LIMIT" | "DRAW" | null;
+/** Plan.md §3. 3경기 누적 점수 합산으로 최종 승패가 갈렸으면 SCORE_TOTAL. */
+export type WinnerReason = "SCORE_TOTAL" | "OPPONENT_DISCONNECTED" | "TIME_LIMIT" | "DRAW" | null;
+
+/** Plan.md §2.3 결과 화면. 개인 MVP 1~3위 산정 결과 한 명. */
+export type MvpEntry = {
+  playerId: PlayerId;
+  nickname: string;
+  teamId: TeamId;
+  score: number;
+};
 
 export type RoomState = {
   schemaVersion: 1;
   revision: number;
   roomCode: RoomCode;
+  roomName: string;
+  maxPlayersPerTeam: number;
+  /** Plan.md §2.2. 호스트가 방 생성 시 지정한 팀 표시 이름. 미지정 시 TEAM_DISPLAY_NAMES 기본값. */
+  teamNames: Record<TeamId, string>;
   roomPhase: RoomPhase;
   createdAt: number;
   roundStartedAt: number | null;
@@ -183,18 +209,23 @@ export type RoomState = {
 
 export type DecorationCategory = "HAT" | "GLASSES" | "NECK" | "BACKGROUND";
 
+/** Plan.md §8. 서버 SQLite DB(backend/src/db/museumDb.ts)의 한 행과 1:1 대응하는 공유 계약. */
 export type MuseumTyranno = {
   id: string;
-  name: string;
-  form: RevivalForm;
+  roomName: string;
   teamId: TeamId;
+  teamName: string;
+  isWinner: boolean;
+  form: RevivalForm;
+  tyrannoName: string | null;
   teamMembers: string[];
-  createdAt: number;
-  dataVersion: 1;
+  mvpNickname: string | null;
+  mvpScore: number | null;
+  decorations: Partial<Record<DecorationCategory, string>>;
   excavationMs: number | null;
   assemblyMs: number | null;
   chargingMs: number | null;
   accuracy: number; // hits / shots, 0~1
-  decorations: Partial<Record<DecorationCategory, string>>;
   fossils: number;
+  createdAt: number;
 };
