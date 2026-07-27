@@ -14,6 +14,7 @@ import { io, type Socket } from "socket.io-client";
 import { randomUUID } from "node:crypto";
 import {
   DECORATION_CATALOG,
+  DECORATION_VOTE_DURATION_MS,
   NAME_CANDIDATES,
   type BoneId,
   type ClientToServerEvents,
@@ -316,7 +317,11 @@ async function main(): Promise<void> {
   if (!idle) {
     log("티꾸/이름 투표 중…");
     for (const bot of bots) await castVotes(bot);
-    log("투표 완료. 데스크탑 결과 화면을 확인하세요. (20초 후 투표가 자동 확정됩니다)");
+    log("투표 완료. 투표 자동 확정을 기다립니다…");
+    // 호스트 소켓을 여기서 바로 닫으면 서버가 방을 즉시 정리해버려서, 투표 마감(20초) 전에
+    // 방이 사라져 박물관 저장 등 마감 시점 처리가 실행될 기회조차 없어진다.
+    await new Promise((resolve) => setTimeout(resolve, DECORATION_VOTE_DURATION_MS + 2_000));
+    log("투표 확정 완료. 데스크탑 결과 화면과 박물관을 확인하세요.");
   }
 
   clearTimeout(timeout);
