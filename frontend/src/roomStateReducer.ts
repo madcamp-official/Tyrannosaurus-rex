@@ -173,14 +173,42 @@ export function applyDinoFinished(
   };
 }
 
-export function applyShotResolved(state: RoomState, data: { teamId: TeamId; energyAfter: number; stabilityAfter: number }): RoomState {
+export function applyShotResolved(
+  state: RoomState,
+  data: {
+    teamId: TeamId;
+    playerId: PlayerId;
+    energyAfter: number;
+    stabilityAfter: number;
+    hit: boolean;
+    hitZone: "HEART" | "SKULL" | "SPINE" | "BONE" | null;
+    energyDelta: number;
+  },
+): RoomState {
   const team = state.teams[data.teamId];
+  const isCoreHit = data.hitZone === "HEART" || data.hitZone === "SKULL" || data.hitZone === "SPINE";
   return {
     ...state,
     teams: {
       ...state.teams,
       [data.teamId]: { ...team, charging: { ...team.charging, energy: data.energyAfter, stability: data.stabilityAfter } },
     },
+    // room:state는 CHARGING 중엔 다시 브로드캐스트되지 않으므로, 스코어보드의 발사/명중 수는
+    // 이 이벤트에서 직접 누적해야 한다 — 안 하면 라운드가 끝날 때까지 0에 머문다.
+    players: state.players.map((p) =>
+      p.id === data.playerId
+        ? {
+            ...p,
+            stats: {
+              ...p.stats,
+              shots: p.stats.shots + 1,
+              hits: p.stats.hits + (data.hit ? 1 : 0),
+              coreHits: p.stats.coreHits + (isCoreHit ? 1 : 0),
+              energyContributed: p.stats.energyContributed + data.energyDelta,
+            },
+          }
+        : p,
+    ),
   };
 }
 
