@@ -107,6 +107,11 @@ func _apply_ground_visibility() -> void:
 	if _ground:
 		_ground.visible = _phase == "EXCAVATION"
 
+## React가 excavation:progress마다 보내는 이번 뼈 구간 진행도(0~100)를 받아 땅을 파낸다.
+func on_excavation_progress(progress: float) -> void:
+	if _ground and _phase == "EXCAVATION":
+		_ground.dig_random_scoop(progress)
+
 func on_bone_discovered(bone_id: String) -> void:
 	_reveal_piece(bone_id, true)
 

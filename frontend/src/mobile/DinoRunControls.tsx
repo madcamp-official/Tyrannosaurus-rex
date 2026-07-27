@@ -1,7 +1,7 @@
 /** Plan.md §5.2, §6.2. 모바일 다이노런: 달리는 공룡, 다가오는 장애물, 탭 점프. */
 
 import { useEffect, useRef, useState } from "react";
-import { DINO_RUN_DURATION_MS, type Ack, type DinoJumpResponse, type TeamState } from "@trex/shared";
+import { DINO_RUN_DURATION_MS, type Ack, type DinoJumpResponse, type PlayerId, type TeamState } from "@trex/shared";
 import type { AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
 
@@ -11,11 +11,30 @@ const OBSTACLE_TRAVEL_MS = 1_600;
 /** 공룡이 서 있는 지점의 가로 위치 (0=왼쪽, 1=오른쪽). */
 const DINO_X = 0.18;
 
-export function DinoRunControls({ socket, team }: { socket: AppSocket; team: TeamState }): JSX.Element {
+export function DinoRunControls({
+  socket,
+  team,
+  playerId,
+}: {
+  socket: AppSocket;
+  team: TeamState;
+  playerId: PlayerId;
+}): JSX.Element {
   const seqRef = useRef(0);
   const [jumping, setJumping] = useState(false);
   const [clearedCount, setClearedCount] = useState(0);
+  const [dead, setDead] = useState(() => team.dinoRun.deadPlayerIds.includes(playerId));
   const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    const onPlayerDied = (evt: { data: { teamId: string; playerId: PlayerId } }) => {
+      if (evt.data.playerId === playerId) setDead(true);
+    };
+    socket.on("dino:playerDied", onPlayerDied);
+    return () => {
+      socket.off("dino:playerDied", onPlayerDied);
+    };
+  }, [socket, playerId]);
 
   useEffect(() => {
     let raf = 0;
@@ -33,7 +52,7 @@ export function DinoRunControls({ socket, team }: { socket: AppSocket; team: Tea
   const remainingSec = Math.max(0, Math.ceil((DINO_RUN_DURATION_MS - elapsed) / 1000));
 
   const jump = () => {
-    if (jumping) return;
+    if (jumping || dead) return;
     setJumping(true);
     window.setTimeout(() => setJumping(false), JUMP_ANIM_MS);
     seqRef.current += 1;
@@ -45,6 +64,19 @@ export function DinoRunControls({ socket, team }: { socket: AppSocket; team: Tea
       },
     );
   };
+
+  if (dead) {
+    return (
+      <div className="dino-run dino-run--dead">
+        <div className="dino-run__hud">
+          <span>⏱ {remainingSec}초</span>
+          <span>클리어 {clearedCount}</span>
+        </div>
+        <p className="dino-run__death">💀 선인장에 걸려 넘어졌어요!</p>
+        <p className="hint">남은 시간 동안 팀원들을 응원해주세요.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="dino-run" onPointerDown={jump}>

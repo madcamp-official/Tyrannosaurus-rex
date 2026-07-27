@@ -44,6 +44,13 @@ describe("dino run", () => {
     }
   });
 
+  it("obstacles come faster and faster (gaps shrink toward the end)", () => {
+    const schedule = makeObstacleSchedule("speedup-seed");
+    const firstGap = schedule[1]! - schedule[0]!;
+    const lastGap = schedule[schedule.length - 1]! - schedule[schedule.length - 2]!;
+    expect(lastGap).toBeLessThan(firstGap);
+  });
+
   it("clears an obstacle when a jump lands inside the window", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
     const offset = room.state.teams.A.dinoRun.obstacleOffsetsMs[0]!;
@@ -105,6 +112,27 @@ describe("dino run", () => {
     expect(room.state.teams.A.charging.stability).toBe(100);
     expect(room.state.teams.B.charging.stability).toBe(CHARGING_START_STABILITY_BASE);
     expect(room.phaseDurations.A.assemblyMs).not.toBeNull();
+  });
+
+  it("kills a player who lets an obstacle's window fully pass, and rejects further jumps from them", () => {
+    const { rooms, room, playerA, now } = setupAssemblyRoom();
+    const firstOffset = room.state.teams.A.dinoRun.obstacleOffsetsMs[0]!;
+
+    const beforeDeath = rooms.tickDinoDeaths(room, now + firstOffset + DINO_JUMP_WINDOW_MS - 10);
+    expect(beforeDeath).toEqual([]);
+    expect(room.state.teams.A.dinoRun.deadPlayerIds).toEqual([]);
+
+    // A/B 모두 같은 roundSeed로 만든 동일한 장애물 스케줄을 쓰므로(§4 공정성), 두 팀 다 죽는다.
+    const died = rooms.tickDinoDeaths(room, now + firstOffset + DINO_JUMP_WINDOW_MS + 10);
+    expect(died).toContainEqual({ teamId: "A", playerId: playerA });
+    expect(room.state.teams.A.dinoRun.deadPlayerIds).toEqual([playerA]);
+
+    // 다시 틱해도 이미 죽은 플레이어는 중복으로 보고되지 않는다.
+    const again = rooms.tickDinoDeaths(room, now + firstOffset + DINO_JUMP_WINDOW_MS + 1000);
+    expect(again).toEqual([]);
+
+    const jumpAfterDeath = rooms.applyDinoJumpInput(room, "A", playerA, now + firstOffset + 2000);
+    expect(jumpAfterDeath.accepted).toBe(false);
   });
 
   it("does not finish the run before the 30s deadline", () => {

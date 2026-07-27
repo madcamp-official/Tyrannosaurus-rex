@@ -78,6 +78,10 @@ func _on_message_routed(type: String, payload: Dictionary) -> void:
 			var stage := _stage_for(payload)
 			if stage:
 				stage.on_bone_discovered(str(payload.get("boneId", "")))
+		"EXCAVATION_PROGRESS":
+			var progress_stage := _stage_for(payload)
+			if progress_stage:
+				progress_stage.on_excavation_progress(float(payload.get("progress", 0.0)))
 		"PUZZLE_STATE":
 			var stage := _stage_for(payload)
 			if stage:

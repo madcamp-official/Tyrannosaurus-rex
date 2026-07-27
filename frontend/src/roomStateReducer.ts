@@ -124,6 +124,21 @@ export function applyDinoProgress(
   };
 }
 
+export function applyPlayerDied(state: RoomState, data: { teamId: TeamId; playerId: PlayerId }): RoomState {
+  const team = state.teams[data.teamId];
+  if (team.dinoRun.deadPlayerIds.includes(data.playerId)) return state;
+  return {
+    ...state,
+    teams: {
+      ...state.teams,
+      [data.teamId]: {
+        ...team,
+        dinoRun: { ...team.dinoRun, deadPlayerIds: [...team.dinoRun.deadPlayerIds, data.playerId] },
+      },
+    },
+  };
+}
+
 export function applyDinoFinished(
   state: RoomState,
   data: { teamId: TeamId; performance: number; grade: DinoRunGrade; startStability: number },

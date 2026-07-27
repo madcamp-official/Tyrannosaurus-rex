@@ -19,30 +19,41 @@ import {
 import type { RoomRecord } from "../rooms/RoomManager.js";
 import { seededRandom01 } from "./seededRandom.js";
 
+/** 1보다 작을수록 뒤로 갈수록 장애물 간격이 좁아져 "점점 빨라지는" 느낌을 준다. */
+const DINO_SPEEDUP_CURVE = 0.62;
+
 /**
  * 라운드 시드로 장애물 오프셋을 생성한다. 양 팀이 같은 스케줄을 공유한다(§4 공정성).
- * 최소 간격을 지키기 위해 [MIN, MAX] 구간을 균등 분할한 뒤 시드 지터를 더한다.
+ * [MIN, MAX] 구간을 지수 곡선(<1승)으로 나눠 초반엔 널널하고 후반으로 갈수록 장애물이
+ * 촘촘해지게 만든 뒤 시드 지터를 더하고, 최소 간격 미만이면 뒤로 밀어 보정한다.
  */
 export function makeObstacleSchedule(seed: string): number[] {
   const span = DINO_OBSTACLE_MAX_OFFSET_MS - DINO_OBSTACLE_MIN_OFFSET_MS;
-  const slot = span / DINO_OBSTACLE_COUNT;
-  const jitterMax = Math.max(0, slot - DINO_OBSTACLE_MIN_GAP_MS);
+  const jitterMax = DINO_OBSTACLE_MIN_GAP_MS * 0.4;
   const offsets: number[] = [];
   for (let i = 0; i < DINO_OBSTACLE_COUNT; i += 1) {
-    const jitter = seededRandom01(`${seed}:dino`, i) * jitterMax;
-    offsets.push(Math.round(DINO_OBSTACLE_MIN_OFFSET_MS + i * slot + jitter));
+    const t = i / (DINO_OBSTACLE_COUNT - 1);
+    const eased = Math.pow(t, DINO_SPEEDUP_CURVE);
+    const jitter = (seededRandom01(`${seed}:dino`, i) - 0.5) * jitterMax;
+    offsets.push(Math.round(DINO_OBSTACLE_MIN_OFFSET_MS + span * eased + jitter));
+  }
+  for (let i = 1; i < offsets.length; i += 1) {
+    if (offsets[i]! - offsets[i - 1]! < DINO_OBSTACLE_MIN_GAP_MS) {
+      offsets[i] = offsets[i - 1]! + DINO_OBSTACLE_MIN_GAP_MS;
+    }
   }
   return offsets;
 }
 
 export type DinoJumpOutcome =
-  | { accepted: false; reason: "WRONG_TEAM_PHASE" }
+  | { accepted: false; reason: "WRONG_TEAM_PHASE" | "PLAYER_DEAD" }
   | { accepted: true; cleared: boolean; obstacleIndex: number | null; clearedCount: number };
 
 /** 점프 수신 시각이 판정 창 안의 미클리어 장애물과 겹치면 클리어로 기록한다. */
 export function applyDinoJump(room: RoomRecord, teamId: TeamId, playerId: PlayerId, now: number): DinoJumpOutcome {
   const team = room.state.teams[teamId];
   if (team.phase !== "ASSEMBLY") return { accepted: false, reason: "WRONG_TEAM_PHASE" };
+  if (team.dinoRun.deadPlayerIds.includes(playerId)) return { accepted: false, reason: "PLAYER_DEAD" };
 
   const cleared = team.dinoRun.clearedByPlayer[playerId] ?? (team.dinoRun.clearedByPlayer[playerId] = []);
   const elapsed = now - team.phaseStartedAt;
@@ -62,6 +73,31 @@ export function applyDinoJump(room: RoomRecord, teamId: TeamId, playerId: Player
     if (player) player.stats.dinoCleared += 1;
   }
   return { accepted: true, cleared: hitIndex !== null, obstacleIndex: hitIndex, clearedCount: cleared.length };
+}
+
+/**
+ * 판정 창이 완전히 지났는데 클리어 못한 장애물이 하나라도 있으면 그 플레이어를 탈락시킨다
+ * (1회 피격 = 탈락). 탈락한 플레이어는 이후 점프해도 인정되지 않지만, 남은 팀원과 30초
+ * 타이머는 계속 진행된다.
+ */
+export function checkDinoDeaths(room: RoomRecord, teamId: TeamId, now: number): PlayerId[] {
+  const team = room.state.teams[teamId];
+  if (team.phase !== "ASSEMBLY") return [];
+
+  const elapsed = now - team.phaseStartedAt;
+  const newlyDead: PlayerId[] = [];
+  for (const playerId of team.playerIds) {
+    if (team.dinoRun.deadPlayerIds.includes(playerId)) continue;
+    const cleared = team.dinoRun.clearedByPlayer[playerId] ?? [];
+    const missedAnObstacle = team.dinoRun.obstacleOffsetsMs.some(
+      (offsetMs, index) => !cleared.includes(index) && elapsed > offsetMs + DINO_JUMP_WINDOW_MS,
+    );
+    if (missedAnObstacle) {
+      team.dinoRun.deadPlayerIds.push(playerId);
+      newlyDead.push(playerId);
+    }
+  }
+  return newlyDead;
 }
 
 export function gradeForPerformance(performance: number): DinoRunGrade {

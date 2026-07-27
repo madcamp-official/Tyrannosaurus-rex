@@ -33,7 +33,14 @@ import {
 } from "@trex/shared";
 import { colorForJoinIndex } from "./colors.js";
 import { applyExcavateInput, createExcavationState, makeBoneOrder, type ExcavationRoomState } from "../game/excavation.js";
-import { applyDinoJump, finishDinoRunIfNeeded, makeObstacleSchedule, type DinoFinishResult, type DinoJumpOutcome } from "../game/dinoRun.js";
+import {
+  applyDinoJump,
+  checkDinoDeaths,
+  finishDinoRunIfNeeded,
+  makeObstacleSchedule,
+  type DinoFinishResult,
+  type DinoJumpOutcome,
+} from "../game/dinoRun.js";
 import { applyAimUpdate, type AimState } from "../game/aim.js";
 import {
   applyEnergyFire,
@@ -97,7 +104,7 @@ function resetTeamGameplayState(team: TeamState, now: number): void {
     efficiencyMultiplier: 1,
     debuffEndsAt: null,
   };
-  team.dinoRun = { obstacleOffsetsMs: [], clearedByPlayer: {}, performance: null, grade: null };
+  team.dinoRun = { obstacleOffsetsMs: [], clearedByPlayer: {}, deadPlayerIds: [], performance: null, grade: null };
   team.charging = {
     energy: 0,
     stability: 100,
@@ -116,7 +123,7 @@ function makeEmptyTeamState(teamId: TeamId, now: number): TeamState {
     phaseEndsAt: null,
     playerIds: [],
     excavation: { points: 0, nextBoneAt: EXCAVATION_POINTS_PER_BONE, discoveredBoneIds: [], fossils: 0, efficiencyMultiplier: 1, debuffEndsAt: null },
-    dinoRun: { obstacleOffsetsMs: [], clearedByPlayer: {}, performance: null, grade: null },
+    dinoRun: { obstacleOffsetsMs: [], clearedByPlayer: {}, deadPlayerIds: [], performance: null, grade: null },
     charging: { energy: 0, stability: 100, activeCore: "HEART", coreChangesAt: 0, form: "NONE" },
     scores: { excavation: null, dinoRun: null, charging: null },
   };
@@ -394,6 +401,17 @@ export class RoomManager {
     const outcome = applyDinoJump(room, teamId, playerId, now);
     if (outcome.accepted) this.touch(room);
     return outcome;
+  }
+
+  /** 판정 창이 지나도록 못 넘은 장애물이 있으면 그 플레이어를 탈락시킨다. 새로 탈락한 목록을 돌려준다. */
+  tickDinoDeaths(room: RoomRecord, now: number): Array<{ teamId: TeamId; playerId: PlayerId }> {
+    const died: Array<{ teamId: TeamId; playerId: PlayerId }> = [];
+    for (const teamId of TEAM_IDS) {
+      const newlyDead = checkDinoDeaths(room, teamId, now);
+      for (const playerId of newlyDead) died.push({ teamId, playerId });
+      if (newlyDead.length > 0) this.touch(room);
+    }
+    return died;
   }
 
   /** 다이노런 30초 종료를 배경 틱에서 처리한다. 전환이 일어난 팀의 평가 결과를 돌려준다. */

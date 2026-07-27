@@ -57,6 +57,8 @@ export type FullSnapshotPayload = {
 };
 
 export type BoneDiscoveredPayload = { teamId: TeamId; boneId: BoneId; position: NormalizedPoint };
+/** 현재 뼈 구간 진행도(0~100). Godot의 GroundDig.dig_random_scoop(progress)에 그대로 넘긴다. */
+export type ExcavationProgressPayload = { teamId: TeamId; progress: number };
 export type PuzzleStatePayload = {
   teamId: TeamId;
   pieces: Array<{ boneId: BoneId; transform: Transform2D; fixed: boolean }>;
@@ -87,6 +89,7 @@ export type ReactToGodotMessage =
   | BridgeEnvelope<"PHASE_CHANGED", PhaseChangedPayload>
   | BridgeEnvelope<"FULL_SNAPSHOT", FullSnapshotPayload>
   | BridgeEnvelope<"BONE_DISCOVERED", BoneDiscoveredPayload>
+  | BridgeEnvelope<"EXCAVATION_PROGRESS", ExcavationProgressPayload>
   | BridgeEnvelope<"PUZZLE_STATE", PuzzleStatePayload>
   | BridgeEnvelope<"CROSSHAIRS", CrosshairsPayload>
   | BridgeEnvelope<"TREX_TRANSFORM", TrexTransformPayload>

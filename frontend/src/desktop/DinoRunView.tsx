@@ -26,9 +26,11 @@ export function DinoRunTeamPanel({ team, players }: { team: TeamState; players: 
       <ul className="excavation-view__players">
         {players.map((p) => {
           const cleared = team.dinoRun.clearedByPlayer[p.id]?.length ?? p.stats.dinoCleared;
+          const dead = team.dinoRun.deadPlayerIds.includes(p.id);
           return (
             <li key={p.id} style={{ color: p.color }}>
-              {p.nickname}: {cleared}/{total} 클리어
+              {dead ? "💀 " : ""}
+              {p.nickname}: {cleared}/{total} 클리어{dead ? " (탈락)" : ""}
             </li>
           );
         })}

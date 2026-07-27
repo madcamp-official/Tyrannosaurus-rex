@@ -280,6 +280,7 @@ export interface ServerToClientEvents {
   "dino:progress": (
     evt: ServerEvent<{ teamId: TeamId; playerId: PlayerId; obstacleIndex: number; clearedCount: number }>,
   ) => void;
+  "dino:playerDied": (evt: ServerEvent<{ teamId: TeamId; playerId: PlayerId }>) => void;
   "dino:finished": (
     evt: ServerEvent<{ teamId: TeamId; performance: number; grade: DinoRunGrade; startStability: number }>,
   ) => void;
