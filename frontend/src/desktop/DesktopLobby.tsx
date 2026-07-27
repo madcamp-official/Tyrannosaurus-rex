@@ -42,6 +42,9 @@ export function DesktopLobby(): JSX.Element {
   const [joinUrl, setJoinUrl] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [homeStarted, setHomeStarted] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [ephemeral, setEphemeral] = useState<ChargingEphemeral>({ trexByTeam: {}, crosshairsByPlayer: {}, hitFlashByTeam: {} });
   const [gameResult, setGameResult] = useState<GameResultEvent | null>(null);
   const { bridge } = useGodotBridge();
@@ -50,20 +53,7 @@ export function DesktopLobby(): JSX.Element {
     const socket = connectSocket("HOST");
     socketRef.current = socket;
 
-    socket.on("connect", () => {
-      socket.emit(
-        "room:create",
-        { requestId: newRequestId(), settings: { maxPlayers: 10, roundDurationSec: 300, language: "ko" } },
-        (ack: Ack<RoomCreateResponse>) => {
-          if (!ack.ok) {
-            setStartError(ack.error.message);
-            return;
-          }
-          setJoinUrl(ack.data.joinUrl);
-          setRoomState(ack.data.state);
-        },
-      );
-    });
+    socket.on("connect", () => setConnected(true));
 
     socket.on("room:state", (evt) => {
       setRoomState(evt.data);
@@ -198,7 +188,43 @@ export function DesktopLobby(): JSX.Element {
     });
   };
 
+  const handleEnterFromHome = () => {
+    setHomeStarted(true);
+    setStartError(null);
+    setCreating(true);
+    socketRef.current?.emit(
+      "room:create",
+      { requestId: newRequestId(), settings: { maxPlayers: 10, roundDurationSec: 300, language: "ko" } },
+      (ack: Ack<RoomCreateResponse>) => {
+        setCreating(false);
+        if (!ack.ok) {
+          setStartError(ack.error.message);
+          return;
+        }
+        setJoinUrl(ack.data.joinUrl);
+        setRoomState(ack.data.state);
+      },
+    );
+  };
+
   const showHeader = !roomState || roomState.roomPhase === "LOBBY";
+
+  if (!homeStarted) {
+    return (
+      <main className="desktop-lobby">
+        <div className="home-screen">
+          <div className="home-screen__scrim" />
+          <img className="home-screen__logo-mark" src="/images/logo.png" alt="내 티라노를 살려내!" />
+          <div className="home-screen__corner">
+            <button type="button" className="home-screen__cta" onClick={handleEnterFromHome} disabled={!connected || creating}>
+              🦴 방 만들기
+            </button>
+            {!connected && <p className="home-screen__hint">서버에 연결하는 중…</p>}
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="desktop-lobby">
