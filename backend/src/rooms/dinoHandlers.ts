@@ -48,15 +48,21 @@ export function registerDinoHandlers(io: AppServer, socket: AppSocket, rooms: Ro
   });
 }
 
-/** 100ms 배경 틱: 30초가 끝난 팀을 평가하고 CHARGING으로 전환한다. */
+/** 100ms 배경 틱: 놓친 장애물로 탈락한 플레이어를 알리고, 30초가 끝난 팀을 평가해 CHARGING으로 전환한다. */
 export function tickRoomDinoRun(io: AppServer, rooms: RoomManager, roomCode: string): void {
   const room = rooms.getRoom(roomCode);
   if (!room || room.state.roomPhase !== "PLAYING") return;
 
-  const finished = rooms.tickDinoRun(room, Date.now());
-  if (finished.length === 0) return;
-
   const channel = roomChannel(roomCode);
+  const now = Date.now();
+
+  const died = rooms.tickDinoDeaths(room, now);
+  for (const { teamId, playerId } of died) {
+    io.to(channel).emit("dino:playerDied", toServerEvent(roomCode, room.state.revision, { teamId, playerId }));
+  }
+
+  const finished = rooms.tickDinoRun(room, now);
+  if (finished.length === 0) return;
   for (const { teamId, result } of finished) {
     io.to(channel).emit(
       "dino:finished",

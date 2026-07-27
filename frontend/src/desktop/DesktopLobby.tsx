@@ -5,6 +5,7 @@ import QRCode from "qrcode";
 import {
   BONE_IDS,
   DEFAULT_MAX_PLAYERS_PER_TEAM,
+  EXCAVATION_POINTS_PER_BONE,
   MAX_PLAYERS_PER_TEAM_CAP,
   PUZZLE_TARGET_TRANSFORMS,
   ROOM_NAME_MAX_LENGTH,
@@ -32,6 +33,7 @@ import {
   applyDinoFinished,
   applyDinoProgress,
   applyDinoStarted,
+  applyPlayerDied,
   applyRevivalFormChanged,
   applyShotResolved,
   applyTeamPhaseChanged,
@@ -69,7 +71,15 @@ export function DesktopLobby(): JSX.Element {
       setRoomState(evt.data);
       if (evt.data.roomPhase === "LOBBY") setGameResult(null);
     });
-    socket.on("excavation:progress", (evt) => setRoomState((prev) => (prev ? applyExcavationProgress(prev, evt.data) : prev)));
+    socket.on("excavation:progress", (evt) => {
+      setRoomState((prev) => (prev ? applyExcavationProgress(prev, evt.data) : prev));
+      // 이번 뼈 구간(0~100%)만 잘라서 넘긴다 — nextBoneAt은 발굴 시작부터 누적된 목표치라
+      // 그대로 쓰면 골드 뼈 이벤트로 구간 폭이 줄어들 때만 오차가 생기고 그 외엔 정확하다.
+      const segmentStart = Math.max(0, evt.data.nextBoneAt - EXCAVATION_POINTS_PER_BONE);
+      const segmentSpan = Math.max(1, evt.data.nextBoneAt - segmentStart);
+      const progress = Math.min(100, Math.max(0, ((evt.data.points - segmentStart) / segmentSpan) * 100));
+      bridge.send("EXCAVATION_PROGRESS", { teamId: evt.data.teamId, progress });
+    });
     socket.on("excavation:boneFound", (evt) => {
       setRoomState((prev) => (prev ? applyBoneFound(prev, evt.data) : prev));
       bridge.send("BONE_DISCOVERED", { teamId: evt.data.teamId, boneId: evt.data.boneId, position: { x: 0.5, y: 0.5 } });
@@ -78,6 +88,7 @@ export function DesktopLobby(): JSX.Element {
     socket.on("team:phaseChanged", (evt) => setRoomState((prev) => (prev ? applyTeamPhaseChanged(prev, evt.data) : prev)));
     socket.on("dino:started", (evt) => setRoomState((prev) => (prev ? applyDinoStarted(prev, evt.data) : prev)));
     socket.on("dino:progress", (evt) => setRoomState((prev) => (prev ? applyDinoProgress(prev, evt.data) : prev)));
+    socket.on("dino:playerDied", (evt) => setRoomState((prev) => (prev ? applyPlayerDied(prev, evt.data) : prev)));
     socket.on("dino:finished", (evt) => {
       setRoomState((prev) => (prev ? applyDinoFinished(prev, evt.data) : prev));
       // 조립 평가 완료 — Godot에 13개 조각 전부 완성 스냅을 지시한다 (§12.3).

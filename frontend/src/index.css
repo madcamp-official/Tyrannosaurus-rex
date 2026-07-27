@@ -985,6 +985,17 @@ body {
   font-size: 1.8rem;
 }
 
+.dino-run--dead {
+  align-items: center;
+  text-align: center;
+}
+
+.dino-run__death {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #ff6b6b;
+}
+
 .dino-view__timer {
   font-weight: 700;
 }

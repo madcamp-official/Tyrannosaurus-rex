@@ -1,10 +1,7 @@
-/** Plan.md §5.1 결과 화면, §7 티꾸. 승자, 통계, 티꾸 진행 상황, 재경기 버튼. */
+/** Plan.md §5.1 결과 화면. 승자, 통계, 재경기 버튼. */
 
-import { useEffect, useState } from "react";
 import {
-  DECORATION_CATALOG,
   type Ack,
-  type DecorationCategory,
   type GameRematchResponse,
   type GameResultEvent,
   type RoomState,
@@ -14,7 +11,6 @@ import type { AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
 
 const TEAM_IDS: readonly TeamId[] = ["A", "B"];
-const CATEGORIES = Object.keys(DECORATION_CATALOG) as DecorationCategory[];
 
 function formatMs(ms: number | null): string {
   if (ms === null) return "-";
@@ -30,33 +26,8 @@ export function ResultView({
   gameResult: GameResultEvent | null;
   socket: AppSocket | null;
 }): JSX.Element {
-  const [voteCountsByTeam, setVoteCountsByTeam] = useState<Partial<Record<TeamId, Partial<Record<DecorationCategory, Record<string, number>>>>>>({});
-  const [finalNames, setFinalNames] = useState<Partial<Record<TeamId, string | null>>>({});
-
-  // 박물관 저장은 이제 서버가 티꾸/이름 투표 확정 시점에 직접 DB에 기록한다
+  // 박물관 저장은 서버가 결과 확정 시점에 직접 DB에 기록한다
   // (backend/src/rooms/votingHandlers.ts) — 클라이언트는 결과만 보여주면 된다.
-  useEffect(() => {
-    if (!socket) return undefined;
-
-    const onVoteUpdated = (evt: { data: { teamId: TeamId; category: DecorationCategory; counts: Record<string, number> } }) => {
-      setVoteCountsByTeam((prev) => ({
-        ...prev,
-        [evt.data.teamId]: { ...prev[evt.data.teamId], [evt.data.category]: evt.data.counts },
-      }));
-    };
-    const onNameUpdated = (evt: { data: { teamId: TeamId; selectedName: string | null } }) => {
-      if (evt.data.selectedName === null) return;
-      setFinalNames((prev) => ({ ...prev, [evt.data.teamId]: evt.data.selectedName }));
-    };
-
-    socket.on("decoration:voteUpdated", onVoteUpdated);
-    socket.on("name:voteUpdated", onNameUpdated);
-    return () => {
-      socket.off("decoration:voteUpdated", onVoteUpdated);
-      socket.off("name:voteUpdated", onNameUpdated);
-    };
-  }, [socket]);
-
   const handleRematch = () => {
     socket?.emit("game:rematch", { requestId: newRequestId() }, (ack: Ack<GameRematchResponse>) => {
       void ack;
@@ -75,9 +46,7 @@ export function ResultView({
           const teamResult = gameResult?.teams.find((t) => t.teamId === teamId);
           return (
             <div key={teamId} className="result-view__team">
-              <h3>
-                {roomState.teamNames[teamId]} {finalNames[teamId] ? `— ${finalNames[teamId]}` : ""}
-              </h3>
+              <h3>{roomState.teamNames[teamId]}</h3>
               <p>{teamResult?.form === "YRANNO" ? "🦖 와이라노..." : "🦖 정상 부활"}</p>
               <ul>
                 <li>발굴 {formatMs(teamResult?.excavationMs ?? null)}</li>
@@ -92,17 +61,7 @@ export function ResultView({
               </ul>
               {roomState.roomPhase === "DECORATION" && (
                 <div className="result-view__voting">
-                  <p>티꾸 투표 중…</p>
-                  {CATEGORIES.map((category) => (
-                    <div key={category} className="result-view__category">
-                      <span>{category}</span>
-                      <span className="result-view__counts">
-                        {DECORATION_CATALOG[category]
-                          .map((item) => `${item.label}:${voteCountsByTeam[teamId]?.[category]?.[item.id] ?? 0}`)
-                          .join(" ")}
-                      </span>
-                    </div>
-                  ))}
+                  <p>박물관에 기록 중…</p>
                 </div>
               )}
             </div>

@@ -12,7 +12,7 @@ import { registerExcavationHandlers } from "./rooms/excavationHandlers.js";
 import { registerDinoHandlers, tickRoomDinoRun } from "./rooms/dinoHandlers.js";
 import { registerAimHandlers } from "./rooms/aimHandlers.js";
 import { registerEnergyHandlers, tickRoomCharging } from "./rooms/energyHandlers.js";
-import { registerVotingHandlers, finalizeVotingTick } from "./rooms/votingHandlers.js";
+import { finalizeVotingTick } from "./rooms/votingHandlers.js";
 import type { InterServerEvents, SocketData } from "./rooms/socketData.js";
 
 const env = loadEnv();
@@ -115,7 +115,6 @@ io.on("connection", (socket) => {
   registerDinoHandlers(io, socket, rooms);
   registerAimHandlers(io, socket, rooms);
   registerEnergyHandlers(io, socket, rooms);
-  registerVotingHandlers(io, socket, rooms);
 });
 
 const idleSweepInterval = setInterval(() => {
@@ -132,7 +131,7 @@ const chargingTickInterval = setInterval(() => {
 chargingTickInterval.unref();
 
 const votingTickInterval = setInterval(() => {
-  for (const roomCode of rooms.listRoomCodes()) finalizeVotingTick(io, rooms, roomCode);
+  for (const roomCode of rooms.listRoomCodes()) finalizeVotingTick(rooms, roomCode);
 }, 1_000);
 votingTickInterval.unref();
 

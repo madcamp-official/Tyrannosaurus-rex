@@ -4,12 +4,10 @@ import { randomUUID } from "node:crypto";
 import {
   CHARGING_DURATION_MS,
   DINO_RUN_DURATION_MS,
-  DECORATION_CATALOG,
   DECORATION_VOTE_DURATION_MS,
   EXCAVATION_POINTS_PER_BONE,
   GAME_SCORE_MAX,
   MIN_PLAYERS,
-  NAME_CANDIDATES,
   NICKNAME_MAX_LENGTH,
   NICKNAME_MIN_LENGTH,
   ROOM_CODE_LENGTH,
@@ -34,10 +32,16 @@ import {
   type TeamState,
   type Transform2D,
 } from "@trex/shared";
-import { castVote, pickWinner, tallyVotes } from "../game/voting.js";
 import { colorForJoinIndex } from "./colors.js";
 import { applyExcavateInput, createExcavationState, makeBoneOrder, type ExcavationRoomState } from "../game/excavation.js";
-import { applyDinoJump, finishDinoRunIfNeeded, makeObstacleSchedule, type DinoFinishResult, type DinoJumpOutcome } from "../game/dinoRun.js";
+import {
+  applyDinoJump,
+  checkDinoDeaths,
+  finishDinoRunIfNeeded,
+  makeObstacleSchedule,
+  type DinoFinishResult,
+  type DinoJumpOutcome,
+} from "../game/dinoRun.js";
 import { applyAimUpdate, type AimState } from "../game/aim.js";
 import {
   applyEnergyFire,
@@ -82,11 +86,8 @@ export type RoomRecord = {
   aimState: Map<PlayerId, AimState>;
   /** 플레이어별 발사 쿨다운·shotId 중복 방지 상태 (§17.10). */
   shotTracking: Map<PlayerId, ShotTracking>;
-  /** §7 티꾸 투표. 팀·카테고리별 플레이어 투표와 확정 선택. */
-  decorationVotes: Record<TeamId, Record<DecorationCategory, Map<PlayerId, string>>>;
+  /** 결과 화면에서 박물관 저장까지의 대기 창. 투표 기능은 없고 시간 경과만 확인한다. */
   decorationSelections: Record<TeamId, Partial<Record<DecorationCategory, string>>>;
-  nameVotes: Record<TeamId, Map<PlayerId, string>>;
-  nameSelections: Record<TeamId, string | null>;
   votingEndsAt: number | null;
   votingFinalized: boolean;
 };
@@ -101,10 +102,8 @@ function resetTeamGameplayState(team: TeamState, now: number): void {
     nextBoneAt: EXCAVATION_POINTS_PER_BONE,
     discoveredBoneIds: [],
     fossils: 0,
-    efficiencyMultiplier: 1,
-    debuffEndsAt: null,
   };
-  team.dinoRun = { obstacleOffsetsMs: [], clearedByPlayer: {}, performance: null, grade: null };
+  team.dinoRun = { obstacleOffsetsMs: [], clearedByPlayer: {}, deadPlayerIds: [], performance: null, grade: null };
   team.charging = {
     energy: 0,
     stability: 100,
@@ -122,8 +121,8 @@ function makeEmptyTeamState(teamId: TeamId, now: number): TeamState {
     phaseStartedAt: now,
     phaseEndsAt: null,
     playerIds: [],
-    excavation: { points: 0, nextBoneAt: EXCAVATION_POINTS_PER_BONE, discoveredBoneIds: [], fossils: 0, efficiencyMultiplier: 1, debuffEndsAt: null },
-    dinoRun: { obstacleOffsetsMs: [], clearedByPlayer: {}, performance: null, grade: null },
+    excavation: { points: 0, nextBoneAt: EXCAVATION_POINTS_PER_BONE, discoveredBoneIds: [], fossils: 0 },
+    dinoRun: { obstacleOffsetsMs: [], clearedByPlayer: {}, deadPlayerIds: [], performance: null, grade: null },
     charging: { energy: 0, stability: 100, activeCore: "HEART", coreChangesAt: 0, form: "NONE" },
     scores: { excavation: null, dinoRun: null, charging: null },
   };
@@ -131,21 +130,9 @@ function makeEmptyTeamState(teamId: TeamId, now: number): TeamState {
   return team;
 }
 
-function makeVoteState(): Pick<
-  RoomRecord,
-  "decorationVotes" | "decorationSelections" | "nameVotes" | "nameSelections" | "votingEndsAt" | "votingFinalized"
-> {
-  const emptyDecorationVotes = (): Record<DecorationCategory, Map<PlayerId, string>> => ({
-    HAT: new Map(),
-    GLASSES: new Map(),
-    NECK: new Map(),
-    BACKGROUND: new Map(),
-  });
+function makeVoteState(): Pick<RoomRecord, "decorationSelections" | "votingEndsAt" | "votingFinalized"> {
   return {
-    decorationVotes: { A: emptyDecorationVotes(), B: emptyDecorationVotes() },
     decorationSelections: { A: {}, B: {} },
-    nameVotes: { A: new Map(), B: new Map() },
-    nameSelections: { A: null, B: null },
     votingEndsAt: null,
     votingFinalized: false,
   };
@@ -424,6 +411,17 @@ export class RoomManager {
     return outcome;
   }
 
+  /** 판정 창이 지나도록 못 넘은 장애물이 있으면 그 플레이어를 탈락시킨다. 새로 탈락한 목록을 돌려준다. */
+  tickDinoDeaths(room: RoomRecord, now: number): Array<{ teamId: TeamId; playerId: PlayerId }> {
+    const died: Array<{ teamId: TeamId; playerId: PlayerId }> = [];
+    for (const teamId of TEAM_IDS) {
+      const newlyDead = checkDinoDeaths(room, teamId, now);
+      for (const playerId of newlyDead) died.push({ teamId, playerId });
+      if (newlyDead.length > 0) this.touch(room);
+    }
+    return died;
+  }
+
   /** 다이노런 30초 종료를 배경 틱에서 처리한다. 전환이 일어난 팀의 평가 결과를 돌려준다. */
   tickDinoRun(room: RoomRecord, now: number): Array<{ teamId: TeamId; result: DinoFinishResult }> {
     const finished: Array<{ teamId: TeamId; result: DinoFinishResult }> = [];
@@ -554,50 +552,10 @@ export class RoomManager {
     this.bumpRevision(room);
   }
 
-  castDecorationVote(room: RoomRecord, teamId: TeamId, playerId: PlayerId, category: DecorationCategory, itemId: string): boolean {
-    if (room.state.roomPhase !== "DECORATION" || room.votingFinalized) return false;
-    const allowed = DECORATION_CATALOG[category].map((item) => item.id);
-    const ok = castVote(room.decorationVotes[teamId][category], playerId, itemId, allowed);
-    if (ok) this.touch(room);
-    return ok;
-  }
-
-  tallyDecorationVote(room: RoomRecord, teamId: TeamId, category: DecorationCategory) {
-    return tallyVotes(room.decorationVotes[teamId][category]);
-  }
-
-  castNameVote(room: RoomRecord, teamId: TeamId, playerId: PlayerId, candidateId: string): boolean {
-    if (room.state.roomPhase !== "DECORATION" || room.votingFinalized) return false;
-    const allowed = NAME_CANDIDATES.map((c) => c.id);
-    const ok = castVote(room.nameVotes[teamId], playerId, candidateId, allowed);
-    if (ok) this.touch(room);
-    return ok;
-  }
-
-  tallyNameVote(room: RoomRecord, teamId: TeamId) {
-    return tallyVotes(room.nameVotes[teamId]);
-  }
-
-  /** 투표 마감 시각이 지나면 팀별 카테고리·이름 선택을 확정한다. 두 번 실행되지 않는다. */
+  /** 결과 화면 대기 시각이 지나면 확정한다 (투표 없음). 두 번 실행되지 않는다. */
   finalizeVotingIfDue(room: RoomRecord, now: number): boolean {
     if (room.state.roomPhase !== "DECORATION" || room.votingFinalized) return false;
     if (room.votingEndsAt === null || now < room.votingEndsAt) return false;
-
-    let randomCursor = 0;
-    for (const teamId of TEAM_IDS) {
-      const categories = Object.keys(DECORATION_CATALOG) as DecorationCategory[];
-      for (const category of categories) {
-        const counts = tallyVotes(room.decorationVotes[teamId][category]);
-        const allowed = DECORATION_CATALOG[category].map((item) => item.id);
-        const winner = pickWinner(counts, allowed, randomCursor);
-        randomCursor += 1;
-        if (winner) room.decorationSelections[teamId][category] = winner;
-      }
-      const nameCounts = tallyVotes(room.nameVotes[teamId]);
-      const nameAllowed = NAME_CANDIDATES.map((c) => c.id);
-      room.nameSelections[teamId] = pickWinner(nameCounts, nameAllowed, randomCursor);
-      randomCursor += 1;
-    }
 
     room.votingFinalized = true;
     this.touch(room);

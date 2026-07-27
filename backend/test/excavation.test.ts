@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CORE_BONE_COUNT, EXCAVATION_MAX_INPUTS_PER_SECOND, EXCAVATION_POINTS_PER_BONE } from "@trex/shared";
+import { BONE_IDS, CORE_BONE_COUNT, EXCAVATION_MAX_INPUTS_PER_SECOND, EXCAVATION_POINTS_PER_BONE } from "@trex/shared";
 import { RoomManager } from "../src/rooms/RoomManager.js";
 import { makeBoneOrder } from "../src/game/excavation.js";
 
@@ -21,7 +21,7 @@ describe("makeBoneOrder", () => {
     const orderA = makeBoneOrder("seed-1");
     const orderB = makeBoneOrder("seed-1");
     expect(orderA).toEqual(orderB);
-    expect(new Set(orderA).size).toBe(CORE_BONE_COUNT);
+    expect(new Set(orderA).size).toBe(BONE_IDS.length);
   });
 
   it("differs across seeds (not guaranteed but true for these fixtures)", () => {
@@ -90,7 +90,7 @@ describe("applyExcavation via RoomManager", () => {
   it("awards bones in the room's seeded order and transitions the team to ASSEMBLY", () => {
     const { rooms, room, playerA } = setupStartedRoom();
     const expectedOrder = room.boneOrder;
-    expect(expectedOrder).toHaveLength(CORE_BONE_COUNT);
+    expect(expectedOrder).toHaveLength(BONE_IDS.length);
 
     let seq = 1;
     let now = Date.now();
@@ -109,9 +109,10 @@ describe("applyExcavation via RoomManager", () => {
       awarded.push(...result.boneAwards);
     }
 
-    expect(awarded).toEqual(expectedOrder);
+    const expectedAwarded = expectedOrder.slice(0, CORE_BONE_COUNT);
+    expect(awarded).toEqual(expectedAwarded);
     expect(room.state.teams.A.phase).toBe("ASSEMBLY");
-    expect(room.state.teams.A.excavation.discoveredBoneIds).toEqual(expectedOrder);
+    expect(room.state.teams.A.excavation.discoveredBoneIds).toEqual(expectedAwarded);
     expect(room.phaseDurations.A.excavationMs).not.toBeNull();
     // ASSEMBLY 진입과 함께 다이노런이 무장된다.
     expect(room.state.teams.A.phaseEndsAt).not.toBeNull();

@@ -11,14 +11,11 @@ export const EXCAVATION_POINTS_PER_BONE = 60;
 export const EXCAVATION_SHAKE_COOLDOWN_MS = 200;
 export const MOBILE_INPUT_FLUSH_MS = 100;
 export const EXCAVATION_MAX_INPUTS_PER_SECOND = 12;
-export const EXCAVATION_STONE_DEBUFF_MS = 3_000;
-export const EXCAVATION_STONE_EFFICIENCY_MULTIPLIER = 0.8;
 export const EXCAVATION_GOLD_BONE_POINT_DISCOUNT = 20;
 // Plan.md §4는 "완만한 효율 감소"라고만 서술하고 정확한 수치는 주지 않는다. 팀 합산 초당 입력이
 // EXCAVATION_MAX_INPUTS_PER_SECOND(1인분 최대치)를 넘는 초과분에 이 배율을 곱해 점수로 인정한다.
 export const EXCAVATION_TEAM_OVERFLOW_EFFICIENCY = 0.5;
-// 발굴 이벤트 확률도 Plan.md에 수치가 없어 MVP 기본값으로 정했다. 세 확률의 합은 1 이하여야 한다.
-export const EXCAVATION_EVENT_STONE_CHANCE = 0.15;
+// 발굴 이벤트 확률도 Plan.md에 수치가 없어 MVP 기본값으로 정했다. 돌 이벤트(효율 감소)는 제거됨.
 export const EXCAVATION_EVENT_FOSSIL_CHANCE = 0.1;
 export const EXCAVATION_EVENT_GOLD_BONE_CHANCE = 0.05;
 
@@ -26,8 +23,11 @@ export const EXCAVATION_EVENT_GOLD_BONE_CHANCE = 0.05;
 export const DINO_RUN_DURATION_MS = 30_000;
 export const DINO_OBSTACLE_COUNT = 12;
 export const DINO_JUMP_WINDOW_MS = 450; // 장애물 시각 ±이 값 안의 점프만 클리어
+// 탈락 판정은 클리어 판정 창이 닫힌 뒤에도 이 시간만큼 더 기다린다 — 네트워크 지연으로
+// 창 끝자락에 보낸 점프가 늦게 도착해도 억울하게 죽지 않도록 하는 유예 시간.
+export const DINO_DEATH_GRACE_MS = 500;
 export const DINO_JUMP_MAX_PER_SECOND = 3;
-export const DINO_OBSTACLE_MIN_OFFSET_MS = 2_000;
+export const DINO_OBSTACLE_MIN_OFFSET_MS = 5_000; // 시작 5초는 장애물 없이 몸풀기 구간
 export const DINO_OBSTACLE_MAX_OFFSET_MS = 28_000;
 export const DINO_OBSTACLE_MIN_GAP_MS = 1_500;
 // 조립 평가 등급 경계 (클리어율)

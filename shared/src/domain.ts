@@ -133,6 +133,8 @@ export type DinoRunState = {
   obstacleOffsetsMs: number[];
   /** 플레이어별 클리어한 장애물 index 목록. */
   clearedByPlayer: Record<PlayerId, number[]>;
+  /** 장애물을 놓쳐 탈락한 플레이어. 탈락 후에는 남은 시간 동안 점프해도 클리어로 인정하지 않는다. */
+  deadPlayerIds: PlayerId[];
   /** 0~1 팀 클리어율. 30초 종료 시 확정. */
   performance: number | null;
   grade: DinoRunGrade | null;
@@ -161,8 +163,6 @@ export type TeamState = {
     nextBoneAt: number;
     discoveredBoneIds: BoneId[];
     fossils: number;
-    efficiencyMultiplier: number;
-    debuffEndsAt: number | null;
   };
   dinoRun: DinoRunState;
   charging: {
