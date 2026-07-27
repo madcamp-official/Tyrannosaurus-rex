@@ -234,13 +234,8 @@ export function DesktopLobby(): JSX.Element {
       <div className="desktop-lobby__overlay">
         {showHeader && (
           <header className="lobby-header">
-            <span className="lobby-header__badge">
-              <span className="lobby-header__badge-dot" />
-            </span>
-            <div className="lobby-header__text">
-              <h1>내 티라노사우루스 살려내!!!</h1>
-              <p>죽은 티라노, 정말 살려드립니다</p>
-            </div>
+            <img className="lobby-header__logo" src="/images/logo.png" alt="내 티라노를 살려내!" />
+            <p className="lobby-header__subtitle">죽은 티라노, 정말 살려드립니다</p>
           </header>
         )}
 
