@@ -507,11 +507,10 @@
 
 ### 저장 방식
 
-- 회원가입과 데이터베이스가 없는 MVP에서는 데스크탑 브라우저의 `localStorage`에 저장한다.
-- 최근 20마리까지만 보관한다.
-- 같은 데스크탑 브라우저에서만 다시 볼 수 있다.
-- 저장 데이터가 손상되면 해당 항목을 건너뛰고 나머지 전시를 유지한다.
-- 브라우저 데이터 삭제 시 박물관도 초기화된다.
+- 회원가입은 여전히 없지만, 박물관 데이터는 서버의 SQLite(`node:sqlite`) DB에 저장한다.
+- 티꾸·이름 투표가 확정되는 시점에 팀별로 한 건씩 기록한다(`backend/src/db/museumDb.ts`).
+- `GET /api/museum`으로 최근 20마리까지 최신순 조회. 브라우저·기기와 무관하게 같은 서버를 쓰는 모두가 같은 박물관을 본다(이전 `localStorage` 방식과 달리 브라우저에 종속되지 않음).
+- 팀원 목록·티꾸 데코레이션처럼 항상 통째로만 조회되는 데이터는 정규화 없이 JSON 컬럼으로 저장한다.
 
 ---
 
@@ -524,11 +523,12 @@
 | 공통 웹 클라이언트 | React, TypeScript, Vite | 로비·HUD·모바일 UI를 빠르게 개발하고 타입을 공유하기 좋음 |
 | 데스크탑 3D | Godot 4, GDScript, Compatibility Renderer | 골격 조립, 티라노 애니메이션, 파티클과 3D 박물관 표현 |
 | 실시간 통신 | Socket.IO | 방 단위 브로드캐스트, 자동 재연결, acknowledgement 지원 |
-| 게임 서버 | Node.js, TypeScript | 클라이언트와 이벤트 타입을 공유하며 권위 판정 수행 |
+| 게임 서버 | Node.js, TypeScript, Express | REST(`/api/health` 등)와 Socket.IO를 함께 호스팅, 클라이언트와 이벤트 타입 공유하며 권위 판정 수행 |
+| 서버 검증 | Zod | 모든 소켓 이벤트·HTTP 요청 payload 런타임 검증 |
+| 박물관 DB | SQLite (`node:sqlite`, Node 내장) | 계정·Redis 없이도 서버가 유일한 소스로 영구 저장. ORM 없이 순수 SQL(단일 테이블이라 불필요) |
 | 공통 계약 | TypeScript 패키지 | 이벤트 payload, 상태, 상수, 오류 코드를 한곳에서 관리 |
 | 모바일 입력 | DeviceMotion, DeviceOrientation, Pointer Events | 흔들기, 자이로 조준, 터치패드 폴백 |
 | QR | `qrcode` 패키지 | HTTPS 참가 URL을 QR로 생성 |
-| 로컬 컬렉션 | `localStorage` + 버전이 있는 JSON | 가입·DB 없이 박물관 기록 유지 |
 | 테스트 | Vitest, Socket.IO Client, Playwright | 로직, 다중 소켓, 브라우저 흐름을 계층별 검증 |
 | HTTPS 공개 | Cloudflare Tunnel | iOS 센서에 필요한 보안 컨텍스트 제공 |
 
