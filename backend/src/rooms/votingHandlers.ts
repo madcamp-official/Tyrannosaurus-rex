@@ -1,7 +1,7 @@
-/** Plan.md §7, §17.12~17.13, §18. 티꾸/이름 투표 이벤트와 마감 처리. */
+/** Plan.md §7, §17.12~17.13, §18. 이름 투표 이벤트와 마감 처리 (티꾸 투표 기능은 제거됨). */
 
 import { randomUUID } from "node:crypto";
-import { NAME_CANDIDATES, decorationVoteRequestSchema, nameVoteRequestSchema } from "@trex/shared";
+import { NAME_CANDIDATES, nameVoteRequestSchema } from "@trex/shared";
 import type { RoomManager, RoomRecord } from "./RoomManager.js";
 import type { AppServer, AppSocket } from "./types.js";
 import { roomChannel } from "./channels.js";
@@ -11,7 +11,6 @@ import { TokenBucketLimiter } from "../validation/rateLimit.js";
 import { computeMvpRanking } from "../game/mvp.js";
 import { insertMuseumEntry } from "../db/museumDb.js";
 
-const decorationVoteLimiter = new TokenBucketLimiter(5, 5);
 const nameVoteLimiter = new TokenBucketLimiter(5, 5);
 
 function playerTeam(rooms: RoomManager, roomCode: string, playerId: string) {
@@ -22,32 +21,6 @@ function playerTeam(rooms: RoomManager, roomCode: string, playerId: string) {
 }
 
 export function registerVotingHandlers(io: AppServer, socket: AppSocket, rooms: RoomManager): void {
-  socket.on("decoration:vote", (req, ack) => {
-    if (!decorationVoteLimiter.tryConsume(socket.id)) {
-      return ack(ackErr(req?.requestId ?? "unknown", "RATE_LIMITED", "too many decoration:vote attempts", true));
-    }
-    const parsed = decorationVoteRequestSchema.safeParse(req);
-    if (!parsed.success) return ack(ackErr(req?.requestId ?? "unknown", "INVALID_PAYLOAD", parsed.error.message, true));
-
-    const roomCode = socket.data.roomCode;
-    const playerId = socket.data.playerId;
-    if (socket.data.role !== "PLAYER" || !roomCode || !playerId) {
-      return ack(ackErr(parsed.data.requestId, "PLAYER_NOT_JOINED", "join a room first", false));
-    }
-    const ctx = playerTeam(rooms, roomCode, playerId);
-    if (!ctx) return ack(ackErr(parsed.data.requestId, "ROOM_NOT_FOUND", "room no longer exists", false));
-
-    const ok = rooms.castDecorationVote(ctx.room, ctx.teamId, playerId, parsed.data.category, parsed.data.itemId);
-    if (!ok) return ack(ackErr(parsed.data.requestId, "WRONG_ROOM_PHASE", "voting is not open", false));
-
-    const counts = rooms.tallyDecorationVote(ctx.room, ctx.teamId, parsed.data.category);
-    const votingEndsAt = ctx.room.votingEndsAt ?? Date.now();
-    const payload = { teamId: ctx.teamId, category: parsed.data.category, counts, selectedItemId: null, votingEndsAt };
-    ack(ackOk(parsed.data.requestId, payload));
-
-    io.to(roomChannel(roomCode)).emit("decoration:voteUpdated", toServerEvent(roomCode, ctx.room.state.revision, payload));
-  });
-
   socket.on("name:vote", (req, ack) => {
     if (!nameVoteLimiter.tryConsume(socket.id)) {
       return ack(ackErr(req?.requestId ?? "unknown", "RATE_LIMITED", "too many name:vote attempts", true));
@@ -84,11 +57,6 @@ export function finalizeVotingTick(io: AppServer, rooms: RoomManager, roomCode: 
 
   const channel = roomChannel(roomCode);
   for (const teamId of ["A", "B"] as const) {
-    io.to(channel).emit(
-      "decoration:completed",
-      toServerEvent(roomCode, room.state.revision, { teamId, selections: room.decorationSelections[teamId] }),
-    );
-
     const selectedId = room.nameSelections[teamId];
     const selectedName = selectedId ? (NAME_CANDIDATES.find((c) => c.id === selectedId)?.label ?? null) : null;
     io.to(channel).emit(
@@ -105,7 +73,7 @@ export function finalizeVotingTick(io: AppServer, rooms: RoomManager, roomCode: 
   }
 }
 
-/** Plan.md §8. 티꾸/이름 투표가 끝난 시점에만 그 팀의 티라노를 박물관 DB에 기록한다. */
+/** Plan.md §8. 이름 투표가 끝난 시점에만 그 팀의 티라노를 박물관 DB에 기록한다. */
 function saveMuseumEntry(room: RoomRecord, teamId: "A" | "B", tyrannoName: string | null): void {
   const team = room.state.teams[teamId];
   const members = room.state.players.filter((p) => p.teamId === teamId);

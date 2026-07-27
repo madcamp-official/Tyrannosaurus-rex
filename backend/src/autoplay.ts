@@ -4,7 +4,7 @@
  * 데스크탑에서 방을 만들어 두고:
  *   npm run autoplay -w backend -- --room 9233
  * 봇들이 입장·준비하면 데스크탑에서 "게임 시작"을 누른다. 이후 발굴 → 퍼즐 →
- * 사격 → 부활/결과 → 티꾸 투표까지 봇이 전부 플레이하고, 사람은 화면만 본다.
+ * 사격 → 부활/결과 → 이름 투표까지 봇이 전부 플레이하고, 사람은 화면만 본다.
  *
  * --room 없이 실행하면 스크립트가 호스트까지 직접 맡아 headless로 한 판을
  * 완주한다 (CI/스모크 검증용).
@@ -13,7 +13,6 @@
 import { io, type Socket } from "socket.io-client";
 import { randomUUID } from "node:crypto";
 import {
-  DECORATION_CATALOG,
   DECORATION_VOTE_DURATION_MS,
   NAME_CANDIDATES,
   type BoneId,
@@ -162,15 +161,6 @@ async function runBotLoop(bot: Bot, board: Blackboard, log: (msg: string) => voi
 }
 
 async function castVotes(bot: Bot): Promise<void> {
-  for (const [category, items] of Object.entries(DECORATION_CATALOG)) {
-    await ackEmit((ack) =>
-      bot.socket.emit(
-        "decoration:vote",
-        { requestId: randomUUID(), category: category as keyof typeof DECORATION_CATALOG, itemId: items[0]!.id },
-        ack,
-      ),
-    );
-  }
   await ackEmit((ack) => bot.socket.emit("name:vote", { requestId: randomUUID(), candidateId: NAME_CANDIDATES[0]!.id }, ack));
 }
 
@@ -315,7 +305,7 @@ async function main(): Promise<void> {
   await Promise.all([resultPromise, ...(idle ? [] : bots.map((bot) => runBotLoop(bot, board, log)))]);
 
   if (!idle) {
-    log("티꾸/이름 투표 중…");
+    log("이름 투표 중…");
     for (const bot of bots) await castVotes(bot);
     log("투표 완료. 투표 자동 확정을 기다립니다…");
     // 호스트 소켓을 여기서 바로 닫으면 서버가 방을 즉시 정리해버려서, 투표 마감(20초) 전에

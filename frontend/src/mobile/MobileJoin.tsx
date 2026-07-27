@@ -8,7 +8,7 @@ import { newRequestId } from "../util/requestId";
 import { ExcavationControls } from "./ExcavationControls";
 import { DinoRunControls } from "./DinoRunControls";
 import { AimControls } from "./AimControls";
-import { DecorationVote } from "./DecorationVote";
+import { NameVote } from "./NameVote";
 import {
   applyDinoFinished,
   applyDinoProgress,
@@ -120,7 +120,7 @@ export function MobileJoin(): JSX.Element {
         <h1>결과</h1>
         {roomState.winner.teamId && <p>{TEAM_DISPLAY_NAMES[roomState.winner.teamId]} 승리!</p>}
         {!roomState.winner.teamId && <p>무승부</p>}
-        {socket && <DecorationVote socket={socket} />}
+        {socket && <NameVote socket={socket} />}
       </main>
     );
   }

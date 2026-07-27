@@ -8,7 +8,6 @@ import type {
   ApiError,
   BoneId,
   CoreZone,
-  DecorationCategory,
   DinoRunGrade,
   Facing,
   GameScores,
@@ -72,13 +71,6 @@ export const sensorPermissionSchema: z.ZodType<SensorPermission> = z.enum([
   "DENIED",
   "UNSUPPORTED",
 ]);
-export const decorationCategorySchema: z.ZodType<DecorationCategory> = z.enum([
-  "HAT",
-  "GLASSES",
-  "NECK",
-  "BACKGROUND",
-]);
-
 // ---------------------------------------------------------------------------
 // 17. 클라이언트 → 서버 요청
 // ---------------------------------------------------------------------------
@@ -176,20 +168,6 @@ export const sensorStatusRequestSchema = z.object({
 export type SensorStatusRequest = z.infer<typeof sensorStatusRequestSchema>;
 export type SensorStatusResponse = { acknowledged: true };
 
-export const decorationVoteRequestSchema = z.object({
-  requestId: requestIdSchema,
-  category: decorationCategorySchema,
-  itemId: z.string().min(1),
-});
-export type DecorationVoteRequest = z.infer<typeof decorationVoteRequestSchema>;
-export type DecorationVoteResponse = {
-  teamId: TeamId;
-  category: DecorationCategory;
-  counts: Record<string, number>;
-  selectedItemId: string | null;
-  votingEndsAt: number;
-};
-
 export const nameVoteRequestSchema = z.object({
   requestId: requestIdSchema,
   candidateId: z.string().min(1),
@@ -274,7 +252,6 @@ export interface ClientToServerEvents {
   "aim:update": (input: AimUpdateInput) => void;
   "energy:fire": (req: EnergyFireRequest, ack: (res: Ack<EnergyFireResponse>) => void) => void;
   "sensor:status": (req: SensorStatusRequest, ack: (res: Ack<SensorStatusResponse>) => void) => void;
-  "decoration:vote": (req: DecorationVoteRequest, ack: (res: Ack<DecorationVoteResponse>) => void) => void;
   "name:vote": (req: NameVoteRequest, ack: (res: Ack<NameVoteResponse>) => void) => void;
   "game:rematch": (req: GameRematchRequest, ack: (res: Ack<GameRematchResponse>) => void) => void;
   "room:requestState": (req: RoomRequestStateRequest, ack: (res: Ack<RoomRequestStateResponse>) => void) => void;
@@ -324,10 +301,6 @@ export interface ServerToClientEvents {
     evt: ServerEvent<{ teamId: TeamId; form: RoomState["teams"][TeamId]["charging"]["form"]; energy: number; stability: number }>,
   ) => void;
   "game:result": (evt: ServerEvent<GameResultEvent>) => void;
-  "decoration:voteUpdated": (evt: ServerEvent<DecorationVoteResponse>) => void;
-  "decoration:completed": (
-    evt: ServerEvent<{ teamId: TeamId; selections: Partial<Record<DecorationCategory, string>> }>,
-  ) => void;
   "name:voteUpdated": (evt: ServerEvent<NameVoteResponse>) => void;
   "room:closed": (evt: ServerEvent<{ reason: string }>) => void;
   "room:error": (evt: { eventId: string; serverTime: number; error: ApiError }) => void;

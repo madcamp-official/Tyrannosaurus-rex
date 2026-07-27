@@ -544,18 +544,6 @@ export class RoomManager {
     this.bumpRevision(room);
   }
 
-  castDecorationVote(room: RoomRecord, teamId: TeamId, playerId: PlayerId, category: DecorationCategory, itemId: string): boolean {
-    if (room.state.roomPhase !== "DECORATION" || room.votingFinalized) return false;
-    const allowed = DECORATION_CATALOG[category].map((item) => item.id);
-    const ok = castVote(room.decorationVotes[teamId][category], playerId, itemId, allowed);
-    if (ok) this.touch(room);
-    return ok;
-  }
-
-  tallyDecorationVote(room: RoomRecord, teamId: TeamId, category: DecorationCategory) {
-    return tallyVotes(room.decorationVotes[teamId][category]);
-  }
-
   castNameVote(room: RoomRecord, teamId: TeamId, playerId: PlayerId, candidateId: string): boolean {
     if (room.state.roomPhase !== "DECORATION" || room.votingFinalized) return false;
     const allowed = NAME_CANDIDATES.map((c) => c.id);

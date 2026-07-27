@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DECORATION_CATALOG, NAME_CANDIDATES } from "@trex/shared";
+import { NAME_CANDIDATES } from "@trex/shared";
 import { RoomManager } from "../src/rooms/RoomManager.js";
 
 function setupFinishedRoom() {
@@ -37,41 +37,38 @@ describe("game:rematch", () => {
   });
 });
 
-describe("decoration and name voting", () => {
+describe("name voting", () => {
   it("only accepts votes while the room is in DECORATION phase", () => {
     const { rooms, room, playerA } = setupFinishedRoom();
-    const rejected = rooms.castDecorationVote(room, "A", playerA, "HAT", DECORATION_CATALOG.HAT[0]!.id);
+    const rejected = rooms.castNameVote(room, "A", playerA, NAME_CANDIDATES[0]!.id);
     expect(rejected).toBe(false);
 
     room.state.roomPhase = "DECORATION";
-    const accepted = rooms.castDecorationVote(room, "A", playerA, "HAT", DECORATION_CATALOG.HAT[0]!.id);
+    const accepted = rooms.castNameVote(room, "A", playerA, NAME_CANDIDATES[0]!.id);
     expect(accepted).toBe(true);
   });
 
-  it("rejects itemIds outside the category catalog", () => {
+  it("rejects candidateIds outside the name catalog", () => {
     const { rooms, room, playerA } = setupFinishedRoom();
     room.state.roomPhase = "DECORATION";
-    const ok = rooms.castDecorationVote(room, "A", playerA, "HAT", "NOT_A_REAL_ITEM");
+    const ok = rooms.castNameVote(room, "A", playerA, "NOT_A_REAL_CANDIDATE");
     expect(ok).toBe(false);
   });
 
-  it("finalizes the majority-vote winner per category once the voting window closes", () => {
-    const { rooms, room, playerA, playerB } = setupFinishedRoom();
+  it("finalizes the majority-vote winner once the voting window closes", () => {
+    const { rooms, room, playerA } = setupFinishedRoom();
     room.state.roomPhase = "DECORATION";
     room.votingEndsAt = Date.now() + 1000;
 
-    const crownId = DECORATION_CATALOG.HAT[0]!.id;
-    rooms.castDecorationVote(room, "A", playerA, "HAT", crownId);
-    // playerB is on team B in this fixture; simulate a second A-team voter by reusing playerA's id space
-    // (single-player team A here, so majority is trivially playerA's pick).
-    void playerB;
+    const candidateId = NAME_CANDIDATES[0]!.id;
+    rooms.castNameVote(room, "A", playerA, candidateId);
 
     const before = rooms.finalizeVotingIfDue(room, Date.now());
     expect(before).toBe(false); // voting window hasn't closed yet
 
     const finalized = rooms.finalizeVotingIfDue(room, Date.now() + 2000);
     expect(finalized).toBe(true);
-    expect(room.decorationSelections.A.HAT).toBe(crownId);
+    expect(room.nameSelections.A).toBe(candidateId);
     expect(room.votingFinalized).toBe(true);
 
     // A second finalize call must be a no-op.
