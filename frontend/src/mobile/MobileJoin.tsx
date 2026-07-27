@@ -17,6 +17,7 @@ import {
 } from "../roomStateReducer";
 
 type JoinStatus = "FORM" | "JOINING" | "JOINED" | "ERROR";
+const TEAM_EMBLEM: Record<TeamId, string> = { A: "🔥", B: "❄️" };
 
 function describeConnectError(message: string): string {
   if (message.includes("timeout")) return "서버 연결 시간 초과 — Wi-Fi가 같은지 확인해주세요.";
@@ -94,21 +95,32 @@ export function MobileJoin(): JSX.Element {
   if (status !== "JOINED") {
     return (
       <main className="mobile-join">
-        <h1>내 티라노사우루스 살려내!!!</h1>
-        <form onSubmit={handleJoin}>
-          <p>방 코드: {code}</p>
-          <input
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value.slice(0, 8))}
-            placeholder="닉네임 (1~8자)"
-            maxLength={8}
-            autoFocus
-          />
-          <button type="submit" disabled={status === "JOINING"}>
-            입장하기
-          </button>
-        </form>
-        {error && <p className="error">{error}</p>}
+        <div className="mobile-join__bg" />
+        <div className="mobile-join__scrim" />
+        <div className="mobile-join__content">
+          <img className="mobile-join__logo" src="/images/logo.png" alt="내 티라노를 살려내!" />
+          <p className="mobile-join__subtitle">죽은 티라노, 정말 살려드립니다</p>
+          <form className="mobile-join__card" onSubmit={handleJoin}>
+            <p className="mobile-join__room-code">방 코드 {code}</p>
+            <input
+              className="mobile-join__input"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value.slice(0, 8))}
+              placeholder="닉네임 (1~8자)"
+              maxLength={8}
+              autoFocus
+            />
+            <button type="submit" className="mobile-join__button" disabled={status === "JOINING"}>
+              입장하기
+            </button>
+          </form>
+          {error && (
+            <div className="mobile-join__error">
+              <span>⚠</span>
+              <span>{error}</span>
+            </div>
+          )}
+        </div>
       </main>
     );
   }
@@ -117,10 +129,15 @@ export function MobileJoin(): JSX.Element {
     const socket = socketRef.current;
     return (
       <main className="mobile-join">
-        <h1>결과</h1>
-        {roomState.winner.teamId && <p>{roomState.teamNames[roomState.winner.teamId]} 승리!</p>}
-        {!roomState.winner.teamId && <p>무승부</p>}
-        {socket && <DecorationVote socket={socket} />}
+        <div className="mobile-join__bg" />
+        <div className="mobile-join__scrim" />
+        <div className="mobile-join__content">
+          <img className="mobile-join__logo mobile-join__logo--small" src="/images/logo.png" alt="내 티라노를 살려내!" />
+          <h1 className="mobile-join__result-title">결과</h1>
+          {roomState.winner.teamId && <p className="mobile-join__result-winner">{roomState.teamNames[roomState.winner.teamId]} 승리!</p>}
+          {!roomState.winner.teamId && <p className="mobile-join__result-winner">무승부</p>}
+          {socket && <DecorationVote socket={socket} />}
+        </div>
       </main>
     );
   }
@@ -129,22 +146,42 @@ export function MobileJoin(): JSX.Element {
     const team = roomState.teams[teamId];
     const socket = socketRef.current;
     return (
-      <main className="mobile-join">
+      <main className={`mobile-join mobile-join--team-${teamId.toLowerCase()}`}>
+        <div className="mobile-join__bg" />
+        <div className="mobile-join__scrim" />
         {team.phase === "EXCAVATION" && socket && <ExcavationControls socket={socket} />}
         {team.phase === "ASSEMBLY" && socket && <DinoRunControls socket={socket} team={team} />}
         {team.phase === "CHARGING" && socket && <AimControls socket={socket} />}
-        {team.phase === "REVIVED" && <p>{team.charging.form === "NORMAL" ? "🦖 부활 완료!" : "🦖 와이라노가 되어버렸어요."} 데스크탑 화면을 확인하세요.</p>}
+        {team.phase === "REVIVED" && (
+          <p className="mobile-game__title" style={{ position: "relative", zIndex: 2, padding: "0 24px" }}>
+            {team.charging.form === "NORMAL" ? "🦖 부활 완료!" : "🦖 와이라노가 되어버렸어요."} 데스크탑 화면을 확인하세요.
+          </p>
+        )}
       </main>
     );
   }
 
   return (
-    <main className="mobile-join">
-      <p>{teamId && roomState ? roomState.teamNames[teamId] : ""}으로 입장했습니다.</p>
-      <button type="button" onClick={toggleReady}>
-        {ready ? "준비 완료 ✅ (취소)" : "준비하기"}
-      </button>
-      <p>다른 팀원 {roomState?.players.filter((p) => p.teamId === teamId && p.id !== playerId).length ?? 0}명</p>
+    <main className={`mobile-join${teamId ? ` mobile-join--team-${teamId.toLowerCase()}` : ""}`}>
+      <div className="mobile-join__bg" />
+      <div className="mobile-join__scrim" />
+      <div className="mobile-join__content">
+        <img className="mobile-join__logo mobile-join__logo--small" src="/images/logo.png" alt="내 티라노를 살려내!" />
+        <p className="mobile-join__team-label">
+          {teamId ? TEAM_EMBLEM[teamId] : ""} {teamId && roomState ? roomState.teamNames[teamId] : ""}
+        </p>
+        <p className="mobile-join__team-sublabel">으로 입장했습니다</p>
+        <button
+          type="button"
+          className={`mobile-join__ready-button${ready ? " mobile-join__ready-button--active" : ""}`}
+          onClick={toggleReady}
+        >
+          {ready ? "준비 완료 ✅ (취소)" : "준비하기"}
+        </button>
+        <p className="mobile-join__teammate-count">
+          다른 팀원 {roomState?.players.filter((p) => p.teamId === teamId && p.id !== playerId).length ?? 0}명
+        </p>
+      </div>
     </main>
   );
 }

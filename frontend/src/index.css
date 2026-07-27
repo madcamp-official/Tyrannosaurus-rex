@@ -11,11 +11,199 @@ body {
   color: #f2f2f2;
 }
 
-.mobile-join,
 .museum-page {
   max-width: 960px;
   margin: 0 auto;
   padding: 24px;
+}
+
+/* ---------- 모바일 입장/대기 화면 (데스크탑 홈·로비와 톤 맞춤) ---------- */
+
+.mobile-join {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background: #1a1108;
+  font-family: "Nunito", sans-serif;
+}
+
+.mobile-join__bg {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  background-image: url("/images/home.png");
+  background-size: cover;
+  background-position: center 30%;
+}
+
+.mobile-join__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  background: linear-gradient(180deg, rgba(15, 9, 4, 0.55) 0%, rgba(15, 9, 4, 0.55) 40%, rgba(15, 9, 4, 0.85) 100%);
+}
+
+.mobile-join--team-a .mobile-join__scrim {
+  background: linear-gradient(180deg, rgba(60, 30, 10, 0.55) 0%, rgba(40, 20, 10, 0.6) 40%, rgba(20, 10, 5, 0.9) 100%);
+}
+
+.mobile-join--team-b .mobile-join__scrim {
+  background: linear-gradient(180deg, rgba(10, 35, 50, 0.55) 0%, rgba(8, 25, 40, 0.6) 40%, rgba(5, 15, 25, 0.9) 100%);
+}
+
+.mobile-join__content {
+  position: relative;
+  z-index: 2;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 32px 20px;
+  text-align: center;
+}
+
+.mobile-join__logo {
+  height: clamp(140px, 40vw, 220px);
+  width: auto;
+  filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.45));
+}
+
+.mobile-join__logo--small {
+  height: clamp(100px, 28vw, 150px);
+}
+
+.mobile-join__subtitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(255, 248, 236, 0.9);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  margin: 0 0 12px;
+}
+
+.mobile-join__card {
+  width: 100%;
+  max-width: 340px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  background: rgba(255, 250, 240, 0.16);
+  backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgba(255, 240, 220, 0.35);
+  border-radius: 24px;
+  padding: 24px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.mobile-join__room-code {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(255, 248, 236, 0.75);
+  letter-spacing: 0.06em;
+}
+
+.mobile-join__input {
+  padding: 14px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 240, 220, 0.35);
+  background: rgba(0, 0, 0, 0.28);
+  color: #fff8ec;
+  font-size: 18px;
+  font-family: inherit;
+}
+
+.mobile-join__button {
+  background: #e8c34a;
+  color: #3d2a12;
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 800;
+  font-size: 20px;
+  padding: 14px;
+  border: none;
+  border-radius: 16px;
+  box-shadow: 0 5px 0 #b8933a;
+  cursor: pointer;
+}
+
+.mobile-join__button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.mobile-join__error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #d64a2e;
+  color: white;
+  padding: 14px 20px;
+  border-radius: 16px;
+  font-weight: 700;
+  font-size: 15px;
+  max-width: 340px;
+  box-shadow: 0 8px 24px rgba(120, 50, 30, 0.35);
+}
+
+.mobile-join__team-label {
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 700;
+  font-size: 26px;
+  color: #fff8ec;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  margin: 0;
+  white-space: nowrap;
+}
+
+.mobile-join__team-sublabel {
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(255, 248, 236, 0.85);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  margin: -8px 0 8px;
+}
+
+.mobile-join__ready-button {
+  background: rgba(255, 250, 240, 0.16);
+  backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgba(255, 240, 220, 0.35);
+  color: #fff8ec;
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 800;
+  font-size: 20px;
+  padding: 16px 40px;
+  border-radius: 20px;
+  cursor: pointer;
+}
+
+.mobile-join__ready-button--active {
+  background: #90be6d;
+  color: #1c3312;
+  border-color: rgba(144, 190, 109, 0.6);
+  box-shadow: 0 5px 0 #6f9853;
+}
+
+.mobile-join__teammate-count {
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(255, 248, 236, 0.75);
+}
+
+.mobile-join__result-title {
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 800;
+  font-size: 28px;
+  color: #fff8ec;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  margin: 0;
+}
+
+.mobile-join__result-winner {
+  font-size: 20px;
+  font-weight: 700;
+  color: #f5c542;
+  margin: 0 0 8px;
 }
 
 /* 데스크탑은 3D 무대를 화면 전체 배경으로 깔고 UI를 그 위에 띄운다. */
@@ -822,17 +1010,47 @@ body {
   transition: width 0.2s ease-out;
 }
 
+/* ---------- 모바일 게임 조작 화면 공통 (발굴/다이노런/조준) ---------- */
+
+.mobile-game__title {
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 700;
+  font-size: 20px;
+  color: #fff8ec;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+  margin: 0;
+}
+
+.mobile-game__hint {
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(255, 248, 236, 0.8);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6);
+  text-align: center;
+  margin: 0;
+}
+
+.mobile-game__button {
+  background: rgba(255, 250, 240, 0.16);
+  backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgba(255, 240, 220, 0.35);
+  color: #fff8ec;
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 800;
+  font-size: 16px;
+  padding: 12px 28px;
+  border-radius: 16px;
+  cursor: pointer;
+}
+
 .excavation-controls {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
-  padding: 24px;
-}
-
-.excavation-controls .hint {
-  opacity: 0.75;
-  font-size: 0.9rem;
+  gap: 16px;
+  padding: 32px 24px;
 }
 
 .dig-button {
@@ -840,16 +1058,17 @@ body {
   height: 200px;
   border-radius: 50%;
   font-size: 2rem;
-  background: #43aa8b;
+  background: #e8c34a;
+  box-shadow: 0 8px 0 #b8933a;
   border: none;
-  color: white;
+  color: #3d2a12;
   transition: transform 0.1s ease-out;
 }
 
 .dig-button:active,
 .dig-button--flash {
   transform: scale(0.92);
-  background: #90be6d;
+  background: #f5d873;
 }
 
 .puzzle-view__canvas {
@@ -935,6 +1154,8 @@ body {
 }
 
 .dino-run {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -946,14 +1167,20 @@ body {
 .dino-run__hud {
   display: flex;
   justify-content: space-between;
+  font-family: "Baloo 2", sans-serif;
   font-weight: 700;
+  font-size: 18px;
+  color: #fff8ec;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 
 .dino-run__track {
   position: relative;
   height: 180px;
-  background: #1c232c;
-  border-radius: 12px;
+  background: rgba(15, 9, 4, 0.55);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 240, 220, 0.25);
+  border-radius: 16px;
   overflow: hidden;
 }
 
@@ -962,7 +1189,7 @@ body {
   left: 0;
   right: 0;
   bottom: 28px;
-  border-bottom: 2px solid #575f6b;
+  border-bottom: 2px solid rgba(255, 240, 220, 0.35);
 }
 
 .dino-run__dino {
@@ -1001,10 +1228,12 @@ body {
 }
 
 .aim-controls {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
   padding: 16px;
 }
 
@@ -1013,16 +1242,33 @@ body {
   gap: 8px;
 }
 
+.aim-controls__mode button {
+  background: rgba(255, 250, 240, 0.16);
+  backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgba(255, 240, 220, 0.35);
+  color: #fff8ec;
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
 .aim-controls__mode button.active {
-  background: #43aa8b;
+  background: #e8c34a;
+  color: #3d2a12;
+  border-color: rgba(184, 147, 58, 0.6);
 }
 
 .aim-pad {
   position: relative;
   width: 280px;
   height: 280px;
-  border-radius: 12px;
-  background: #1c232c;
+  border-radius: 16px;
+  background: rgba(15, 9, 4, 0.55);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 240, 220, 0.25);
   touch-action: none;
   overflow: hidden;
 }
@@ -1032,7 +1278,7 @@ body {
 }
 
 .aim-pad--miss {
-  box-shadow: inset 0 0 0 4px #575f6b;
+  box-shadow: inset 0 0 0 4px rgba(255, 240, 220, 0.4);
 }
 
 .aim-pad__crosshair {
@@ -1040,23 +1286,27 @@ body {
   width: 24px;
   height: 24px;
   margin: -12px;
-  border: 2px solid #f94144;
+  border: 2px solid #f5c542;
   border-radius: 50%;
 }
 
 .fire-button {
   width: 140px;
   height: 60px;
-  font-size: 1.2rem;
-  font-weight: 700;
-  background: #f94144;
+  font-family: "Baloo 2", sans-serif;
+  font-size: 20px;
+  font-weight: 800;
+  background: #d9591f;
+  box-shadow: 0 5px 0 #a8431a;
   border: none;
   border-radius: 30px;
-  color: white;
+  color: #fff8ec;
+  cursor: pointer;
 }
 
 .fire-button:disabled {
   opacity: 0.5;
+  box-shadow: none;
 }
 
 .stat-bar {
