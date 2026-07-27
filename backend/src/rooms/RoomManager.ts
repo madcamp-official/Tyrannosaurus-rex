@@ -609,6 +609,24 @@ export class RoomManager {
     this.bumpRevision(room);
   }
 
+  /**
+   * Plan.md §21: "한 팀의 모든 플레이어가 연결 해제되면 상대 팀의 승리로 종료한다."
+   * 게임이 진행 중(PLAYING)일 때만 적용하고, 상대 팀에도 연결된 플레이어가 없으면(둘 다 끊김)
+   * 승자를 정할 수 없으니 손대지 않는다.
+   */
+  finalizeIfTeamFullyDisconnected(room: RoomRecord, teamId: TeamId): boolean {
+    if (room.state.roomPhase !== "PLAYING") return false;
+    const teamPlayers = room.state.players.filter((p) => p.teamId === teamId);
+    if (teamPlayers.length === 0 || teamPlayers.some((p) => p.connected)) return false;
+
+    const opponent: TeamId = teamId === "A" ? "B" : "A";
+    const opponentConnected = room.state.players.some((p) => p.teamId === opponent && p.connected);
+    if (!opponentConnected) return false;
+
+    this.finalizeRoundWinner(room, opponent, "OPPONENT_DISCONNECTED");
+    return true;
+  }
+
   closeRoom(roomCode: RoomCode): void {
     this.rooms.delete(roomCode);
   }

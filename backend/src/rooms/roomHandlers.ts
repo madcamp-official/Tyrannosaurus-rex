@@ -19,6 +19,7 @@ import { IdempotencyCache } from "../validation/idempotency.js";
 import { TokenBucketLimiter } from "../validation/rateLimit.js";
 import { hostChannel, roomChannel, teamChannel } from "./channels.js";
 import { broadcastRoomState, toServerEvent } from "./broadcast.js";
+import { broadcastResultIfFinalized } from "./energyHandlers.js";
 
 const idempotency = new IdempotencyCache();
 const roomCreateLimiter = new TokenBucketLimiter(1, 1 / 60);
@@ -237,7 +238,12 @@ export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: Ro
     if (!found) return;
     rooms.setPlayerConnected(found.room, found.playerId, false);
     broadcastPlayerConnectionChanged(io, rooms, found.room.state.roomCode, found.playerId, false);
+
+    const player = found.room.state.players.find((p) => p.id === found.playerId);
+    const finalized = player ? rooms.finalizeIfTeamFullyDisconnected(found.room, player.teamId) : false;
+
     broadcastRoomState(io, rooms, found.room.state.roomCode);
+    broadcastResultIfFinalized(io, rooms, found.room.state.roomCode, finalized);
   });
 }
 
