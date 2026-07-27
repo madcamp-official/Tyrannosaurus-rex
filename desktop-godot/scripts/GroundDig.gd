@@ -4,10 +4,10 @@ class_name GroundDig
 const GROUND_SIZE := 16.0
 const SEGS := 64
 const DIG_ZONE_RADIUS := 3.45
-const SCOOP_RADIUS_MIN := 1.18
-const SCOOP_RADIUS_MAX := 1.88
-const SCOOP_DEPTH_MIN := 0.32
-const SCOOP_DEPTH_MAX := 0.76
+const SCOOP_RADIUS_MIN := 1.32
+const SCOOP_RADIUS_MAX := 2.1
+const SCOOP_DEPTH_MIN := 0.5
+const SCOOP_DEPTH_MAX := 1.15
 const DIRT_COLOR_DEPTH_SCALE := 7.5
 const MAX_SCOOP_HISTORY := 18
 
@@ -182,11 +182,11 @@ func dig_random_scoop(progress: float) -> Vector2:
 		scoop_z = sin(angle) * r
 
 	var scoop_radius := clampf(
-		lerp(SCOOP_RADIUS_MAX, 1.42, phase) + (_rng.randf() - 0.5) * 0.16,
+		lerp(SCOOP_RADIUS_MAX, 1.58, phase) + (_rng.randf() - 0.5) * 0.16,
 		SCOOP_RADIUS_MIN, SCOOP_RADIUS_MAX
 	)
 	var scoop_depth := clampf(
-		lerp(SCOOP_DEPTH_MIN, 0.64, phase) + (_rng.randf() - 0.5) * 0.08,
+		lerp(SCOOP_DEPTH_MIN, 1.0, phase) + (_rng.randf() - 0.5) * 0.08,
 		SCOOP_DEPTH_MIN, SCOOP_DEPTH_MAX
 	)
 

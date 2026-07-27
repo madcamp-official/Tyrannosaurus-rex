@@ -12,7 +12,7 @@ const SNAP_DURATION := 0.3
 ## excavation:progress는 입력마다(초당 최대 12회) 오지만, 매번 파면 뼈 하나 찾는 사이에도
 ## 땅이 다 파여서 후반부에 시각적 변화가 없어진다. 진행도가 이만큼 움직일 때마다 한 번만 판다
 ## (뼈 하나당 0~100%를 대략 10번에 나눠 파는 셈).
-const EXCAVATION_DIG_STEP := 10.0
+const EXCAVATION_DIG_STEP := 7.0
 
 var team_id: String = "A"
 var _ground: GroundDig
