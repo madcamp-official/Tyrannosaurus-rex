@@ -66,6 +66,24 @@ export function applyExcavationEvent(state: RoomState, data: { teamId: TeamId; k
   };
 }
 
+export function applyExcavationTeamFinished(
+  state: RoomState,
+  data: { teamId: TeamId; result: "WIN" | "LOSE"; score: number },
+): RoomState {
+  const team = state.teams[data.teamId];
+  return {
+    ...state,
+    teams: {
+      ...state.teams,
+      [data.teamId]: {
+        ...team,
+        excavation: { ...team.excavation, result: data.result },
+        scores: { ...team.scores, excavation: data.score },
+      },
+    },
+  };
+}
+
 export function applyTeamPhaseChanged(
   state: RoomState,
   data: { teamId: TeamId; to: RoomState["teams"][TeamId]["phase"]; endsAt: number | null },

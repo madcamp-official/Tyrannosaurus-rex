@@ -778,6 +778,56 @@ body {
   }
 }
 
+/* 발굴 종료 WIN/LOSE 표시 — 먼저 끝난 팀은 WIN으로 대기, 나중에 끝난 팀은 LOSE. */
+.exca-result {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.exca-result__label {
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 800;
+  font-size: clamp(48px, 7vw, 84px);
+  text-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  animation: exca-result-pop 0.4s ease-out;
+}
+
+.exca-result--win .exca-result__label {
+  color: #ffd75e;
+}
+
+.exca-result--lose .exca-result__label {
+  color: #9aa4b2;
+}
+
+.exca-result__score {
+  font-size: clamp(20px, 2.4vw, 28px);
+  font-weight: 800;
+  color: #fff8ec;
+}
+
+.exca-result__hint {
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(255, 248, 236, 0.7);
+}
+
+@keyframes exca-result-pop {
+  0% {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 /* 사격 단계(경기 3): 공유 스켈레톤 아레나가 두 팀 패널 사이 중앙 열에 하나만 뜬다. */
 .play-area__shared-arena {
   flex: 1.4;

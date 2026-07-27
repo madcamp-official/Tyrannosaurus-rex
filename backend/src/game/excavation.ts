@@ -93,7 +93,10 @@ export function applyExcavateInput(
   const reject: ExcavationApplyResult = { accepted: false, pointsAdded: 0, boneAwards: [], event: null, phaseCompleted: false };
 
   const team = room.state.teams[teamId];
-  if (team.phase !== "EXCAVATION") return reject;
+  // result가 이미 정해졌다는 건 이 팀은 발굴을 끝내고 상대를 기다리는 중이라는 뜻 — phase는
+  // 아직 EXCAVATION이지만 더 이상 입력을 받지 않는다. 안 막으면 매 입력마다 phaseCompleted가
+  // 다시 true가 되어 excavationTransitionAt이 계속 뒤로 밀려 다이노런 전환이 영원히 안 된다.
+  if (team.phase !== "EXCAVATION" || team.excavation.result !== null) return reject;
   if (input.count !== input.sourceCounts.motion + input.sourceCounts.tap) return reject;
 
   const state = room.excavation[teamId];

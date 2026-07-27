@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BONE_IDS, CORE_BONE_COUNT, EXCAVATION_MAX_INPUTS_PER_SECOND, EXCAVATION_POINTS_PER_BONE } from "@trex/shared";
+import { BONE_IDS, CORE_BONE_COUNT, EXCAVATION_MAX_INPUTS_PER_SECOND, EXCAVATION_POINTS_PER_BONE, ROUND_TRANSITION_MS } from "@trex/shared";
 import { RoomManager } from "../src/rooms/RoomManager.js";
 import { makeBoneOrder } from "../src/game/excavation.js";
 
@@ -13,7 +13,24 @@ function setupStartedRoom() {
   rooms.setReady(roomCode, a.playerId, true);
   rooms.setReady(roomCode, b.playerId, true);
   rooms.startGame(created.room);
-  return { rooms, room: created.room, playerA: a.playerId };
+  return { rooms, room: created.room, playerA: a.playerId, playerB: b.playerId };
+}
+
+/** 판정 창(레이트리밋)이 안 걸리게 1초씩 떼어 넣으며 그 팀의 발굴을 끝까지 채운다. */
+function digUntilDone(
+  rooms: RoomManager,
+  room: ReturnType<typeof setupStartedRoom>["room"],
+  teamId: "A" | "B",
+  playerId: string,
+  startNow: number,
+): number {
+  let seq = 1;
+  let now = startNow;
+  for (let i = 0; i < 200 && room.state.teams[teamId].excavation.discoveredBoneIds.length < CORE_BONE_COUNT; i += 1) {
+    now += 1000;
+    rooms.applyExcavation(room, teamId, playerId, { seq: seq++, count: 5, sourceCounts: { motion: 5, tap: 0 }, clientTime: now }, now);
+  }
+  return now;
 }
 
 describe("makeBoneOrder", () => {
@@ -87,36 +104,43 @@ describe("applyExcavation via RoomManager", () => {
     expect(total).toBeLessThanOrEqual(EXCAVATION_MAX_INPUTS_PER_SECOND + 0.001);
   });
 
-  it("awards bones in the room's seeded order and transitions the team to ASSEMBLY", () => {
+  it("awards bones in the room's seeded order", () => {
     const { rooms, room, playerA } = setupStartedRoom();
     const expectedOrder = room.boneOrder;
     expect(expectedOrder).toHaveLength(BONE_IDS.length);
 
-    let seq = 1;
-    let now = Date.now();
-    const awarded: string[] = [];
-    // Spread input across many separate 1s windows so the per-player/team rate caps never bind,
-    // isolating the bone-award and phase-transition behavior under test.
-    for (let i = 0; i < 200 && room.state.teams.A.phase === "EXCAVATION"; i += 1) {
-      now += 1000;
-      const result = rooms.applyExcavation(
-        room,
-        "A",
-        playerA,
-        { seq: seq++, count: 5, sourceCounts: { motion: 5, tap: 0 }, clientTime: now },
-        now,
-      );
-      awarded.push(...result.boneAwards);
-    }
+    digUntilDone(rooms, room, "A", playerA, Date.now());
 
     const expectedAwarded = expectedOrder.slice(0, CORE_BONE_COUNT);
-    expect(awarded).toEqual(expectedAwarded);
-    expect(room.state.teams.A.phase).toBe("ASSEMBLY");
     expect(room.state.teams.A.excavation.discoveredBoneIds).toEqual(expectedAwarded);
     expect(room.phaseDurations.A.excavationMs).not.toBeNull();
-    // ASSEMBLY 진입과 함께 다이노런이 무장된다.
-    expect(room.state.teams.A.phaseEndsAt).not.toBeNull();
-    expect(room.state.teams.A.dinoRun.obstacleOffsetsMs.length).toBeGreaterThan(0);
+  });
+
+  it("먼저 끝난 팀은 WIN으로 상대를 기다리고, 상대도 끝나면 LOSE 뒤 대기 시간 후 둘 다 ASSEMBLY로 전환된다", () => {
+    const { rooms, room, playerA, playerB } = setupStartedRoom();
+    const start = Date.now();
+
+    const afterA = digUntilDone(rooms, room, "A", playerA, start);
+    // A가 먼저 끝났고 B는 아직이라, WIN으로 표시된 채 EXCAVATION에 머물며 기다린다.
+    expect(room.state.teams.A.excavation.result).toBe("WIN");
+    expect(room.state.teams.A.phase).toBe("EXCAVATION");
+    expect(rooms.tickExcavationTransition(room, afterA)).toBe(false);
+
+    const afterB = digUntilDone(rooms, room, "B", playerB, afterA);
+    // B가 이제 끝났으니 LOSE, 이 시점부터 ROUND_TRANSITION_MS 뒤 전환이 예약된다.
+    expect(room.state.teams.B.excavation.result).toBe("LOSE");
+    expect(room.state.teams.B.phase).toBe("EXCAVATION");
+
+    expect(rooms.tickExcavationTransition(room, afterB)).toBe(false);
+    const transitioned = rooms.tickExcavationTransition(room, afterB + ROUND_TRANSITION_MS + 1);
+    expect(transitioned).toBe(true);
+
+    for (const teamId of ["A", "B"] as const) {
+      expect(room.state.teams[teamId].phase).toBe("ASSEMBLY");
+      expect(room.state.teams[teamId].excavation.result).toBeNull();
+      expect(room.state.teams[teamId].phaseEndsAt).not.toBeNull();
+      expect(room.state.teams[teamId].dinoRun.obstacleOffsetsMs.length).toBeGreaterThan(0);
+    }
   });
 
   it("does nothing once the team has already left EXCAVATION", () => {

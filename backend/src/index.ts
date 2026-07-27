@@ -8,7 +8,7 @@ import { loadEnv } from "./env.js";
 import { listMuseumEntries } from "./db/museumDb.js";
 import { RoomManager } from "./rooms/RoomManager.js";
 import { registerRoomHandlers } from "./rooms/roomHandlers.js";
-import { registerExcavationHandlers } from "./rooms/excavationHandlers.js";
+import { registerExcavationHandlers, tickExcavationHandoff } from "./rooms/excavationHandlers.js";
 import { registerDinoHandlers, tickRoomDinoRun } from "./rooms/dinoHandlers.js";
 import { registerAimHandlers } from "./rooms/aimHandlers.js";
 import { registerEnergyHandlers, tickRoomCharging } from "./rooms/energyHandlers.js";
@@ -124,6 +124,7 @@ idleSweepInterval.unref();
 
 const chargingTickInterval = setInterval(() => {
   for (const roomCode of rooms.listRoomCodes()) {
+    tickExcavationHandoff(io, rooms, roomCode);
     tickRoomDinoRun(io, rooms, roomCode);
     tickRoomCharging(io, rooms, roomCode);
   }

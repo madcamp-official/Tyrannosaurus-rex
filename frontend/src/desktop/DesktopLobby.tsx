@@ -28,6 +28,7 @@ import {
   applyBoneFound,
   applyCoreChanged,
   applyExcavationEvent,
+  applyExcavationTeamFinished,
   applyExcavationProgress,
   applyGameResult,
   applyDinoFinished,
@@ -85,6 +86,7 @@ export function DesktopLobby(): JSX.Element {
       bridge.send("BONE_DISCOVERED", { teamId: evt.data.teamId, boneId: evt.data.boneId, position: { x: 0.5, y: 0.5 } });
     });
     socket.on("excavation:eventTriggered", (evt) => setRoomState((prev) => (prev ? applyExcavationEvent(prev, evt.data) : prev)));
+    socket.on("excavation:teamFinished", (evt) => setRoomState((prev) => (prev ? applyExcavationTeamFinished(prev, evt.data) : prev)));
     socket.on("team:phaseChanged", (evt) => setRoomState((prev) => (prev ? applyTeamPhaseChanged(prev, evt.data) : prev)));
     socket.on("dino:started", (evt) => setRoomState((prev) => (prev ? applyDinoStarted(prev, evt.data) : prev)));
     socket.on("dino:progress", (evt) => setRoomState((prev) => (prev ? applyDinoProgress(prev, evt.data) : prev)));

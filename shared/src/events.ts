@@ -275,6 +275,9 @@ export interface ServerToClientEvents {
   "excavation:eventTriggered": (
     evt: ServerEvent<{ teamId: TeamId; kind: "FOSSIL" | "GOLD_BONE"; endsAt: number | null }>,
   ) => void;
+  "excavation:teamFinished": (
+    evt: ServerEvent<{ teamId: TeamId; result: "WIN" | "LOSE"; score: number }>,
+  ) => void;
   "dino:started": (
     evt: ServerEvent<{ teamId: TeamId; obstacleOffsetsMs: number[]; startedAt: number; endsAt: number }>,
   ) => void;

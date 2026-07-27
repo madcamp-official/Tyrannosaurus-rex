@@ -20,6 +20,17 @@ export function ExcavationTeamPanel({ team, players }: { team: TeamState; player
   const segmentSpan = Math.max(1, team.excavation.nextBoneAt - segmentStart);
   const progressPct = Math.min(100, Math.max(0, Math.round(((team.excavation.points - segmentStart) / segmentSpan) * 100)));
 
+  if (team.excavation.result) {
+    const isWin = team.excavation.result === "WIN";
+    return (
+      <div className={`exca-result${isWin ? " exca-result--win" : " exca-result--lose"}`}>
+        <div className="exca-result__label">{isWin ? "WIN" : "LOSE"}</div>
+        <div className="exca-result__score">{team.scores.excavation ?? 0}점</div>
+        {isWin && <p className="exca-result__hint">상대 팀을 기다리는 중…</p>}
+      </div>
+    );
+  }
+
   return (
     <div className="exca-view">
       <div className="exca-sidebar">

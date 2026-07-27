@@ -13,6 +13,7 @@ import {
   ROOM_CODE_LENGTH,
   ROOM_CODE_MAX_GENERATION_ATTEMPTS,
   ROUND_DURATION_MS,
+  ROUND_TRANSITION_MS,
   SHOOTING_SCORE_ACCURACY_WEIGHT,
   SHOOTING_SCORE_CORE_WEIGHT,
   SHOOTING_SCORE_CORE_HITS_FOR_FULL_MARKS,
@@ -33,7 +34,13 @@ import {
   type Transform2D,
 } from "@trex/shared";
 import { colorForJoinIndex } from "./colors.js";
-import { applyExcavateInput, createExcavationState, makeBoneOrder, type ExcavationRoomState } from "../game/excavation.js";
+import {
+  applyExcavateInput,
+  createExcavationState,
+  makeBoneOrder,
+  type ExcavationApplyResult,
+  type ExcavationRoomState,
+} from "../game/excavation.js";
 import {
   applyDinoJump,
   checkDinoDeaths,
@@ -77,6 +84,8 @@ export type RoomRecord = {
   roundSeed: string | null;
   boneOrder: BoneId[];
   excavation: ExcavationRoomState;
+  /** 두 팀 다 발굴을 끝내면 이 시각에 함께 다이노런으로 넘어간다 (§ROUND_TRANSITION_MS 대기). */
+  excavationTransitionAt: number | null;
   phaseDurations: Record<TeamId, PhaseDurations>;
   /** CHARGING에 처음 진입한 시각. chargingMs 계산에 쓴다. */
   chargingStartedAt: Record<TeamId, number | null>;
@@ -102,6 +111,7 @@ function resetTeamGameplayState(team: TeamState, now: number): void {
     nextBoneAt: EXCAVATION_POINTS_PER_BONE,
     discoveredBoneIds: [],
     fossils: 0,
+    result: null,
   };
   team.dinoRun = { obstacleOffsetsMs: [], clearedByPlayer: {}, deadPlayerIds: [], performance: null, grade: null };
   team.charging = {
@@ -121,7 +131,7 @@ function makeEmptyTeamState(teamId: TeamId, now: number): TeamState {
     phaseStartedAt: now,
     phaseEndsAt: null,
     playerIds: [],
-    excavation: { points: 0, nextBoneAt: EXCAVATION_POINTS_PER_BONE, discoveredBoneIds: [], fossils: 0 },
+    excavation: { points: 0, nextBoneAt: EXCAVATION_POINTS_PER_BONE, discoveredBoneIds: [], fossils: 0, result: null },
     dinoRun: { obstacleOffsetsMs: [], clearedByPlayer: {}, deadPlayerIds: [], performance: null, grade: null },
     charging: { energy: 0, stability: 100, activeCore: "HEART", coreChangesAt: 0, form: "NONE" },
     scores: { excavation: null, dinoRun: null, charging: null },
@@ -228,6 +238,7 @@ export class RoomManager {
       roundSeed: null,
       boneOrder: [],
       excavation: createExcavationState(now),
+      excavationTransitionAt: null,
       phaseDurations: {
         A: { excavationMs: null, assemblyMs: null, chargingMs: null },
         B: { excavationMs: null, assemblyMs: null, chargingMs: null },
@@ -372,29 +383,61 @@ export class RoomManager {
     for (const teamId of TEAM_IDS) {
       resetTeamGameplayState(room.state.teams[teamId], now);
     }
+    room.excavationTransitionAt = null;
     Object.assign(room, makeVoteState());
     this.touch(room);
     this.bumpRevision(room);
   }
 
-  /** 팀 발굴 판정을 적용하고 phase 전환이 필요하면 함께 처리한다. */
-  applyExcavation(room: RoomRecord, teamId: TeamId, playerId: PlayerId, input: ExcavateInput, now: number) {
+  /**
+   * 팀 발굴 판정을 적용한다. 먼저 끝난 팀은 WIN으로 표시하고 상대를 기다리며, 상대도 끝나면
+   * LOSE로 표시하고 ROUND_TRANSITION_MS 뒤 두 팀이 동시에 다이노런으로 넘어가도록 예약한다
+   * (실제 전환은 tickExcavationTransition이 처리).
+   */
+  applyExcavation(
+    room: RoomRecord,
+    teamId: TeamId,
+    playerId: PlayerId,
+    input: ExcavateInput,
+    now: number,
+  ): ExcavationApplyResult & { teamResult: { result: "WIN" | "LOSE"; score: number } | null } {
     const result = applyExcavateInput(room, teamId, playerId, input, now);
-    if (!result.accepted) return result;
+    if (!result.accepted) return { ...result, teamResult: null };
 
     this.touch(room);
+    let teamResult: { result: "WIN" | "LOSE"; score: number } | null = null;
     if (result.phaseCompleted) {
       const team = room.state.teams[teamId];
+      const otherTeam = room.state.teams[teamId === "A" ? "B" : "A"];
       room.phaseDurations[teamId].excavationMs = now - team.phaseStartedAt;
       team.scores.excavation = this.computeExcavationScore(room, now);
+      team.excavation.result = otherTeam.excavation.result !== null ? "LOSE" : "WIN";
+      teamResult = { result: team.excavation.result, score: team.scores.excavation };
+      if (otherTeam.excavation.result !== null) {
+        room.excavationTransitionAt = now + ROUND_TRANSITION_MS;
+      }
+    }
+    this.bumpRevision(room);
+    return { ...result, teamResult };
+  }
+
+  /** 두 팀 다 발굴을 끝내고 대기 시간이 지나면, 함께 다이노런으로 전환한다. */
+  tickExcavationTransition(room: RoomRecord, now: number): boolean {
+    if (room.excavationTransitionAt === null || now < room.excavationTransitionAt) return false;
+
+    for (const teamId of TEAM_IDS) {
+      const team = room.state.teams[teamId];
+      team.excavation.result = null;
       team.phase = "ASSEMBLY";
       team.phaseStartedAt = now;
       team.phaseEndsAt = now + DINO_RUN_DURATION_MS;
       // 장애물 스케줄은 라운드 시드에서 파생되어 양 팀이 항상 동일하다 (§4).
       team.dinoRun.obstacleOffsetsMs = makeObstacleSchedule(room.roundSeed ?? room.state.roomCode);
     }
+    room.excavationTransitionAt = null;
+    this.touch(room);
     this.bumpRevision(room);
-    return result;
+    return true;
   }
 
   /** 경기 1 점수: 라운드 시작 이후 완료까지 걸린 시간이 짧을수록 높다 (§2.3 타임 보너스). */

@@ -1,10 +1,10 @@
 /** Plan.md §17.5, §18. 뼈 발굴 고빈도 이벤트 핸들러. acknowledgement가 없다 (§16.3). */
 
-import { excavateInputSchema } from "@trex/shared";
+import { TEAM_IDS, excavateInputSchema } from "@trex/shared";
 import type { RoomManager } from "./RoomManager.js";
 import type { AppServer, AppSocket } from "./types.js";
 import { roomChannel } from "./channels.js";
-import { toServerEvent } from "./broadcast.js";
+import { broadcastRoomState, toServerEvent } from "./broadcast.js";
 
 export function registerExcavationHandlers(io: AppServer, socket: AppSocket, rooms: RoomManager): void {
   socket.on("excavate:input", (rawInput) => {
@@ -60,26 +60,46 @@ export function registerExcavationHandlers(io: AppServer, socket: AppSocket, roo
       );
     }
 
-    if (result.phaseCompleted) {
+    // 먼저 끝난 팀은 WIN, 나중에 끝난 팀은 LOSE만 알리고, 실제 다이노런 전환은
+    // tickExcavationHandoff가 두 팀 다 끝난 뒤 ROUND_TRANSITION_MS를 기다렸다가 함께 처리한다.
+    if (result.teamResult) {
       io.to(channel).emit(
-        "team:phaseChanged",
+        "excavation:teamFinished",
         toServerEvent(roomCode, room.state.revision, {
           teamId,
-          from: "EXCAVATION",
-          to: "ASSEMBLY",
-          endsAt: team.phaseEndsAt,
-        }),
-      );
-      io.to(channel).emit(
-        "dino:started",
-        toServerEvent(roomCode, room.state.revision, {
-          teamId,
-          obstacleOffsetsMs: team.dinoRun.obstacleOffsetsMs,
-          startedAt: team.phaseStartedAt,
-          endsAt: team.phaseEndsAt ?? 0,
+          result: result.teamResult.result,
+          score: result.teamResult.score,
         }),
       );
       io.to(channel).emit("room:state", toServerEvent(roomCode, room.state.revision, rooms.getPublicState(room)));
     }
   });
+}
+
+/** 100ms 배경 틱: 두 팀 다 발굴을 끝내고 대기 시간이 지나면 함께 다이노런으로 전환한다. */
+export function tickExcavationHandoff(io: AppServer, rooms: RoomManager, roomCode: string): void {
+  const room = rooms.getRoom(roomCode);
+  if (!room || room.state.roomPhase !== "PLAYING") return;
+
+  const transitioned = rooms.tickExcavationTransition(room, Date.now());
+  if (!transitioned) return;
+
+  const channel = roomChannel(roomCode);
+  for (const teamId of TEAM_IDS) {
+    const team = room.state.teams[teamId];
+    io.to(channel).emit(
+      "team:phaseChanged",
+      toServerEvent(roomCode, room.state.revision, { teamId, from: "EXCAVATION", to: "ASSEMBLY", endsAt: team.phaseEndsAt }),
+    );
+    io.to(channel).emit(
+      "dino:started",
+      toServerEvent(roomCode, room.state.revision, {
+        teamId,
+        obstacleOffsetsMs: team.dinoRun.obstacleOffsetsMs,
+        startedAt: team.phaseStartedAt,
+        endsAt: team.phaseEndsAt ?? 0,
+      }),
+    );
+  }
+  broadcastRoomState(io, rooms, roomCode);
 }

@@ -9,7 +9,13 @@ const MAX_COUNT_PER_PACKET = 5;
 
 type MotionPermissionApi = { requestPermission?: () => Promise<"granted" | "denied"> };
 
-export function ExcavationControls({ socket }: { socket: AppSocket }): JSX.Element {
+export function ExcavationControls({
+  socket,
+  result,
+}: {
+  socket: AppSocket;
+  result: "WIN" | "LOSE" | null;
+}): JSX.Element {
   const [motionPermission, setMotionPermission] = useState<SensorPermission>("UNKNOWN");
   const [shakeFlash, setShakeFlash] = useState(false);
   const motionCountRef = useRef(0);
@@ -78,6 +84,15 @@ export function ExcavationControls({ socket }: { socket: AppSocket }): JSX.Eleme
   const handleTap = () => {
     tapCountRef.current += 1;
   };
+
+  if (result) {
+    return (
+      <div className="excavation-controls">
+        <p className="excavation-controls__result">{result === "WIN" ? "🏆 발굴 완료!" : "발굴 완료"}</p>
+        <p className="hint">상대 팀을 기다리는 중…</p>
+      </div>
+    );
+  }
 
   return (
     <div className="excavation-controls">
