@@ -17,6 +17,10 @@ function formatMs(ms: number | null): string {
   return `${(ms / 1000).toFixed(1)}초`;
 }
 
+function formatScore(score: number | null | undefined): string {
+  return score === null || score === undefined ? "-" : String(Math.round(score));
+}
+
 export function ResultView({
   roomState,
   gameResult,
@@ -54,10 +58,10 @@ export function ResultView({
                 <li>충전 {formatMs(teamResult?.chargingMs ?? null)}</li>
               </ul>
               <ul className="result-view__scores">
-                <li>경기 1(발굴) {teamResult?.scores.excavation ?? "-"}점</li>
-                <li>경기 2(다이노런) {teamResult?.scores.dinoRun ?? "-"}점</li>
-                <li>경기 3(사격) {teamResult?.scores.charging ?? "-"}점</li>
-                <li className="result-view__total-score">총점 {teamResult?.totalScore ?? "-"}점</li>
+                <li>경기 1(발굴) {formatScore(teamResult?.scores.excavation)}점</li>
+                <li>경기 2(다이노런) {formatScore(teamResult?.scores.dinoRun)}점</li>
+                <li>경기 3(사격) {formatScore(teamResult?.scores.charging)}점</li>
+                <li className="result-view__total-score">총점 {formatScore(teamResult?.totalScore)}점</li>
               </ul>
               {roomState.roomPhase === "DECORATION" && (
                 <div className="result-view__voting">
@@ -75,7 +79,7 @@ export function ResultView({
           <ol>
             {gameResult.mvp.map((entry) => (
               <li key={entry.playerId}>
-                {entry.nickname} ({roomState.teamNames[entry.teamId]}) — {entry.score}점
+                {entry.nickname} ({roomState.teamNames[entry.teamId]}) — {formatScore(entry.score)}점
               </li>
             ))}
           </ol>

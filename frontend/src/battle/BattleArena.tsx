@@ -1,6 +1,6 @@
 /** 풀블리드 3D 무대 근사: 황혼 배경, 배회하는 스켈레톤 트리라노, 코어 마커, 크로스헤어, 레이저. */
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import type { BattleShotEvent, BattleState, TeamId } from "./battleTypes";
 import { GUN_MUZZLE, STAGE_H, STAGE_W } from "./battleLayout";
 
@@ -29,45 +29,16 @@ interface AllPlayer {
   index: number;
 }
 
-function useAimPoints(players: AllPlayer[], trexX: number, coreY: number) {
-  const [points, setPoints] = useState<Record<string, [number, number]>>({});
-
-  useEffect(() => {
-    const roll = () => {
-      setPoints((prev) => {
-        const next = { ...prev };
-        const perTeamCount: Record<string, number> = {};
-        for (const p of players) perTeamCount[p.team] = (perTeamCount[p.team] ?? 0) + 1;
-
-        for (const p of players) {
-          const bias = p.team === "A" ? -0.05 : 0.05;
-          const count = perTeamCount[p.team] ?? 1;
-          // 팀별로 슬롯을 원형으로 분산 배치해 겹침을 줄이고, 약간의 흔들림만 랜덤으로 준다.
-          const angle = (p.index / count) * Math.PI * 2 + (Math.random() - 0.5) * 0.5;
-          const radius = 0.05 + Math.random() * 0.015;
-          const dx = Math.cos(angle) * radius * 1.5 + bias;
-          const dy = Math.sin(angle) * radius;
-          // 좌우 스코어보드(무대 폭의 바깥쪽 22.4%) 뒤로 숨지 않도록 안쪽 구간으로 clamp.
-          next[p.id] = [Math.min(0.76, Math.max(0.24, trexX + dx)), Math.min(0.86, Math.max(0.18, coreY + 0.05 + dy))];
-        }
-        return next;
-      });
-    };
-    roll();
-    const id = window.setInterval(roll, 1200);
-    return () => window.clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [players.length]);
-
-  return points;
-}
 
 export function BattleArena({
   battle,
   shotEvents,
+  aimPoints,
 }: {
   battle: BattleState;
   shotEvents: BattleShotEvent[];
+  /** 플레이어별 실제 조준 좌표(폰의 자이로/터치패드 입력 그대로). 아직 안 온 플레이어는 표시 안 함. */
+  aimPoints: Record<string, [number, number]>;
 }): JSX.Element {
   const dust = useDustParticles(22);
   const { trex, coreName } = battle;
@@ -79,7 +50,6 @@ export function BattleArena({
     ],
     [battle.teamA.players, battle.teamB.players],
   );
-  const aimPoints = useAimPoints(allPlayers, trex.x, trex.corePos[1]);
 
   return (
     <div className="battle-arena">

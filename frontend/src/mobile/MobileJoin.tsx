@@ -5,6 +5,7 @@ import { useParams } from "react-router-dom";
 import type { Ack, PlayerId, RoomJoinResponse, RoomState, TeamId } from "@trex/shared";
 import { connectSocket, type AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
+import { useWakeLock } from "../util/useWakeLock";
 import { ExcavationControls } from "./ExcavationControls";
 import { DinoRunControls } from "./DinoRunControls";
 import { AimControls } from "./AimControls";
@@ -37,6 +38,9 @@ export function MobileJoin(): JSX.Element {
   const [teamId, setTeamId] = useState<TeamId | null>(null);
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [ready, setReady] = useState(false);
+
+  // 흔들어서 발굴하는 동안 화면이 꺼져 입력이 끊기지 않도록, 입장한 뒤부터 계속 켜둔다.
+  useWakeLock(status === "JOINED");
 
   useEffect(() => {
     return () => {
