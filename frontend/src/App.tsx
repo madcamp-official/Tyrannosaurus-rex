@@ -4,6 +4,7 @@ import { Route, Routes } from "react-router-dom";
 import { DesktopLobby } from "./desktop/DesktopLobby";
 import { MobileJoin } from "./mobile/MobileJoin";
 import { MuseumPage } from "./museum/MuseumPage";
+import { BattleDemoPage } from "./battle/BattleDemoPage";
 
 export function App(): JSX.Element {
   return (
@@ -11,6 +12,7 @@ export function App(): JSX.Element {
       <Route path="/" element={<DesktopLobby />} />
       <Route path="/join/:code" element={<MobileJoin />} />
       <Route path="/museum" element={<MuseumPage />} />
+      <Route path="/battle-demo" element={<BattleDemoPage />} />
     </Routes>
   );
 }
