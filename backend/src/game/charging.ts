@@ -17,10 +17,8 @@ import {
   type HitZone,
   type NormalizedPoint,
   type PoseId,
-  type TeamId,
 } from "@trex/shared";
 import type { RoomRecord } from "../rooms/RoomManager.js";
-import { seededRandom01 } from "./seededRandom.js";
 
 const CORE_ORDER: readonly CoreZone[] = ["HEART", "SKULL", "SPINE"];
 export const CORE_OFFSETS: Record<CoreZone, NormalizedPoint> = {
@@ -36,12 +34,15 @@ export type TrexTransform = {
   poseId: PoseId;
 };
 
-/** 팀마다 위상이 다르지만 같은 방 시드에서 파생되어 "동일한 이동 패턴 시드"를 공유한다 (§6.3). */
-export function computeTrexTransform(room: RoomRecord, teamId: TeamId, now: number): TrexTransform {
-  const startedAt = room.chargingStartedAt[teamId] ?? now;
+/**
+ * Plan.md §2.3 "모니터엔 스켈레톤 티라노가 단 하나만 표시되며, 두 팀이 같은 개체를 동시에
+ * 조준·사격한다." 방에 스켈레톤이 하나뿐이라 팀별 위상 오프셋 없이 방 공유 시작 시각
+ * (room.sharedTrexStartedAt) 하나로만 움직임을 계산한다.
+ */
+export function computeTrexTransform(room: RoomRecord, now: number): TrexTransform {
+  const startedAt = room.sharedTrexStartedAt ?? now;
   const elapsed = now - startedAt;
-  const phaseOffset = seededRandom01(`${room.roundSeed}:trexPhase`, teamId.charCodeAt(0)) * Math.PI * 2;
-  const angle = (elapsed / TREX_MOVE_PERIOD_MS) * Math.PI * 2 + phaseOffset;
+  const angle = (elapsed / TREX_MOVE_PERIOD_MS) * Math.PI * 2;
   const x = 0.5 + Math.sin(angle) * TREX_MOVE_AMPLITUDE;
   const y = 0.55 + Math.sin(angle * 0.5) * 0.05;
   const movingRight = Math.cos(angle) > 0;
@@ -54,8 +55,9 @@ export function computeTrexTransform(room: RoomRecord, teamId: TeamId, now: numb
   };
 }
 
-export function computeActiveCore(room: RoomRecord, teamId: TeamId, now: number): { core: CoreZone; nextChangeAt: number } {
-  const startedAt = room.chargingStartedAt[teamId] ?? now;
+/** 공유 스켈레톤 하나에 대한 코어 로테이션이라 양 팀이 항상 같은 부위를 본다. */
+export function computeActiveCore(room: RoomRecord, now: number): { core: CoreZone; nextChangeAt: number } {
+  const startedAt = room.sharedTrexStartedAt ?? now;
   const elapsed = Math.max(0, now - startedAt);
   const index = Math.floor(elapsed / CORE_ROTATION_INTERVAL_MS) % CORE_ORDER.length;
   const nextChangeAt = startedAt + (Math.floor(elapsed / CORE_ROTATION_INTERVAL_MS) + 1) * CORE_ROTATION_INTERVAL_MS;

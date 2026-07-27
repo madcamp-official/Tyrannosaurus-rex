@@ -15,6 +15,9 @@ build/
 *.log
 npm-debug.log*
 
+# local sqlite data (박물관 DB, 실행할 때 자동 생성됨)
+backend/data/
+
 # editor/OS
 .DS_Store
 Thumbs.db

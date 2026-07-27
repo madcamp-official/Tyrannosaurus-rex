@@ -1,14 +1,16 @@
 /** Plan.md §5.1, §17.1, §17.4. 데스크탑 로비: 방 생성, QR, 팀 배정, 게임 시작. */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
 import {
   BONE_IDS,
-  MAX_PLAYERS_PER_TEAM,
+  DEFAULT_MAX_PLAYERS_PER_TEAM,
+  MAX_PLAYERS_PER_TEAM_CAP,
   PUZZLE_TARGET_TRANSFORMS,
+  ROOM_NAME_MAX_LENGTH,
+  TEAM_DISPLAY_NAMES,
   type Ack,
   type GameResultEvent,
-  type GameStartResponse,
   type PlayerId,
   type RoomCreateResponse,
   type RoomState,
@@ -35,6 +37,7 @@ import {
 } from "../roomStateReducer";
 
 const CROSSHAIR_STALE_MS = 700;
+const TEAM_EMBLEM: Record<TeamId, string> = { A: "🔥", B: "❄️" };
 
 export function DesktopLobby(): JSX.Element {
   const socketRef = useRef<AppSocket | null>(null);
@@ -42,6 +45,8 @@ export function DesktopLobby(): JSX.Element {
   const [joinUrl, setJoinUrl] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [ephemeral, setEphemeral] = useState<ChargingEphemeral>({ trexByTeam: {}, crosshairsByPlayer: {}, hitFlashByTeam: {} });
   const [gameResult, setGameResult] = useState<GameResultEvent | null>(null);
   const { bridge } = useGodotBridge();
@@ -50,20 +55,7 @@ export function DesktopLobby(): JSX.Element {
     const socket = connectSocket("HOST");
     socketRef.current = socket;
 
-    socket.on("connect", () => {
-      socket.emit(
-        "room:create",
-        { requestId: newRequestId(), settings: { maxPlayers: 10, roundDurationSec: 300, language: "ko" } },
-        (ack: Ack<RoomCreateResponse>) => {
-          if (!ack.ok) {
-            setStartError(ack.error.message);
-            return;
-          }
-          setJoinUrl(ack.data.joinUrl);
-          setRoomState(ack.data.state);
-        },
-      );
-    });
+    socket.on("connect", () => setConnected(true));
 
     socket.on("room:state", (evt) => {
       setRoomState(evt.data);
@@ -180,6 +172,24 @@ export function DesktopLobby(): JSX.Element {
     QRCode.toDataURL(joinUrl, { margin: 1, width: 240 }).then(setQrDataUrl).catch(() => setQrDataUrl(null));
   }, [joinUrl]);
 
+  const handleCreateRoom = (roomName: string, maxPlayersPerTeam: number) => {
+    setStartError(null);
+    setCreating(true);
+    socketRef.current?.emit(
+      "room:create",
+      { requestId: newRequestId(), roomName, settings: { maxPlayersPerTeam, roundDurationSec: 300, language: "ko" } },
+      (ack: Ack<RoomCreateResponse>) => {
+        setCreating(false);
+        if (!ack.ok) {
+          setStartError(ack.error.message);
+          return;
+        }
+        setJoinUrl(ack.data.joinUrl);
+        setRoomState(ack.data.state);
+      },
+    );
+  };
+
   useEffect(() => {
     if (!roomState) return;
     bridge.sendFullSnapshot({
@@ -190,13 +200,6 @@ export function DesktopLobby(): JSX.Element {
       },
     });
   }, [roomState, bridge]);
-
-  const handleStart = () => {
-    setStartError(null);
-    socketRef.current?.emit("game:start", { requestId: newRequestId() }, (ack: Ack<GameStartResponse>) => {
-      if (!ack.ok) setStartError(ack.error.message);
-    });
-  };
 
   const showHeader = !roomState || roomState.roomPhase === "LOBBY";
 
@@ -218,25 +221,19 @@ export function DesktopLobby(): JSX.Element {
           </header>
         )}
 
-        {!roomState && (
+        {!roomState && !connected && (
           <section className="lobby-connecting">
-            {startError ? (
-              <div className="lobby-error-banner">
-                <span className="lobby-error-banner__icon">⚠</span>
-                <span>방을 만들지 못했습니다: {startError}</span>
-              </div>
-            ) : (
-              <>
-                <div className="lobby-spinner" />
-                <p className="lobby-connecting__title">서버에 연결하는 중…</p>
-                <p className="lobby-connecting__hint">잠시만 기다려주세요</p>
-              </>
-            )}
+            <div className="lobby-spinner" />
+            <p className="lobby-connecting__title">서버에 연결하는 중…</p>
+            <p className="lobby-connecting__hint">잠시만 기다려주세요</p>
           </section>
         )}
 
+        {!roomState && connected && <CreateRoomForm onCreate={handleCreateRoom} creating={creating} error={startError} />}
+
         {roomState?.roomPhase === "LOBBY" && (
           <section className="lobby-main">
+            <h2 className="lobby-room-name">{roomState.roomName}</h2>
             <div className="lobby-code-card">
               <div className="lobby-code-card__code">
                 <span className="lobby-code-card__label">방 코드</span>
@@ -258,12 +255,7 @@ export function DesktopLobby(): JSX.Element {
 
             <LobbyTeams roomState={roomState} />
 
-            <div className="lobby-start">
-              <button type="button" className="lobby-start__button" onClick={handleStart}>
-                게임 시작
-              </button>
-              <p className="lobby-start__hint">호스트만 누를 수 있어요</p>
-            </div>
+            <p className="lobby-start__hint">전원 준비되면 자동으로 시작됩니다</p>
           </section>
         )}
 
@@ -278,19 +270,79 @@ export function DesktopLobby(): JSX.Element {
   );
 }
 
+function CreateRoomForm({
+  onCreate,
+  creating,
+  error,
+}: {
+  onCreate: (roomName: string, maxPlayersPerTeam: number) => void;
+  creating: boolean;
+  error: string | null;
+}): JSX.Element {
+  const [roomName, setRoomName] = useState("");
+  const [maxPlayersPerTeam, setMaxPlayersPerTeam] = useState(DEFAULT_MAX_PLAYERS_PER_TEAM);
+
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    const trimmed = roomName.trim();
+    if (trimmed.length === 0 || creating) return;
+    onCreate(trimmed, maxPlayersPerTeam);
+  };
+
+  return (
+    <section className="lobby-connecting">
+      <form className="lobby-create-card" onSubmit={handleSubmit}>
+        <label className="lobby-create-card__field">
+          <span>방 이름</span>
+          <input
+            className="lobby-create-card__input"
+            value={roomName}
+            onChange={(e) => setRoomName(e.target.value.slice(0, ROOM_NAME_MAX_LENGTH))}
+            maxLength={ROOM_NAME_MAX_LENGTH}
+            placeholder="방 이름을 입력하세요"
+            autoFocus
+          />
+        </label>
+        <label className="lobby-create-card__field">
+          <span>팀별 최대 인원</span>
+          <input
+            className="lobby-create-card__input"
+            type="number"
+            min={1}
+            max={MAX_PLAYERS_PER_TEAM_CAP}
+            value={maxPlayersPerTeam}
+            onChange={(e) => setMaxPlayersPerTeam(Math.min(MAX_PLAYERS_PER_TEAM_CAP, Math.max(1, Number(e.target.value) || 1)))}
+          />
+        </label>
+        {error && (
+          <div className="lobby-error-banner lobby-error-banner--inline">
+            <span className="lobby-error-banner__icon">⚠</span>
+            <span>{error}</span>
+          </div>
+        )}
+        <button type="submit" className="lobby-start__button" disabled={creating || roomName.trim().length === 0}>
+          방 만들기
+        </button>
+      </form>
+    </section>
+  );
+}
+
 function LobbyTeams({ roomState }: { roomState: RoomState }): JSX.Element {
   const teamIds: TeamId[] = ["A", "B"];
   return (
     <div className="lobby-teams">
       {teamIds.map((teamId) => {
         const players = roomState.players.filter((p) => p.teamId === teamId);
-        const emptySlots = Math.max(0, MAX_PLAYERS_PER_TEAM - players.length);
+        const emptySlots = Math.max(0, roomState.maxPlayersPerTeam - players.length);
         return (
           <div key={teamId} className={`lobby-team-card lobby-team-card--${teamId.toLowerCase()}`}>
             <div className="lobby-team-card__header">
-              <span className="lobby-team-card__name">{teamId === "A" ? "🔥 A팀" : "❄️ B팀"}</span>
+              <span className="lobby-team-card__name">
+                {TEAM_EMBLEM[teamId]} {TEAM_DISPLAY_NAMES[teamId]}
+              </span>
               <span className="lobby-team-card__count">
-                {players.length}/{MAX_PLAYERS_PER_TEAM}명
+                {players.length}/{roomState.maxPlayersPerTeam}명
               </span>
             </div>
             <ul className="lobby-team-card__list">

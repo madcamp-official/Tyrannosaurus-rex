@@ -4,7 +4,7 @@ import { RoomManager } from "../src/rooms/RoomManager.js";
 
 function setupFinishedRoom() {
   const rooms = new RoomManager("https://trex.example.com");
-  const created = rooms.createRoom("host-1")!;
+  const created = rooms.createRoom("host-1", "테스트 방", 5)!;
   const roomCode = created.room.state.roomCode;
   const a = rooms.joinRoom(roomCode, "A1", "socket-a1");
   const b = rooms.joinRoom(roomCode, "B1", "socket-b1");

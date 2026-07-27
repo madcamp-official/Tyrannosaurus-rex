@@ -1,5 +1,11 @@
 /** Plan.md §4, §6 권장 초기 수치. 실기기 테스트 중 조정하는 유일한 밸런스 원천. */
 
+// Plan.md §2.2, §5.1: 팀 내부 식별자(TeamId)는 A/B를 그대로 쓰고, 화면 표시 이름만 다르게 한다.
+export const TEAM_DISPLAY_NAMES: Record<"A" | "B", string> = {
+  A: "T라노 팀",
+  B: "F라노 팀",
+};
+
 export const CORE_BONE_COUNT = 13;
 export const EXCAVATION_POINTS_PER_BONE = 60;
 export const EXCAVATION_SHAKE_COOLDOWN_MS = 200;
@@ -53,12 +59,27 @@ export const CORE_ROTATION_INTERVAL_MS = 15_000;
 export const TREX_MOVE_AMPLITUDE = 0.28; // 중심(0.5)에서 좌우로 흔들리는 폭
 export const TREX_MOVE_PERIOD_MS = 4_000;
 
+// Plan.md §2.3, §3 3경기 누적 점수제. 구체적 계수가 문서에 없어 MVP 기본값으로 정한다.
+export const GAME_SCORE_MAX = 100;
+// 경기 3 점수 = 명중률 비중 + 활성 코어 명중 비중(코어 히트 수를 기준치로 정규화).
+export const SHOOTING_SCORE_ACCURACY_WEIGHT = 60;
+export const SHOOTING_SCORE_CORE_WEIGHT = 40;
+export const SHOOTING_SCORE_CORE_HITS_FOR_FULL_MARKS = 8;
+// 개인 MVP 가중치. coreHits는 hits의 부분집합이지만, 핵심 부위 명중을 더 우대하기 위해 별도로 더한다.
+export const MVP_WEIGHT_EXCAVATION_INPUT = 1;
+export const MVP_WEIGHT_DINO_CLEARED = 3;
+export const MVP_WEIGHT_HIT = 2;
+export const MVP_WEIGHT_CORE_HIT = 3;
+export const MVP_TOP_COUNT = 3;
+
 export const ROUND_DURATION_MS = 300_000;
 export const DECORATION_VOTE_DURATION_MS = 20_000;
 
 export const MIN_PLAYERS = 2;
-export const MAX_PLAYERS = 10;
-export const MAX_PLAYERS_PER_TEAM = 5;
+// Plan.md §2.2: 방 생성 시 호스트가 팀별 최대 인원을 지정한다. 시스템 상한 10명, 폼 기본값 5명.
+export const MAX_PLAYERS_PER_TEAM_CAP = 10;
+export const DEFAULT_MAX_PLAYERS_PER_TEAM = 5;
+export const ROOM_NAME_MAX_LENGTH = 20;
 export const NICKNAME_MIN_LENGTH = 1;
 export const NICKNAME_MAX_LENGTH = 8;
 export const ROOM_CODE_LENGTH = 4;

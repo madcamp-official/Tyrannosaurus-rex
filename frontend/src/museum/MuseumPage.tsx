@@ -1,7 +1,7 @@
 /** Plan.md §8. 완성한 티라노를 전시하는 로컬 컬렉션 화면 (MVP 스캐폴딩). */
 
 import { useEffect, useState } from "react";
-import type { MuseumTyranno } from "@trex/shared";
+import { TEAM_DISPLAY_NAMES, type MuseumTyranno } from "@trex/shared";
 import { loadMuseumEntries } from "./museumStorage";
 
 export function MuseumPage(): JSX.Element {
@@ -22,7 +22,7 @@ export function MuseumPage(): JSX.Element {
             <li key={entry.id} className={`museum-entry museum-entry--${entry.form.toLowerCase()}`}>
               <h2>{entry.name}</h2>
               <p>{entry.form === "YRANNO" ? "와이라노" : "정상 부활"}</p>
-              <p>팀 {entry.teamId} · {entry.teamMembers.join(", ")}</p>
+              <p>{TEAM_DISPLAY_NAMES[entry.teamId]} · {entry.teamMembers.join(", ")}</p>
               <p>명중률 {(entry.accuracy * 100).toFixed(0)}%</p>
             </li>
           ))}

@@ -1,6 +1,7 @@
 /** Plan.md §16~18. Socket.IO 이벤트 payload. 요청은 Zod로 런타임 검증하고, 타입은 스키마에서 추론한다. */
 
 import { z } from "zod";
+import { MAX_PLAYERS_PER_TEAM_CAP, ROOM_NAME_MAX_LENGTH } from "./constants.js";
 import type {
   Ack,
   AimMode,
@@ -10,7 +11,9 @@ import type {
   DecorationCategory,
   DinoRunGrade,
   Facing,
+  GameScores,
   HitZone,
+  MvpEntry,
   NormalizedPoint,
   PlayerId,
   PoseId,
@@ -82,18 +85,9 @@ export const decorationCategorySchema: z.ZodType<DecorationCategory> = z.enum([
 
 export const roomCreateRequestSchema = z.object({
   requestId: requestIdSchema,
+  roomName: z.string().trim().min(1).max(ROOM_NAME_MAX_LENGTH),
   settings: z.object({
-    maxPlayers: z.union([
-      z.literal(2),
-      z.literal(3),
-      z.literal(4),
-      z.literal(5),
-      z.literal(6),
-      z.literal(7),
-      z.literal(8),
-      z.literal(9),
-      z.literal(10),
-    ]),
+    maxPlayersPerTeam: z.number().int().min(1).max(MAX_PLAYERS_PER_TEAM_CAP),
     roundDurationSec: z.literal(300),
     language: z.literal("ko"),
   }),
@@ -256,8 +250,12 @@ export type GameResultEvent = {
     excavationMs: number | null;
     assemblyMs: number | null;
     chargingMs: number | null;
+    scores: GameScores;
+    totalScore: number;
   }>;
   players: PublicPlayer[];
+  /** Plan.md §2.3, §5.1. 개인 MVP 1~3위. */
+  mvp: MvpEntry[];
 };
 
 export type EnergyCoreChangedEvent = { teamId: TeamId; from: CoreZone; to: CoreZone; nextChangeAt: number };

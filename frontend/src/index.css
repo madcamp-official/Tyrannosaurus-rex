@@ -364,6 +364,50 @@ body {
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
+/* ---------- 방 만들기 폼 ---------- */
+
+.lobby-create-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(420px, 90vw);
+  background: rgba(255, 250, 240, 0.16);
+  backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgba(255, 240, 220, 0.35);
+  border-radius: 24px;
+  padding: 28px 32px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.lobby-create-card__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(255, 248, 236, 0.75);
+}
+
+.lobby-create-card__input {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 240, 220, 0.35);
+  background: rgba(0, 0, 0, 0.28);
+  color: #fff8ec;
+  font-size: 16px;
+  font-family: inherit;
+}
+
+.lobby-room-name {
+  margin: 0;
+  text-align: center;
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 800;
+  font-size: clamp(20px, 2.4vw, 28px);
+  color: #fff8ec;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
 .godot-stage {
   position: fixed;
   inset: 0;
@@ -655,6 +699,24 @@ body {
   50% {
     box-shadow: 0 0 14px 2px rgba(200, 60, 50, 0.35);
   }
+}
+
+/* 사격 단계(경기 3): 공유 스켈레톤 아레나가 두 팀 패널 사이 중앙 열에 하나만 뜬다. */
+.play-area__shared-arena {
+  flex: 1.4;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+}
+
+.play-area__shared-arena .charging-view__arena {
+  margin: 0;
+}
+
+/* 공유 아레나가 떠 있을 땐 좌우 팀 패널을 50% 고정폭 대신 유동 비율(1:1.4:1)로 좁힌다. */
+.play-area__team--sidebar {
+  flex: 1 1 0%;
 }
 
 .phase-placeholder {
