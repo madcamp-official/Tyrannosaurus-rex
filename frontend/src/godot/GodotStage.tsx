@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import { GodotBridge, type BridgeStatus } from "./GodotBridge";
 
 const GODOT_ENTRY = import.meta.env.VITE_GODOT_ENTRY || "/godot/index.html";
-const GODOT_ASSET_VERSION = import.meta.env.VITE_GODOT_ASSET_VERSION || "dev";
+// nginx가 .wasm/.pck를 1년 immutable로 캐싱하므로, 빌드마다 값이 바뀌는 __BUILD_TIME__을 써서
+// 배포할 때마다 새 URL로 취급되게 한다 (고정 문자열이면 재배포해도 옛 빌드를 계속 캐시에서 씀).
+const GODOT_ASSET_VERSION = String(__BUILD_TIME__);
 
 // 앱에 Godot iframe은 하나뿐이다. 훅 호출마다 새 인스턴스를 만들면 iframe에 attach된
 // 인스턴스(GodotStage)와 로비가 send하는 인스턴스가 갈라져 메시지가 허공으로 가므로 공유한다.

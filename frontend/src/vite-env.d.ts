@@ -11,3 +11,6 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/** vite.config.ts의 define으로 빌드 시점에 주입되는 타임스탬프. Godot 정적 자산 캐시 버스팅용. */
+declare const __BUILD_TIME__: number;
