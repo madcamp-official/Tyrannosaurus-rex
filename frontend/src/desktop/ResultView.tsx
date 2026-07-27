@@ -65,6 +65,10 @@ export function ResultView({
 
   return (
     <section className="result-view">
+      <header className="lobby-header lobby-header--centered">
+        <img className="lobby-header__logo lobby-header__logo--big" src="/images/logo.png" alt="내 티라노를 살려내!" />
+      </header>
+
       <h2>
         {roomState.winner.teamId ? `${roomState.teamNames[roomState.winner.teamId]} 승리!` : "무승부"}
         {roomState.winner.reason && <span className="result-view__reason"> ({describeReason(roomState.winner.reason)})</span>}
@@ -79,17 +83,27 @@ export function ResultView({
                 {roomState.teamNames[teamId]} {finalNames[teamId] ? `— ${finalNames[teamId]}` : ""}
               </h3>
               <p>{teamResult?.form === "YRANNO" ? "🦖 와이라노..." : "🦖 정상 부활"}</p>
-              <ul>
-                <li>발굴 {formatMs(teamResult?.excavationMs ?? null)}</li>
-                <li>조립 {formatMs(teamResult?.assemblyMs ?? null)}</li>
-                <li>충전 {formatMs(teamResult?.chargingMs ?? null)}</li>
+              <ul className="result-view__stats">
+                <li>
+                  <span className="result-view__stat-label">발굴</span>
+                  <span className="result-view__stat-time">{formatMs(teamResult?.excavationMs ?? null)}</span>
+                  <span className="result-view__stat-sep">|</span>
+                  <span className="result-view__stat-score">{teamResult?.scores.excavation ?? "-"}점</span>
+                </li>
+                <li>
+                  <span className="result-view__stat-label">조립</span>
+                  <span className="result-view__stat-time">{formatMs(teamResult?.assemblyMs ?? null)}</span>
+                  <span className="result-view__stat-sep">|</span>
+                  <span className="result-view__stat-score">{teamResult?.scores.dinoRun ?? "-"}점</span>
+                </li>
+                <li>
+                  <span className="result-view__stat-label">충전</span>
+                  <span className="result-view__stat-time">{formatMs(teamResult?.chargingMs ?? null)}</span>
+                  <span className="result-view__stat-sep">|</span>
+                  <span className="result-view__stat-score">{teamResult?.scores.charging ?? "-"}점</span>
+                </li>
               </ul>
-              <ul className="result-view__scores">
-                <li>경기 1(발굴) {teamResult?.scores.excavation ?? "-"}점</li>
-                <li>경기 2(다이노런) {teamResult?.scores.dinoRun ?? "-"}점</li>
-                <li>경기 3(사격) {teamResult?.scores.charging ?? "-"}점</li>
-                <li className="result-view__total-score">총점 {teamResult?.totalScore ?? "-"}점</li>
-              </ul>
+              <div className="result-view__total-score">{teamResult?.totalScore ?? "-"}</div>
               {roomState.roomPhase === "DECORATION" && (
                 <div className="result-view__voting">
                   <p>티꾸 투표 중…</p>
@@ -113,10 +127,14 @@ export function ResultView({
       {gameResult && gameResult.mvp.length > 0 && (
         <div className="result-view__mvp">
           <h3>개인 MVP</h3>
-          <ol>
-            {gameResult.mvp.map((entry) => (
-              <li key={entry.playerId}>
-                {entry.nickname} ({roomState.teamNames[entry.teamId]}) — {entry.score}점
+          <ol className="result-view__mvp-list">
+            {gameResult.mvp.map((entry, i) => (
+              <li key={entry.playerId} className="result-view__mvp-row">
+                <span className="result-view__mvp-rank">{i + 1}</span>
+                <span className="result-view__mvp-name">
+                  {entry.nickname} ({roomState.teamNames[entry.teamId]})
+                </span>
+                <span className="result-view__mvp-score">{Math.round(entry.score)}점</span>
               </li>
             ))}
           </ol>
