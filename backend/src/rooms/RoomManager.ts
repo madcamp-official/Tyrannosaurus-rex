@@ -86,6 +86,8 @@ export type RoomRecord = {
   excavation: ExcavationRoomState;
   /** 두 팀 다 발굴을 끝내면 이 시각에 함께 다이노런으로 넘어간다 (§ROUND_TRANSITION_MS 대기). */
   excavationTransitionAt: number | null;
+  /** 두 팀 다 다이노런을 끝내면 이 시각에 함께 CHARGING으로 넘어간다 (§ROUND_TRANSITION_MS 대기). */
+  dinoRunTransitionAt: number | null;
   phaseDurations: Record<TeamId, PhaseDurations>;
   /** CHARGING에 처음 진입한 시각. chargingMs 계산에 쓴다. */
   chargingStartedAt: Record<TeamId, number | null>;
@@ -113,7 +115,7 @@ function resetTeamGameplayState(team: TeamState, now: number): void {
     fossils: 0,
     result: null,
   };
-  team.dinoRun = { obstacleOffsetsMs: [], clearedByPlayer: {}, deadPlayerIds: [], performance: null, grade: null };
+  team.dinoRun = { obstacleOffsetsMs: [], clearedByPlayer: {}, deadPlayerIds: [], performance: null, grade: null, result: null };
   team.charging = {
     energy: 0,
     stability: 100,
@@ -132,7 +134,7 @@ function makeEmptyTeamState(teamId: TeamId, now: number): TeamState {
     phaseEndsAt: null,
     playerIds: [],
     excavation: { points: 0, nextBoneAt: EXCAVATION_POINTS_PER_BONE, discoveredBoneIds: [], fossils: 0, result: null },
-    dinoRun: { obstacleOffsetsMs: [], clearedByPlayer: {}, deadPlayerIds: [], performance: null, grade: null },
+    dinoRun: { obstacleOffsetsMs: [], clearedByPlayer: {}, deadPlayerIds: [], performance: null, grade: null, result: null },
     charging: { energy: 0, stability: 100, activeCore: "HEART", coreChangesAt: 0, form: "NONE" },
     scores: { excavation: null, dinoRun: null, charging: null },
   };
@@ -239,6 +241,7 @@ export class RoomManager {
       boneOrder: [],
       excavation: createExcavationState(now),
       excavationTransitionAt: null,
+      dinoRunTransitionAt: null,
       phaseDurations: {
         A: { excavationMs: null, assemblyMs: null, chargingMs: null },
         B: { excavationMs: null, assemblyMs: null, chargingMs: null },
@@ -384,6 +387,7 @@ export class RoomManager {
       resetTeamGameplayState(room.state.teams[teamId], now);
     }
     room.excavationTransitionAt = null;
+    room.dinoRunTransitionAt = null;
     Object.assign(room, makeVoteState());
     this.touch(room);
     this.bumpRevision(room);
@@ -465,8 +469,18 @@ export class RoomManager {
     return died;
   }
 
-  /** 다이노런 30초 종료를 배경 틱에서 처리한다. 전환이 일어난 팀의 평가 결과를 돌려준다. */
-  tickDinoRun(room: RoomRecord, now: number): Array<{ teamId: TeamId; result: DinoFinishResult }> {
+  /**
+   * 다이노런 30초 종료를 배경 틱에서 처리한다. 평가가 끝난 팀들을 돌려주고, 두 팀 다
+   * 끝나면 클리어율을 비교해 WIN/LOSE/DRAW를 정하고 ROUND_TRANSITION_MS 뒤 함께
+   * CHARGING으로 넘어가도록 예약한다 (실제 전환은 tickDinoRunTransition이 처리).
+   */
+  tickDinoRun(
+    room: RoomRecord,
+    now: number,
+  ): {
+    finished: Array<{ teamId: TeamId; result: DinoFinishResult }>;
+    teamResults: Array<{ teamId: TeamId; result: "WIN" | "LOSE" | "DRAW"; score: number }>;
+  } {
     const finished: Array<{ teamId: TeamId; result: DinoFinishResult }> = [];
     for (const teamId of TEAM_IDS) {
       const result = finishDinoRunIfNeeded(room, teamId, now);
@@ -478,7 +492,58 @@ export class RoomManager {
         this.bumpRevision(room);
       }
     }
-    return finished;
+
+    const teamResults: Array<{ teamId: TeamId; result: "WIN" | "LOSE" | "DRAW"; score: number }> = [];
+    const teamA = room.state.teams.A;
+    const teamB = room.state.teams.B;
+    if (
+      room.dinoRunTransitionAt === null &&
+      teamA.dinoRun.result === null &&
+      teamA.dinoRun.performance !== null &&
+      teamB.dinoRun.performance !== null
+    ) {
+      if (teamA.dinoRun.performance > teamB.dinoRun.performance) {
+        teamA.dinoRun.result = "WIN";
+        teamB.dinoRun.result = "LOSE";
+      } else if (teamA.dinoRun.performance < teamB.dinoRun.performance) {
+        teamA.dinoRun.result = "LOSE";
+        teamB.dinoRun.result = "WIN";
+      } else {
+        teamA.dinoRun.result = "DRAW";
+        teamB.dinoRun.result = "DRAW";
+      }
+      teamResults.push(
+        { teamId: "A", result: teamA.dinoRun.result, score: teamA.scores.dinoRun ?? 0 },
+        { teamId: "B", result: teamB.dinoRun.result, score: teamB.scores.dinoRun ?? 0 },
+      );
+      room.dinoRunTransitionAt = now + ROUND_TRANSITION_MS;
+      this.touch(room);
+      this.bumpRevision(room);
+    }
+
+    return { finished, teamResults };
+  }
+
+  /** 두 팀 다 다이노런을 끝내고 대기 시간이 지나면, 함께 CHARGING으로 전환한다. */
+  tickDinoRunTransition(room: RoomRecord, now: number): boolean {
+    if (room.dinoRunTransitionAt === null || now < room.dinoRunTransitionAt) return false;
+
+    for (const teamId of TEAM_IDS) {
+      const team = room.state.teams[teamId];
+      team.dinoRun.result = null;
+      team.phase = "CHARGING";
+      team.phaseStartedAt = now;
+      team.phaseEndsAt = now + CHARGING_DURATION_MS;
+      room.chargingStartedAt[teamId] = now;
+      // 공유 스켈레톤은 방에서 먼저 CHARGING에 들어간 팀 기준으로 한 번만 시작된다 (§2.3).
+      if (room.sharedTrexStartedAt === null) {
+        room.sharedTrexStartedAt = now;
+      }
+    }
+    room.dinoRunTransitionAt = null;
+    this.touch(room);
+    this.bumpRevision(room);
+    return true;
   }
 
   /** §17.9. CHARGING 중에만 조준을 인정한다. 고빈도 이벤트라 revision을 올리지 않는다. */

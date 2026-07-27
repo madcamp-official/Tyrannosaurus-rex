@@ -9,7 +9,7 @@ import { listMuseumEntries } from "./db/museumDb.js";
 import { RoomManager } from "./rooms/RoomManager.js";
 import { registerRoomHandlers } from "./rooms/roomHandlers.js";
 import { registerExcavationHandlers, tickExcavationHandoff } from "./rooms/excavationHandlers.js";
-import { registerDinoHandlers, tickRoomDinoRun } from "./rooms/dinoHandlers.js";
+import { registerDinoHandlers, tickRoomDinoRun, tickDinoRunHandoff } from "./rooms/dinoHandlers.js";
 import { registerAimHandlers } from "./rooms/aimHandlers.js";
 import { registerEnergyHandlers, tickRoomCharging } from "./rooms/energyHandlers.js";
 import { finalizeVotingTick } from "./rooms/votingHandlers.js";
@@ -126,6 +126,7 @@ const chargingTickInterval = setInterval(() => {
   for (const roomCode of rooms.listRoomCodes()) {
     tickExcavationHandoff(io, rooms, roomCode);
     tickRoomDinoRun(io, rooms, roomCode);
+    tickDinoRunHandoff(io, rooms, roomCode);
     tickRoomCharging(io, rooms, roomCode);
   }
 }, 100);

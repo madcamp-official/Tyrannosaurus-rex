@@ -13,8 +13,8 @@ export const EXCAVATION_SHAKE_COOLDOWN_MS = 200;
 export const MOBILE_INPUT_FLUSH_MS = 100;
 export const EXCAVATION_MAX_INPUTS_PER_SECOND = 12;
 export const EXCAVATION_GOLD_BONE_POINT_DISCOUNT = 20;
-// 먼저 끝난 팀은 상대가 끝날 때까지 기다렸다가, 승/패가 갈리면 이 시간만큼 결과를 보여준 뒤
-// 두 팀이 동시에 다음 라운드(다이노런)로 넘어간다.
+// 발굴→다이노런, 다이노런→사격 두 전환 모두 같은 패턴을 쓴다: 먼저 끝난 팀은 상대가 끝날 때까지
+// 기다렸다가, 승/패(무승부)가 갈리면 이 시간만큼 결과를 보여준 뒤 두 팀이 동시에 다음 단계로 넘어간다.
 export const ROUND_TRANSITION_MS = 3_000;
 // Plan.md §4는 "완만한 효율 감소"라고만 서술하고 정확한 수치는 주지 않는다. 팀 합산 초당 입력이
 // EXCAVATION_MAX_INPUTS_PER_SECOND(1인분 최대치)를 넘는 초과분에 이 배율을 곱해 점수로 인정한다.

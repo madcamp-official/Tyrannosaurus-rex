@@ -1,7 +1,6 @@
 /** Plan.md §6.2. 골격 조립 다이노런: 시드 기반 장애물 스케줄과 서버 권위 점프 판정. */
 
 import {
-  CHARGING_DURATION_MS,
   CHARGING_START_STABILITY_BASE,
   CHARGING_START_STABILITY_RANGE,
   DINO_DEATH_GRACE_MS,
@@ -111,13 +110,17 @@ export function gradeForPerformance(performance: number): DinoRunGrade {
 export type DinoFinishResult = { performance: number; grade: DinoRunGrade; startStability: number };
 
 /**
- * 30초가 지났으면 팀 클리어율로 조립을 평가하고 CHARGING으로 전환한다.
+ * 30초가 지났으면 팀 클리어율로 조립을 평가한다. 아직 CHARGING으로 넘기지는 않는다 —
+ * 상대 팀도 끝나야 WIN/LOSE/DRAW가 정해지고, 그 뒤 대기 시간이 지나야 두 팀이 함께
+ * 전환된다 (실제 전환은 RoomManager.tickDinoRunTransition이 처리).
  * 클리어율 = 팀 전체 클리어 수 ÷ (장애물 수 × 팀원 수) — 인원과 무관하게 공정하다.
  */
 export function finishDinoRunIfNeeded(room: RoomRecord, teamId: TeamId, now: number): DinoFinishResult | null {
   const team = room.state.teams[teamId];
   if (team.phase !== "ASSEMBLY") return null;
   if (team.phaseEndsAt === null || now < team.phaseEndsAt) return null;
+  // 이미 평가를 끝내고 상대 팀을 기다리는 중 — 매 틱마다 다시 평가하지 않는다.
+  if (team.dinoRun.performance !== null) return null;
 
   const totalCleared = Object.values(team.dinoRun.clearedByPlayer).reduce((sum, list) => sum + list.length, 0);
   const possible = team.dinoRun.obstacleOffsetsMs.length * Math.max(1, team.playerIds.length);
@@ -127,17 +130,8 @@ export function finishDinoRunIfNeeded(room: RoomRecord, teamId: TeamId, now: num
 
   team.dinoRun.performance = performance;
   team.dinoRun.grade = grade;
-
-  room.phaseDurations[teamId].assemblyMs = now - team.phaseStartedAt;
-  team.phase = "CHARGING";
-  team.phaseStartedAt = now;
-  team.phaseEndsAt = now + CHARGING_DURATION_MS;
   team.charging.stability = startStability;
-  room.chargingStartedAt[teamId] = now;
-  // 공유 스켈레톤은 방에서 먼저 CHARGING에 들어간 팀 기준으로 한 번만 시작된다 (§2.3).
-  if (room.sharedTrexStartedAt === null) {
-    room.sharedTrexStartedAt = now;
-  }
+  room.phaseDurations[teamId].assemblyMs = now - team.phaseStartedAt;
 
   return { performance, grade, startStability };
 }

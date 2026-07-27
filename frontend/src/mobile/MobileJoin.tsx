@@ -11,6 +11,7 @@ import { DinoRunControls } from "./DinoRunControls";
 import { AimControls } from "./AimControls";
 import {
   applyDinoFinished,
+  applyDinoTeamResult,
   applyDinoProgress,
   applyDinoStarted,
   applyTeamPhaseChanged,
@@ -63,6 +64,7 @@ export function MobileJoin(): JSX.Element {
     socket.on("dino:started", (evt) => setRoomState((prev) => (prev ? applyDinoStarted(prev, evt.data) : prev)));
     socket.on("dino:progress", (evt) => setRoomState((prev) => (prev ? applyDinoProgress(prev, evt.data) : prev)));
     socket.on("dino:finished", (evt) => setRoomState((prev) => (prev ? applyDinoFinished(prev, evt.data) : prev)));
+    socket.on("dino:teamResult", (evt) => setRoomState((prev) => (prev ? applyDinoTeamResult(prev, evt.data) : prev)));
 
     socket.on("connect", () => {
       socket.emit(
@@ -152,7 +154,9 @@ export function MobileJoin(): JSX.Element {
         <div className="mobile-join__bg" />
         <div className="mobile-join__scrim" />
         {team.phase === "EXCAVATION" && socket && <ExcavationControls socket={socket} result={team.excavation.result} />}
-        {team.phase === "ASSEMBLY" && socket && playerId && <DinoRunControls socket={socket} team={team} playerId={playerId} />}
+        {team.phase === "ASSEMBLY" && socket && playerId && (
+          <DinoRunControls socket={socket} team={team} playerId={playerId} result={team.dinoRun.result} />
+        )}
         {team.phase === "CHARGING" && socket && <AimControls socket={socket} />}
         {team.phase === "REVIVED" && (
           <div className="mobile-game__revived">

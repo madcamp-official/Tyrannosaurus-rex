@@ -29,6 +29,8 @@ type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 const EXCAVATE_TICK_MS = 100;
 const FIRE_TICK_MS = 400;
 const OVERALL_TIMEOUT_MS = 6 * 60_000;
+// 결과 화면 뒤 이만큼 시간 안에 "재경기"가 눌리지 않으면 더 기다리지 않고 봇을 종료한다.
+const REMATCH_GRACE_MS = 3 * 60_000;
 
 function parseArg(argv: string[], name: string): string | null {
   const index = argv.indexOf(name);
@@ -159,6 +161,55 @@ async function runBotLoop(bot: Bot, board: Blackboard, log: (msg: string) => voi
   }
 }
 
+/** 라운드 한 판을 끝까지 플레이하고, 결과 화면을 잠시 지켜본 뒤 돌아온다. */
+async function playOneRound(bots: Bot[], board: Blackboard, log: (msg: string) => void): Promise<void> {
+  board.finished = false;
+  board.trexByTeam = {};
+  board.coreByTeam = {};
+  board.discoveredByTeam = { A: new Set(), B: new Set() };
+  for (const bot of bots) {
+    bot.excavateSeq = 0;
+    bot.aimSeq = 0;
+    bot.jumpedObstacles = new Set();
+  }
+
+  const resultPromise = new Promise<void>((resolve) => {
+    bots[0]!.socket.once("game:result", (evt) => {
+      const winner = evt.data.winnerTeamId ? `${evt.data.winnerTeamId}팀 승리` : "무승부";
+      log(`게임 결과: ${winner} (${evt.data.reason})`);
+      for (const t of evt.data.teams) {
+        log(`  ${t.teamId}팀 — form=${t.form} energy=${Math.round(t.energy)} stability=${Math.round(t.stability)}`);
+      }
+      board.finished = true;
+      resolve();
+    });
+  });
+
+  const timeout = setTimeout(() => {
+    log("시간 초과 — 종료합니다.");
+    process.exit(1);
+  }, OVERALL_TIMEOUT_MS);
+
+  await Promise.all([resultPromise, ...bots.map((bot) => runBotLoop(bot, board, log))]);
+  clearTimeout(timeout);
+
+  log("결과 화면 대기 중…");
+  // 소켓을 여기서 바로 닫으면 서버가 방을 즉시 정리해버려서, 대기 마감 전에 방이 사라져
+  // 박물관 저장 등 마감 시점 처리가 실행될 기회조차 없어진다.
+  await sleep(DECORATION_VOTE_DURATION_MS + 2_000);
+  log("대기 완료. 데스크탑 결과 화면과 박물관을 확인하세요.");
+}
+
+/** 결과 화면을 본 뒤 재경기가 눌려 라운드가 다시 시작되는지 잠시 기다린다. */
+async function waitForRematch(board: Blackboard, graceMs: number): Promise<boolean> {
+  const deadline = Date.now() + graceMs;
+  while (Date.now() < deadline) {
+    if (board.state?.roomPhase === "PLAYING") return true;
+    await sleep(300);
+  }
+  return false;
+}
+
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const origin = process.env.SIMULATE_ORIGIN ?? "http://localhost:3001";
@@ -176,6 +227,10 @@ async function main(): Promise<void> {
     finished: false,
   };
   const log = (msg: string) => console.log(`[autoplay] ${msg}`);
+  // 처음 입장할 때는 전원이 다 모이기 전에 섣불리 준비 상태가 되면 안 된다(모이기 전에
+  // 자동 시작돼버림) — 그래서 최초 1회 명시적으로 다 같이 준비시키기 전까지는 이 플래그를
+  // 꺼 둔다. 재경기로 로비에 돌아왔을 때만(아래 room:state 핸들러) 자동으로 다시 켠다.
+  let autoReadyArmed = false;
 
   let host: AppSocket | null = null;
   let roomCode: string;
@@ -243,6 +298,12 @@ async function main(): Promise<void> {
 
     socket.on("room:state", (evt) => {
       board.state = evt.data;
+      // 재경기(game:rematch)는 전원의 ready를 false로 되돌린다. 봇은 사람 손을 타지 않으니
+      // 로비로 돌아올 때마다 스스로 다시 준비 상태로 만들어야 "재경기 → 자동 시작"이 반복된다.
+      const me = evt.data.players.find((p) => p.id === bot.playerId);
+      if (autoReadyArmed && evt.data.roomPhase === "LOBBY" && me && !me.ready) {
+        bot.socket.emit("player:setReady", { requestId: randomUUID(), ready: true }, () => {});
+      }
     });
     socket.on("trex:transform", (evt) => {
       board.trexByTeam[evt.data.teamId] = evt.data.position;
@@ -254,23 +315,12 @@ async function main(): Promise<void> {
 
   // Plan.md §2.2: 전원 준비 완료 시 자동 시작되므로, 마지막 봇이 준비를 마치기 전에는 방이
   // 아직 열려 있어야 한다 — 그래서 전원을 먼저 입장시킨 뒤 마지막에 한 번에 준비시킨다.
+  // (이후 재경기로 로비에 돌아오면 위 room:state 핸들러가 알아서 다시 준비시킨다.)
   for (const bot of bots) {
     const ready = await ackEmit((ack) => bot.socket.emit("player:setReady", { requestId: randomUUID(), ready: true }, ack));
     if (!ready.ok) throw new Error(`setReady 실패(${bot.nickname})`);
   }
-
-  // 결과 이벤트는 어떤 봇 소켓으로든 한 번만 처리하면 된다.
-  const resultPromise = new Promise<void>((resolve) => {
-    bots[0]!.socket.on("game:result", (evt) => {
-      const winner = evt.data.winnerTeamId ? `${evt.data.winnerTeamId}팀 승리` : "무승부";
-      log(`게임 결과: ${winner} (${evt.data.reason})`);
-      for (const t of evt.data.teams) {
-        log(`  ${t.teamId}팀 — form=${t.form} energy=${Math.round(t.energy)} stability=${Math.round(t.stability)}`);
-      }
-      board.finished = true;
-      resolve();
-    });
-  });
+  autoReadyArmed = true;
 
   bots[0]!.socket.on("excavation:boneFound", (evt) => {
     board.discoveredByTeam[evt.data.teamId].add(evt.data.boneId);
@@ -291,23 +341,41 @@ async function main(): Promise<void> {
     log(`봇 ${playerCount}명 준비 완료 — 전원 준비되면 자동으로 게임이 시작됩니다.`);
   }
 
-  // idle 모드는 사람이 로비에서 뜸 들이는 시간까지 감안해 넉넉히 잡는다.
-  const timeout = setTimeout(() => {
-    log("시간 초과 — 종료합니다.");
-    process.exit(1);
-  }, idle ? 15 * 60_000 : OVERALL_TIMEOUT_MS);
-
-  await Promise.all([resultPromise, ...(idle ? [] : bots.map((bot) => runBotLoop(bot, board, log)))]);
-
-  if (!idle) {
-    log("결과 화면 대기 중…");
-    // 호스트 소켓을 여기서 바로 닫으면 서버가 방을 즉시 정리해버려서, 대기 마감(20초) 전에
-    // 방이 사라져 박물관 저장 등 마감 시점 처리가 실행될 기회조차 없어진다.
-    await new Promise((resolve) => setTimeout(resolve, DECORATION_VOTE_DURATION_MS + 2_000));
-    log("대기 완료. 데스크탑 결과 화면과 박물관을 확인하세요.");
+  if (idle) {
+    // idle 모드는 봇이 플레이하지 않고 사람이 직접 플레이한 결과만 기다린다.
+    // 사람이 로비에서 뜸 들이는 시간까지 감안해 넉넉히 잡는다.
+    const timeout = setTimeout(() => {
+      log("시간 초과 — 종료합니다.");
+      process.exit(1);
+    }, 15 * 60_000);
+    await new Promise<void>((resolve) => {
+      bots[0]!.socket.once("game:result", (evt) => {
+        const winner = evt.data.winnerTeamId ? `${evt.data.winnerTeamId}팀 승리` : "무승부";
+        log(`게임 결과: ${winner} (${evt.data.reason})`);
+        resolve();
+      });
+    });
+    clearTimeout(timeout);
+  } else if (host) {
+    // self-host 스모크 테스트: 사람이 재경기를 누를 일이 없으니 한 판만 플레이하고 종료한다.
+    await playOneRound(bots, board, log);
+  } else {
+    // 실제 방에 붙은 경우: 봇은 로비로 돌아올 때마다 스스로 다시 준비하므로, 사람이 "재경기"만
+    // 누르면 자동 시작되는 다음 라운드도 이어서 계속 플레이한다.
+    let roundNumber = 1;
+    for (;;) {
+      log(`=== ${roundNumber}라운드 시작 ===`);
+      await playOneRound(bots, board, log);
+      const rematched = await waitForRematch(board, REMATCH_GRACE_MS);
+      if (!rematched) {
+        log("재경기가 감지되지 않아 종료합니다.");
+        break;
+      }
+      log("재경기 감지 — 다음 라운드로 이어서 플레이합니다.");
+      roundNumber += 1;
+    }
   }
 
-  clearTimeout(timeout);
   for (const bot of bots) bot.socket.close();
   host?.close();
   log("완료");

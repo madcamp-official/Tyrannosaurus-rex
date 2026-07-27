@@ -33,6 +33,7 @@ import {
   applyExcavationProgress,
   applyGameResult,
   applyDinoFinished,
+  applyDinoTeamResult,
   applyDinoProgress,
   applyDinoStarted,
   applyPlayerDied,
@@ -100,6 +101,7 @@ export function DesktopLobby(): JSX.Element {
         pieces: BONE_IDS.map((boneId) => ({ boneId, transform: PUZZLE_TARGET_TRANSFORMS[boneId], fixed: true })),
       });
     });
+    socket.on("dino:teamResult", (evt) => setRoomState((prev) => (prev ? applyDinoTeamResult(prev, evt.data) : prev)));
     socket.on("energy:coreChanged", (evt) => {
       setRoomState((prev) => (prev ? applyCoreChanged(prev, evt.data) : prev));
       setEphemeral((prev) => ({

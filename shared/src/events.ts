@@ -288,6 +288,11 @@ export interface ServerToClientEvents {
   "dino:finished": (
     evt: ServerEvent<{ teamId: TeamId; performance: number; grade: DinoRunGrade; startStability: number }>,
   ) => void;
+  // 두 팀 다 다이노런을 끝내면 클리어율 비교로 WIN/LOSE/DRAW를 정하고, 잠시 뒤(§ROUND_TRANSITION_MS)
+  // team:phaseChanged(ASSEMBLY→CHARGING)가 두 팀 동시에 온다.
+  "dino:teamResult": (
+    evt: ServerEvent<{ teamId: TeamId; result: "WIN" | "LOSE" | "DRAW"; score: number }>,
+  ) => void;
   "aim:playerMoved": (
     evt: ServerEvent<{ playerId: PlayerId; teamId: TeamId; point: NormalizedPoint; active: boolean }>,
   ) => void;

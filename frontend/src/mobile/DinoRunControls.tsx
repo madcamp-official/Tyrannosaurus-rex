@@ -15,10 +15,12 @@ export function DinoRunControls({
   socket,
   team,
   playerId,
+  result,
 }: {
   socket: AppSocket;
   team: TeamState;
   playerId: PlayerId;
+  result: "WIN" | "LOSE" | "DRAW" | null;
 }): JSX.Element {
   const seqRef = useRef(0);
   const [jumping, setJumping] = useState(false);
@@ -64,6 +66,16 @@ export function DinoRunControls({
       },
     );
   };
+
+  if (result) {
+    const label = result === "WIN" ? "🏆 승리!" : result === "DRAW" ? "무승부" : "패배";
+    return (
+      <div className="dino-run dino-run--result">
+        <p className="dino-run__death">{label}</p>
+        <p className="hint">클리어 {clearedCount} · 잠시 후 사격으로 넘어갑니다…</p>
+      </div>
+    );
+  }
 
   if (dead) {
     return (
