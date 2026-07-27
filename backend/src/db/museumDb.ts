@@ -7,31 +7,12 @@ import { existsSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname } from "node:path";
 import type { DatabaseSync as DatabaseSyncType } from "node:sqlite";
-import type { DecorationCategory, RevivalForm, TeamId } from "@trex/shared";
+import type { DecorationCategory, MuseumTyranno, RevivalForm, TeamId } from "@trex/shared";
 
 // node:sqlite는 Node에 아주 최근 추가된 내장 모듈이라 Vite/vitest의 번들링 파이프라인이
 // "node:" 접두사를 잘못 처리한다. 정적 import 대신 런타임 require로 우회한다.
 const require = createRequire(import.meta.url);
 const { DatabaseSync } = require("node:sqlite") as { DatabaseSync: typeof DatabaseSyncType };
-
-export type MuseumTyrannoRecord = {
-  id: string;
-  roomName: string;
-  teamId: TeamId;
-  isWinner: boolean;
-  form: RevivalForm;
-  tyrannoName: string | null;
-  teamMembers: string[];
-  mvpNickname: string | null;
-  mvpScore: number | null;
-  decorations: Partial<Record<DecorationCategory, string>>;
-  excavationMs: number | null;
-  assemblyMs: number | null;
-  chargingMs: number | null;
-  accuracy: number;
-  fossils: number;
-  createdAt: number;
-};
 
 type MuseumRow = {
   id: string;
@@ -52,7 +33,7 @@ type MuseumRow = {
   created_at: number;
 };
 
-function rowToRecord(row: MuseumRow): MuseumTyrannoRecord {
+function rowToRecord(row: MuseumRow): MuseumTyranno {
   return {
     id: row.id,
     roomName: row.room_name,
@@ -113,7 +94,7 @@ const insertStatement = db.prepare(`
   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
-export function insertMuseumEntry(entry: MuseumTyrannoRecord): void {
+export function insertMuseumEntry(entry: MuseumTyranno): void {
   insertStatement.run(
     entry.id,
     entry.roomName,
@@ -134,7 +115,7 @@ export function insertMuseumEntry(entry: MuseumTyrannoRecord): void {
   );
 }
 
-export function listMuseumEntries(limit: number): MuseumTyrannoRecord[] {
+export function listMuseumEntries(limit: number): MuseumTyranno[] {
   const rows = db.prepare(`SELECT * FROM museum_tyrannos ORDER BY created_at DESC LIMIT ?`).all(limit) as unknown as MuseumRow[];
   return rows.map(rowToRecord);
 }

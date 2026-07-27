@@ -5,6 +5,9 @@ import { CORE_BONE_COUNT, TEAM_DISPLAY_NAMES, type PlayerId, type PublicPlayer, 
 import { ExcavationTeamPanel } from "./ExcavationView";
 import { DinoRunTeamPanel } from "./DinoRunView";
 import { ChargingSharedArena, ChargingTeamStats, type CrosshairDisplay, type TrexDisplay } from "./ChargingView";
+import { BattleScreen } from "../battle/BattleScreen";
+import { battleStateFromRoom } from "../battle/fromRoomState";
+import type { BattleShotEvent } from "../battle/battleTypes";
 
 const TEAM_IDS: readonly TeamId[] = ["A", "B"];
 
@@ -12,6 +15,10 @@ export type ChargingEphemeral = {
   trexByTeam: Partial<Record<TeamId, TrexDisplay>>;
   crosshairsByPlayer: Record<PlayerId, CrosshairDisplay & { teamId: TeamId }>;
   hitFlashByTeam: Partial<Record<TeamId, "HIT" | "MISS">>;
+  /** energy:coreChanged가 실어 보내는 다음 코어 교체 시각(ms epoch). 배틀 화면의 코어 카운트다운에 쓴다. */
+  coreChangesAtByTeam: Partial<Record<TeamId, number>>;
+  /** 배틀 화면의 발사 임팩트 연출용, TTL로 스스로 사라지는 최근 발사 이벤트 목록. */
+  battleShotEvents: BattleShotEvent[];
 };
 
 function GamepadIcon(): JSX.Element {
@@ -89,9 +96,16 @@ function TeamPhaseContent({ team, roomState }: { team: TeamState; roomState: Roo
 
 export function PlayArea({ roomState, ephemeral }: { roomState: RoomState; ephemeral: ChargingEphemeral }): JSX.Element {
   // Plan.md §2.3 "모니터엔 스켈레톤 티라노가 단 하나만 표시되며, 두 팀이 같은 개체를 동시에
-  // 조준·사격한다" — 어느 한 팀이라도 CHARGING이면 공유 아레나를 화면 중앙에 한 번만 그린다.
+  // 조준·사격한다" — 어느 한 팀이라도 CHARGING이면 배틀 화면(BattleScreen)이 전체 화면을 대신한다.
   const chargingTeamIds = TEAM_IDS.filter((teamId) => roomState.teams[teamId].phase === "CHARGING");
   const hasSharedArena = chargingTeamIds.length > 0;
+  const battle = hasSharedArena ? battleStateFromRoom(roomState, ephemeral, chargingTeamIds) : null;
+  if (battle) {
+    return <BattleScreen battle={battle} shotEvents={ephemeral.battleShotEvents} />;
+  }
+
+  // 배틀 데이터가 아직 준비되지 않은 첫 100ms 안팎의 과도기(또는 CHARGING이 아닌 단계)에는
+  // 예전 최소 레이아웃으로 대체해 화면이 비지 않게 한다.
   const sharedTrex = hasSharedArena ? ephemeral.trexByTeam[chargingTeamIds[0]!] : undefined;
   const sharedCrosshairs = Object.values(ephemeral.crosshairsByPlayer).filter((c) => chargingTeamIds.includes(c.teamId));
   const sharedHitFlash = chargingTeamIds.map((teamId) => ephemeral.hitFlashByTeam[teamId]).find((flash) => flash) ?? null;

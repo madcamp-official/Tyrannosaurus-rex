@@ -19,6 +19,7 @@ import {
   type PoseId,
 } from "@trex/shared";
 import type { RoomRecord } from "../rooms/RoomManager.js";
+import { seededRandom01 } from "./seededRandom.js";
 
 const CORE_ORDER: readonly CoreZone[] = ["HEART", "SKULL", "SPINE"];
 export const CORE_OFFSETS: Record<CoreZone, NormalizedPoint> = {
@@ -34,23 +35,43 @@ export type TrexTransform = {
   poseId: PoseId;
 };
 
+const TREX_Y_CENTER = 0.55;
+const TREX_Y_AMPLITUDE = 0.05;
+
+function smoothstep(t: number): number {
+  return t * t * (3 - 2 * t);
+}
+
+/** §6.3 "양 팀은 동일한 이동 패턴 시드를 사용한다" — roundSeed로 정한 waypoint 사이를 오간다. */
+function trexWaypoint(seed: string, index: number): NormalizedPoint {
+  const rx = seededRandom01(`${seed}:trexPath`, index * 2);
+  const ry = seededRandom01(`${seed}:trexPath`, index * 2 + 1);
+  return {
+    x: 0.5 + (rx * 2 - 1) * TREX_MOVE_AMPLITUDE,
+    y: TREX_Y_CENTER + (ry * 2 - 1) * TREX_Y_AMPLITUDE,
+  };
+}
+
 /**
  * Plan.md §2.3 "모니터엔 스켈레톤 티라노가 단 하나만 표시되며, 두 팀이 같은 개체를 동시에
  * 조준·사격한다." 방에 스켈레톤이 하나뿐이라 팀별 위상 오프셋 없이 방 공유 시작 시각
- * (room.sharedTrexStartedAt) 하나로만 움직임을 계산한다.
+ * (room.sharedTrexStartedAt)과 roundSeed만으로 움직임을 계산한다 — 랜덤이지만 두 팀에
+ * 항상 같은 값이 나오는 결정론적 랜덤워크(waypoint 보간)다.
  */
 export function computeTrexTransform(room: RoomRecord, now: number): TrexTransform {
   const startedAt = room.sharedTrexStartedAt ?? now;
-  const elapsed = now - startedAt;
-  const angle = (elapsed / TREX_MOVE_PERIOD_MS) * Math.PI * 2;
-  const x = 0.5 + Math.sin(angle) * TREX_MOVE_AMPLITUDE;
-  const y = 0.55 + Math.sin(angle * 0.5) * 0.05;
-  const movingRight = Math.cos(angle) > 0;
+  const elapsed = Math.max(0, now - startedAt);
+  const seed = room.roundSeed ?? room.state.roomCode;
+
+  const index = Math.floor(elapsed / TREX_MOVE_PERIOD_MS);
+  const t = smoothstep((elapsed % TREX_MOVE_PERIOD_MS) / TREX_MOVE_PERIOD_MS);
+  const from = trexWaypoint(seed, index);
+  const to = trexWaypoint(seed, index + 1);
 
   return {
-    position: { x, y },
+    position: { x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t },
     rotationDeg: 0,
-    facing: movingRight ? "RIGHT" : "LEFT",
+    facing: to.x >= from.x ? "RIGHT" : "LEFT",
     poseId: "WALK",
   };
 }
