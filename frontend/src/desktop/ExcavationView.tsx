@@ -25,7 +25,7 @@ export function ExcavationTeamPanel({ team, players }: { team: TeamState; player
     return (
       <div className={`exca-result${isWin ? " exca-result--win" : " exca-result--lose"}`}>
         <div className="exca-result__label">{isWin ? "WIN" : "LOSE"}</div>
-        <div className="exca-result__score">{team.scores.excavation ?? 0}점</div>
+        <div className="exca-result__score">{Math.round(team.scores.excavation ?? 0)}점</div>
         {isWin && <p className="exca-result__hint">상대 팀을 기다리는 중…</p>}
       </div>
     );

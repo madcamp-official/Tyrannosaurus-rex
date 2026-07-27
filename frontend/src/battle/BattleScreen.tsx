@@ -18,7 +18,15 @@ function formatClock(sec: number): string {
   return `${mm}:${ss}`;
 }
 
-export function BattleScreen({ battle, shotEvents }: { battle: BattleState; shotEvents: BattleShotEvent[] }): JSX.Element {
+export function BattleScreen({
+  battle,
+  shotEvents,
+  aimPoints,
+}: {
+  battle: BattleState;
+  shotEvents: BattleShotEvent[];
+  aimPoints: Record<string, [number, number]>;
+}): JSX.Element {
   const scale = useLetterboxScale();
 
   return (
@@ -27,7 +35,7 @@ export function BattleScreen({ battle, shotEvents }: { battle: BattleState; shot
         className="battle-stage"
         style={{ width: STAGE_W, height: STAGE_H, transform: `scale(${scale})` }}
       >
-        <BattleArena battle={battle} shotEvents={shotEvents} />
+        <BattleArena battle={battle} shotEvents={shotEvents} aimPoints={aimPoints} />
 
         <div className="battle-topbar">
           <div className="battle-chip battle-chip--left">

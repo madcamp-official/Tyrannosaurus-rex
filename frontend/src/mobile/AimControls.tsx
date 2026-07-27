@@ -38,11 +38,18 @@ export function AimControls({ socket }: { socket: AppSocket }): JSX.Element {
     if (aimMode !== "GYRO" || orientationPermission !== "GRANTED") return undefined;
     const handleOrientation = (event: DeviceOrientationEvent) => {
       if (event.beta === null || event.gamma === null) return;
-      filteredRef.current = {
-        beta: filteredRef.current.beta + (event.beta - filteredRef.current.beta) * LOW_PASS_ALPHA,
-        gamma: filteredRef.current.gamma + (event.gamma - filteredRef.current.gamma) * LOW_PASS_ALPHA,
-      };
-      if (!zeroRef.current) return;
+      if (!zeroRef.current) {
+        // "영점 잡기" 버튼을 안 눌러도 자이로가 바로 동작하도록, 첫 값을 필터 시작점 겸
+        // 영점으로 삼는다 — 0에서부터 필터를 수렴시키면 첫 프레임에 조준점이 튄다.
+        filteredRef.current = { beta: event.beta, gamma: event.gamma };
+        zeroRef.current = { ...filteredRef.current };
+        setCalibrated(true);
+      } else {
+        filteredRef.current = {
+          beta: filteredRef.current.beta + (event.beta - filteredRef.current.beta) * LOW_PASS_ALPHA,
+          gamma: filteredRef.current.gamma + (event.gamma - filteredRef.current.gamma) * LOW_PASS_ALPHA,
+        };
+      }
       const dBeta = filteredRef.current.beta - zeroRef.current.beta;
       const dGamma = filteredRef.current.gamma - zeroRef.current.gamma;
       setPoint({

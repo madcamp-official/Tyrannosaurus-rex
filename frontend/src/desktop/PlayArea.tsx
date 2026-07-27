@@ -111,7 +111,13 @@ export function PlayArea({ roomState, ephemeral }: { roomState: RoomState; ephem
   const hasSharedArena = chargingTeamIds.length > 0;
   const battle = hasSharedArena ? battleStateFromRoom(roomState, ephemeral, chargingTeamIds) : null;
   if (battle) {
-    return <BattleScreen battle={battle} shotEvents={ephemeral.battleShotEvents} />;
+    // 실제 플레이어 조준 좌표(자이로/터치패드) 그대로 전달 — 아직 안 온 플레이어는 표시 안 함.
+    const aimPoints = Object.fromEntries(
+      Object.entries(ephemeral.crosshairsByPlayer)
+        .filter(([, c]) => chargingTeamIds.includes(c.teamId))
+        .map(([playerId, c]) => [playerId, [c.point.x, c.point.y] as [number, number]]),
+    );
+    return <BattleScreen battle={battle} shotEvents={ephemeral.battleShotEvents} aimPoints={aimPoints} />;
   }
 
   // 배틀 데이터가 아직 준비되지 않은 첫 100ms 안팎의 과도기(또는 CHARGING이 아닌 단계)에는
