@@ -1,6 +1,6 @@
 /** Plan.md §5.1 결과 화면, §7 티꾸. 승자, 통계, 티꾸 진행 상황, 재경기 버튼. */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   DECORATION_CATALOG,
   TEAM_DISPLAY_NAMES,
@@ -13,7 +13,6 @@ import {
 } from "@trex/shared";
 import type { AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
-import { saveMuseumEntry } from "../museum/museumStorage";
 
 const TEAM_IDS: readonly TeamId[] = ["A", "B"];
 const CATEGORIES = Object.keys(DECORATION_CATALOG) as DecorationCategory[];
@@ -33,10 +32,10 @@ export function ResultView({
   socket: AppSocket | null;
 }): JSX.Element {
   const [voteCountsByTeam, setVoteCountsByTeam] = useState<Partial<Record<TeamId, Partial<Record<DecorationCategory, Record<string, number>>>>>>({});
-  const [finalDecorations, setFinalDecorations] = useState<Partial<Record<TeamId, Partial<Record<DecorationCategory, string>>>>>({});
   const [finalNames, setFinalNames] = useState<Partial<Record<TeamId, string | null>>>({});
-  const savedTeamsRef = useRef(new Set<TeamId>());
 
+  // 박물관 저장은 이제 서버가 티꾸/이름 투표 확정 시점에 직접 DB에 기록한다
+  // (backend/src/rooms/votingHandlers.ts) — 클라이언트는 결과만 보여주면 된다.
   useEffect(() => {
     if (!socket) return undefined;
 
@@ -46,56 +45,18 @@ export function ResultView({
         [evt.data.teamId]: { ...prev[evt.data.teamId], [evt.data.category]: evt.data.counts },
       }));
     };
-    const onDecorationCompleted = (evt: { data: { teamId: TeamId; selections: Partial<Record<DecorationCategory, string>> } }) => {
-      setFinalDecorations((prev) => ({ ...prev, [evt.data.teamId]: evt.data.selections }));
-    };
     const onNameUpdated = (evt: { data: { teamId: TeamId; selectedName: string | null } }) => {
       if (evt.data.selectedName === null) return;
       setFinalNames((prev) => ({ ...prev, [evt.data.teamId]: evt.data.selectedName }));
     };
 
     socket.on("decoration:voteUpdated", onVoteUpdated);
-    socket.on("decoration:completed", onDecorationCompleted);
     socket.on("name:voteUpdated", onNameUpdated);
     return () => {
       socket.off("decoration:voteUpdated", onVoteUpdated);
-      socket.off("decoration:completed", onDecorationCompleted);
       socket.off("name:voteUpdated", onNameUpdated);
     };
   }, [socket]);
-
-  useEffect(() => {
-    if (!gameResult) return;
-    for (const teamId of TEAM_IDS) {
-      if (savedTeamsRef.current.has(teamId)) continue;
-      const decorations = finalDecorations[teamId];
-      const name = finalNames[teamId];
-      if (!decorations || name === undefined || name === null) continue;
-
-      const teamResult = gameResult.teams.find((t) => t.teamId === teamId);
-      if (!teamResult) continue;
-      const teamMembers = gameResult.players.filter((p) => p.teamId === teamId).map((p) => p.nickname);
-      const shots = gameResult.players.filter((p) => p.teamId === teamId).reduce((sum, p) => sum + p.stats.shots, 0);
-      const hits = gameResult.players.filter((p) => p.teamId === teamId).reduce((sum, p) => sum + p.stats.hits, 0);
-
-      savedTeamsRef.current.add(teamId);
-      saveMuseumEntry({
-        id: `${gameResult.finishedAt}-${teamId}`,
-        name,
-        form: teamResult.form,
-        teamId,
-        teamMembers,
-        createdAt: gameResult.finishedAt,
-        dataVersion: 1,
-        excavationMs: teamResult.excavationMs,
-        assemblyMs: teamResult.assemblyMs,
-        chargingMs: teamResult.chargingMs,
-        accuracy: shots > 0 ? hits / shots : 0,
-        decorations,
-        fossils: roomState.teams[teamId].excavation.fossils,
-      });
-    }
-  }, [gameResult, finalDecorations, finalNames, roomState]);
 
   const handleRematch = () => {
     socket?.emit("game:rematch", { requestId: newRequestId() }, (ack: Ack<GameRematchResponse>) => {

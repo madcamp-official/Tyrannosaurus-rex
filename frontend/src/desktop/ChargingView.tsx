@@ -1,8 +1,10 @@
 /** Plan.md §5.1 에너지 사격 화면. 티라노 위치, 크로스헤어, 에너지/안정도, 와이라노 경고. */
 
-import { ENERGY_TARGET, STABILITY_TARGET, type NormalizedPoint, type PublicPlayer, type TeamState } from "@trex/shared";
+import { ENERGY_TARGET, STABILITY_TARGET, type CoreZone, type NormalizedPoint, type PublicPlayer, type TeamState } from "@trex/shared";
 
-export type TrexDisplay = { position: NormalizedPoint; facing: "LEFT" | "RIGHT" } | undefined;
+export type TrexDisplay =
+  | { position: NormalizedPoint; facing: "LEFT" | "RIGHT"; activeCore: CoreZone; corePosition: NormalizedPoint }
+  | undefined;
 export type CrosshairDisplay = { playerId: string; color: string; point: NormalizedPoint; receivedAt: number };
 
 /**

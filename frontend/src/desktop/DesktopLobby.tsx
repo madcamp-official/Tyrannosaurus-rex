@@ -47,7 +47,13 @@ export function DesktopLobby(): JSX.Element {
   const [startError, setStartError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [ephemeral, setEphemeral] = useState<ChargingEphemeral>({ trexByTeam: {}, crosshairsByPlayer: {}, hitFlashByTeam: {} });
+  const [ephemeral, setEphemeral] = useState<ChargingEphemeral>({
+    trexByTeam: {},
+    crosshairsByPlayer: {},
+    hitFlashByTeam: {},
+    coreChangesAtByTeam: {},
+    battleShotEvents: [],
+  });
   const [gameResult, setGameResult] = useState<GameResultEvent | null>(null);
   const { bridge } = useGodotBridge();
 
@@ -78,7 +84,13 @@ export function DesktopLobby(): JSX.Element {
         pieces: BONE_IDS.map((boneId) => ({ boneId, transform: PUZZLE_TARGET_TRANSFORMS[boneId], fixed: true })),
       });
     });
-    socket.on("energy:coreChanged", (evt) => setRoomState((prev) => (prev ? applyCoreChanged(prev, evt.data) : prev)));
+    socket.on("energy:coreChanged", (evt) => {
+      setRoomState((prev) => (prev ? applyCoreChanged(prev, evt.data) : prev));
+      setEphemeral((prev) => ({
+        ...prev,
+        coreChangesAtByTeam: { ...prev.coreChangesAtByTeam, [evt.data.teamId]: evt.data.nextChangeAt },
+      }));
+    });
     socket.on("revival:formChanged", (evt) => {
       setRoomState((prev) => (prev ? applyRevivalFormChanged(prev, evt.data) : prev));
       bridge.send("REVIVAL_RESULT", { teamId: evt.data.teamId, form: evt.data.form, purified: evt.data.form === "NORMAL" });
@@ -91,7 +103,15 @@ export function DesktopLobby(): JSX.Element {
     socket.on("trex:transform", (evt) => {
       setEphemeral((prev) => ({
         ...prev,
-        trexByTeam: { ...prev.trexByTeam, [evt.data.teamId]: { position: evt.data.position, facing: evt.data.facing } },
+        trexByTeam: {
+          ...prev.trexByTeam,
+          [evt.data.teamId]: {
+            position: evt.data.position,
+            facing: evt.data.facing,
+            activeCore: evt.data.activeCore,
+            corePosition: evt.data.corePosition,
+          },
+        },
       }));
       bridge.send("TREX_TRANSFORM", {
         teamId: evt.data.teamId,
@@ -132,6 +152,30 @@ export function DesktopLobby(): JSX.Element {
       window.setTimeout(() => {
         setEphemeral((prev) => ({ ...prev, hitFlashByTeam: { ...prev.hitFlashByTeam, [evt.data.teamId]: undefined } }));
       }, 250);
+
+      // 배틀 화면의 발사 임팩트 연출용 — 900ms 뒤 스스로 사라지는 일회성 이벤트로만 취급한다.
+      const isCoreHit = evt.data.hitZone === "HEART" || evt.data.hitZone === "SKULL" || evt.data.hitZone === "SPINE";
+      const shotEventId = `${evt.data.playerId}-${evt.data.shotId}`;
+      const impactPoint = evt.data.hitPoint ?? evt.data.aimPoint;
+      setEphemeral((prev) => ({
+        ...prev,
+        battleShotEvents: [
+          ...prev.battleShotEvents,
+          {
+            id: shotEventId,
+            team: evt.data.teamId,
+            playerId: evt.data.playerId,
+            hit: evt.data.hit,
+            core: isCoreHit,
+            point: [impactPoint.x, impactPoint.y],
+            ts: Date.now(),
+          },
+        ],
+      }));
+      window.setTimeout(() => {
+        setEphemeral((prev) => ({ ...prev, battleShotEvents: prev.battleShotEvents.filter((e) => e.id !== shotEventId) }));
+      }, 900);
+
       bridge.send("ENERGY_HIT", {
         teamId: evt.data.teamId,
         hitZone: evt.data.hitZone,

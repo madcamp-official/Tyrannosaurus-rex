@@ -89,7 +89,6 @@ export const REQUEST_ID_CACHE_MAX_ENTRIES = 100;
 export const REQUEST_ID_CACHE_TTL_MS = 5 * 60_000;
 
 export const MUSEUM_MAX_ENTRIES = 20;
-export const MUSEUM_STORAGE_KEY = "trex.museum.v1";
 
 export const BRIDGE_PROTOCOL_VERSION = 1 as const;
 export const BRIDGE_FULL_SNAPSHOT_INTERVAL_MS = 5_000;
