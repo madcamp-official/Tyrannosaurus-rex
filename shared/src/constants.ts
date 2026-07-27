@@ -28,7 +28,7 @@ export const DINO_JUMP_WINDOW_MS = 450; // 장애물 시각 ±이 값 안의 점
 // 창 끝자락에 보낸 점프가 늦게 도착해도 억울하게 죽지 않도록 하는 유예 시간.
 export const DINO_DEATH_GRACE_MS = 500;
 export const DINO_JUMP_MAX_PER_SECOND = 3;
-export const DINO_OBSTACLE_MIN_OFFSET_MS = 2_000;
+export const DINO_OBSTACLE_MIN_OFFSET_MS = 5_000; // 시작 5초는 장애물 없이 몸풀기 구간
 export const DINO_OBSTACLE_MAX_OFFSET_MS = 28_000;
 export const DINO_OBSTACLE_MIN_GAP_MS = 1_500;
 // 조립 평가 등급 경계 (클리어율)
