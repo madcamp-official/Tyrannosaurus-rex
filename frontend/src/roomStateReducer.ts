@@ -8,7 +8,14 @@ import type { BoneId, CoreZone, DinoRunGrade, PlayerId, RevivalForm, RoomState, 
 
 export function applyExcavationProgress(
   state: RoomState,
-  data: { teamId: TeamId; points: number; nextBoneAt: number; efficiencyMultiplier: number },
+  data: {
+    teamId: TeamId;
+    points: number;
+    nextBoneAt: number;
+    efficiencyMultiplier: number;
+    playerId: PlayerId;
+    playerInputs: number;
+  },
 ): RoomState {
   const team = state.teams[data.teamId];
   return {
@@ -25,6 +32,9 @@ export function applyExcavationProgress(
         },
       },
     },
+    players: state.players.map((p) =>
+      p.id === data.playerId ? { ...p, stats: { ...p.stats, excavationInputs: data.playerInputs } } : p,
+    ),
   };
 }
 

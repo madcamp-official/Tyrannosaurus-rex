@@ -291,7 +291,14 @@ export interface ServerToClientEvents {
     evt: ServerEvent<{ teamId: TeamId; from: TeamPhase; to: TeamPhase; endsAt: number | null }>,
   ) => void;
   "excavation:progress": (
-    evt: ServerEvent<{ teamId: TeamId; points: number; nextBoneAt: number; efficiencyMultiplier: number }>,
+    evt: ServerEvent<{
+      teamId: TeamId;
+      points: number;
+      nextBoneAt: number;
+      efficiencyMultiplier: number;
+      playerId: PlayerId;
+      playerInputs: number;
+    }>,
   ) => void;
   "excavation:boneFound": (evt: ServerEvent<{ teamId: TeamId; boneId: BoneId; index: number }>) => void;
   "excavation:eventTriggered": (
