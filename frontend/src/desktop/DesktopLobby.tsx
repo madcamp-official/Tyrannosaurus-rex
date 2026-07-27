@@ -2,7 +2,18 @@
 
 import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
-import { BONE_IDS, PUZZLE_TARGET_TRANSFORMS, type Ack, type GameResultEvent, type GameStartResponse, type PlayerId, type RoomCreateResponse, type RoomState, type TeamId } from "@trex/shared";
+import {
+  BONE_IDS,
+  MAX_PLAYERS_PER_TEAM,
+  PUZZLE_TARGET_TRANSFORMS,
+  type Ack,
+  type GameResultEvent,
+  type GameStartResponse,
+  type PlayerId,
+  type RoomCreateResponse,
+  type RoomState,
+  type TeamId,
+} from "@trex/shared";
 import { connectSocket, type AppSocket } from "../socket";
 import { GodotStage, useGodotBridge } from "../godot/GodotStage";
 import { DebugPanel } from "../DebugPanel";
@@ -187,31 +198,72 @@ export function DesktopLobby(): JSX.Element {
     });
   };
 
+  const showHeader = !roomState || roomState.roomPhase === "LOBBY";
+
   return (
     <main className="desktop-lobby">
       <GodotStage />
+      <div className="desktop-lobby__scrim" />
 
       <div className="desktop-lobby__overlay">
-        <header>
-          <h1>내 티라노사우루스 살려내!!!</h1>
-          <p>죽은 티라노, 정말 살려드립니다</p>
-        </header>
+        {showHeader && (
+          <header className="lobby-header">
+            <span className="lobby-header__badge">
+              <span className="lobby-header__badge-dot" />
+            </span>
+            <div className="lobby-header__text">
+              <h1>내 티라노사우루스 살려내!!!</h1>
+              <p>죽은 티라노, 정말 살려드립니다</p>
+            </div>
+          </header>
+        )}
 
         {!roomState && (
-          <section className="desktop-lobby__join">
-            {startError ? <p className="error">방을 만들지 못했습니다: {startError}</p> : <p>서버에 연결하는 중…</p>}
+          <section className="lobby-connecting">
+            {startError ? (
+              <div className="lobby-error-banner">
+                <span className="lobby-error-banner__icon">⚠</span>
+                <span>방을 만들지 못했습니다: {startError}</span>
+              </div>
+            ) : (
+              <>
+                <div className="lobby-spinner" />
+                <p className="lobby-connecting__title">서버에 연결하는 중…</p>
+                <p className="lobby-connecting__hint">잠시만 기다려주세요</p>
+              </>
+            )}
           </section>
         )}
 
         {roomState?.roomPhase === "LOBBY" && (
-          <section className="desktop-lobby__join">
-            <div className="room-code">{roomState.roomCode}</div>
-            {qrDataUrl && <img src={qrDataUrl} alt="입장 QR 코드" width={240} height={240} />}
-            <TeamList roomState={roomState} />
-            {startError && <p className="error">{startError}</p>}
-            <button type="button" onClick={handleStart}>
-              게임 시작
-            </button>
+          <section className="lobby-main">
+            <div className="lobby-code-card">
+              <div className="lobby-code-card__code">
+                <span className="lobby-code-card__label">방 코드</span>
+                <span className="lobby-code-card__value">{roomState.roomCode}</span>
+              </div>
+              <div className="lobby-code-card__divider" />
+              <div className="lobby-code-card__qr">
+                {qrDataUrl && <img src={qrDataUrl} alt="입장 QR 코드" width={150} height={150} />}
+                <span>📱 스캔해서 입장</span>
+              </div>
+            </div>
+
+            {startError && (
+              <div className="lobby-error-banner lobby-error-banner--inline">
+                <span className="lobby-error-banner__icon">⚠</span>
+                <span>{startError}</span>
+              </div>
+            )}
+
+            <LobbyTeams roomState={roomState} />
+
+            <div className="lobby-start">
+              <button type="button" className="lobby-start__button" onClick={handleStart}>
+                게임 시작
+              </button>
+              <p className="lobby-start__hint">호스트만 누를 수 있어요</p>
+            </div>
           </section>
         )}
 
@@ -226,24 +278,39 @@ export function DesktopLobby(): JSX.Element {
   );
 }
 
-function TeamList({ roomState }: { roomState: RoomState }): JSX.Element {
+function LobbyTeams({ roomState }: { roomState: RoomState }): JSX.Element {
   const teamIds: TeamId[] = ["A", "B"];
   return (
-    <div className="team-list">
-      {teamIds.map((teamId) => (
-        <div key={teamId} className={`team-list__team team-list__team--${teamId}`}>
-          <h2>{teamId}팀</h2>
-          <ul>
-            {roomState.players
-              .filter((p) => p.teamId === teamId)
-              .map((p) => (
-                <li key={p.id} style={{ color: p.color }}>
-                  {p.nickname} {p.ready ? "✅" : "⏳"} {p.connected ? "" : "(연결 끊김)"}
+    <div className="lobby-teams">
+      {teamIds.map((teamId) => {
+        const players = roomState.players.filter((p) => p.teamId === teamId);
+        const emptySlots = Math.max(0, MAX_PLAYERS_PER_TEAM - players.length);
+        return (
+          <div key={teamId} className={`lobby-team-card lobby-team-card--${teamId.toLowerCase()}`}>
+            <div className="lobby-team-card__header">
+              <span className="lobby-team-card__name">{teamId === "A" ? "🔥 A팀" : "❄️ B팀"}</span>
+              <span className="lobby-team-card__count">
+                {players.length}/{MAX_PLAYERS_PER_TEAM}명
+              </span>
+            </div>
+            <ul className="lobby-team-card__list">
+              {players.map((p) => (
+                <li key={p.id} className={`lobby-team-card__row${p.connected ? "" : " lobby-team-card__row--disconnected"}`}>
+                  <span className="lobby-team-card__dot" style={{ background: p.connected ? p.color : "#b8b0a6" }} />
+                  <span className="lobby-team-card__name-text">{p.nickname}</span>
+                  {!p.connected && <span className="lobby-team-card__status-text">연결 끊김</span>}
+                  <span className="lobby-team-card__status-icon">{p.connected ? (p.ready ? "✅" : "⏳") : ""}</span>
                 </li>
               ))}
-          </ul>
-        </div>
-      ))}
+              {Array.from({ length: emptySlots }).map((_, i) => (
+                <li key={`empty-${i}`} className="lobby-team-card__row lobby-team-card__row--empty">
+                  빈 자리
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      })}
     </div>
   );
 }

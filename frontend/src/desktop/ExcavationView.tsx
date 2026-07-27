@@ -1,35 +1,49 @@
-/** Plan.md §5.1 발굴 화면. 팀 하나 분량의 발굴 게이지, 발견한 뼈, 팀원 기여도. */
+/** 기타/Excavation HUD.dc.html 목업 반영. 팀 기여도 사이드바 + 다음 뼈까지 진행도 + 효율 저하 배지. */
 
-import { CORE_BONE_COUNT, type PublicPlayer, type TeamState } from "@trex/shared";
+import type { PublicPlayer, TeamState } from "@trex/shared";
 
 export function ExcavationTeamPanel({ team, players }: { team: TeamState; players: PublicPlayer[] }): JSX.Element {
-  const foundCount = team.excavation.discoveredBoneIds.length;
-  const progressToNextBone = Math.min(1, team.excavation.points / team.excavation.nextBoneAt);
+  const totalInputs = players.reduce((sum, p) => sum + p.stats.excavationInputs, 0);
+  const contributors = [...players]
+    .sort((a, b) => b.stats.excavationInputs - a.stats.excavationInputs)
+    .map((p) => ({
+      id: p.id,
+      name: p.nickname,
+      color: p.color,
+      pct: totalInputs > 0 ? Math.round((p.stats.excavationInputs / totalInputs) * 100) : 0,
+    }));
+
+  const progressPct = Math.min(100, Math.round((team.excavation.points / team.excavation.nextBoneAt) * 100));
 
   return (
-    <div className="excavation-view">
-      <p className="excavation-view__count">
-        {foundCount} / {CORE_BONE_COUNT} 뼈 발견
-      </p>
-      <div className="progress-bar" aria-label="다음 뼈까지 진행도">
-        <div className="progress-bar__fill" style={{ width: `${progressToNextBone * 100}%` }} />
+    <div className="exca-view">
+      <div className="exca-sidebar">
+        <span className="exca-sidebar__title">기여도</span>
+        {contributors.map((p) => (
+          <div key={p.id}>
+            <div className="exca-sidebar__row-head">
+              <span className="exca-sidebar__dot" style={{ background: p.color }} />
+              <span className="exca-sidebar__name">{p.name}</span>
+            </div>
+            <div className="exca-sidebar__bar">
+              <div className="exca-sidebar__bar-fill" style={{ width: `${p.pct}%`, background: p.color }} />
+            </div>
+          </div>
+        ))}
       </div>
+
       {team.excavation.efficiencyMultiplier < 1 && (
-        <p className="excavation-view__debuff">⛰️ 돌 발견! 효율 {Math.round(team.excavation.efficiencyMultiplier * 100)}%</p>
+        <div className="exca-debuff">⛰️ 돌 발견! 효율 {Math.round(team.excavation.efficiencyMultiplier * 100)}%</div>
       )}
-      <ul className="excavation-view__bones">
-        {team.excavation.discoveredBoneIds.map((boneId) => (
-          <li key={boneId}>🦴 {boneId}</li>
-        ))}
-      </ul>
-      {team.excavation.fossils > 0 && <p className="excavation-view__fossils">화석 수집 {team.excavation.fossils}개</p>}
-      <ul className="excavation-view__players">
-        {players.map((player) => (
-          <li key={player.id} style={{ color: player.color }}>
-            {player.nickname}: {player.stats.excavationInputs}
-          </li>
-        ))}
-      </ul>
+
+      <div className="exca-progress">
+        <div className="exca-progress__label">
+          다음 뼈까지 <strong>{progressPct}%</strong>
+        </div>
+        <div className="exca-progress__track">
+          <div className="exca-progress__fill" style={{ width: `${progressPct}%` }} />
+        </div>
+      </div>
     </div>
   );
 }

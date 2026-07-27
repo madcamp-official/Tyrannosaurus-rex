@@ -1,3 +1,5 @@
+@import url("https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Nunito:wght@500;700;800;900&family=Inter:wght@500;700;800&family=JetBrains+Mono:wght@500;700;800&display=swap");
+
 :root {
   color-scheme: dark;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -22,57 +24,344 @@ body {
   min-height: 100vh;
 }
 
+/* Godot 3D 배경 위 텍스트 대비를 위한 그라데이션 스크림 */
+.desktop-lobby__scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(15, 9, 4, 0.72) 0%, rgba(15, 9, 4, 0.4) 22%, rgba(15, 9, 4, 0.35) 55%, rgba(15, 9, 4, 0.75) 100%);
+}
+
 .desktop-lobby__overlay {
   position: relative;
   z-index: 1;
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 24px;
-}
-
-.desktop-lobby__overlay header {
-  text-align: center;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
-}
-
-.desktop-lobby__join {
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  max-width: 420px;
-  margin: 24px auto 0;
-  padding: 24px;
-  border-radius: 16px;
-  background: rgba(16, 21, 28, 0.88);
-  border: 1px solid #2a323d;
 }
 
-.desktop-lobby__join button {
-  font-size: 1.1rem;
-  font-weight: 700;
-  padding: 10px 32px;
-  border: none;
-  border-radius: 8px;
-  background: #43aa8b;
-  color: white;
-}
+/* ---------- 로비 헤더 ---------- */
 
-.room-code {
-  font-size: 3rem;
-  font-weight: 700;
-  letter-spacing: 0.4em;
-  text-align: center;
-}
-
-.team-list {
+.lobby-header {
   display: flex;
-  gap: 24px;
+  align-items: center;
+  gap: 14px;
+  padding-top: clamp(20px, 3vh, 34px);
+  text-align: left;
+}
+
+.lobby-header__badge {
+  width: 56px;
+  height: 56px;
+  flex-shrink: 0;
+  border-radius: 16px;
+  background: #d9591f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 0 #a8431a;
+}
+
+.lobby-header__badge-dot {
+  width: 22px;
+  height: 22px;
+  background: #faf5ea;
+  border-radius: 50%;
+}
+
+.lobby-header__text h1 {
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 800;
+  font-size: clamp(28px, 3.6vw, 44px);
+  color: #fff8ec;
+  letter-spacing: 0.5px;
+  text-shadow: 0 3px 12px rgba(0, 0, 0, 0.55);
+  margin: 0;
+}
+
+.lobby-header__text p {
+  font-size: clamp(14px, 1.4vw, 18px);
+  font-weight: 700;
+  color: rgba(255, 248, 236, 0.85);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  margin: 4px 0 0;
+}
+
+/* ---------- 연결 중 / 에러 ---------- */
+
+.lobby-connecting {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+}
+
+.lobby-spinner {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: 7px solid #e8ddd0;
+  border-top-color: #d9591f;
+  animation: lobby-spin 1s linear infinite;
+}
+
+@keyframes lobby-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.lobby-connecting__title {
+  font-size: 26px;
+  font-weight: 800;
+  color: #fff8ec;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+}
+
+.lobby-connecting__hint {
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(255, 248, 236, 0.7);
+}
+
+.lobby-error-banner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: #d64a2e;
+  color: white;
+  padding: 16px 28px;
+  border-radius: 16px;
+  font-weight: 800;
+  font-size: 18px;
+  box-shadow: 0 8px 24px rgba(120, 50, 30, 0.35);
+}
+
+.lobby-error-banner--inline {
+  margin-top: -8px;
+}
+
+/* ---------- 로비 본문 ---------- */
+
+.lobby-main {
+  flex: 1;
+  width: 100%;
+  max-width: min(1400px, 92vw);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(20px, 3vh, 36px);
+  padding: 24px 0 100px;
+}
+
+.lobby-code-card {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  background: rgba(255, 250, 240, 0.16);
+  backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid rgba(255, 240, 220, 0.35);
+  border-radius: 24px;
+  padding: 20px 40px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+  flex-wrap: wrap;
   justify-content: center;
 }
 
-.team-list__team {
-  min-width: 200px;
+.lobby-code-card__code {
+  text-align: center;
+}
+
+.lobby-code-card__label {
+  display: block;
+  font-size: 15px;
+  font-weight: 700;
+  color: rgba(255, 248, 236, 0.65);
+  letter-spacing: 2px;
+}
+
+.lobby-code-card__value {
+  font-family: "JetBrains Mono", monospace;
+  font-size: clamp(48px, 6vw, 72px);
+  font-weight: 700;
+  letter-spacing: 8px;
+  color: #fff8ec;
+  line-height: 1.1;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+}
+
+.lobby-code-card__divider {
+  width: 1px;
+  align-self: stretch;
+  background: rgba(255, 240, 220, 0.25);
+}
+
+.lobby-code-card__qr {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.lobby-code-card__qr img {
+  border-radius: 8px;
+  background: white;
+  padding: 6px;
+}
+
+.lobby-code-card__qr span {
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 248, 236, 0.75);
+}
+
+.lobby-teams {
+  display: flex;
+  gap: 40px;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+}
+
+.lobby-team-card {
+  flex: 1 1 480px;
+  max-width: 640px;
+  border-radius: 20px;
+  padding: 12px 26px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  backdrop-filter: blur(14px) saturate(140%);
+}
+
+.lobby-team-card--a {
+  background: rgba(255, 245, 235, 0.22);
+  border: 1px solid rgba(255, 230, 210, 0.4);
+}
+
+.lobby-team-card--b {
+  background: rgba(225, 240, 250, 0.2);
+  border: 1px solid rgba(200, 225, 240, 0.4);
+}
+
+.lobby-team-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.lobby-team-card__name {
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 700;
+  font-size: 26px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+
+.lobby-team-card--a .lobby-team-card__name {
+  color: #ffb27a;
+}
+
+.lobby-team-card--b .lobby-team-card__name {
+  color: #8ecdf0;
+}
+
+.lobby-team-card__count {
+  font-size: 16px;
+  font-weight: 800;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.lobby-team-card__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.lobby-team-card__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 14px;
+  border-radius: 10px;
+  margin-bottom: 4px;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 17px;
+  font-weight: 800;
+  color: #fff8ec;
+}
+
+.lobby-team-card__row--disconnected {
+  opacity: 0.6;
+}
+
+.lobby-team-card__row--empty {
+  background: transparent;
+  opacity: 0.45;
+  padding: 2px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.lobby-team-card__dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.lobby-team-card__name-text {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.lobby-team-card__status-text {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(138, 130, 120, 0.7);
+}
+
+.lobby-start {
+  text-align: center;
+}
+
+.lobby-start__button {
+  background: #e8c34a;
+  color: #3d2a12;
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 800;
+  font-size: 28px;
+  padding: 14px 60px;
+  border: none;
+  border-radius: 20px;
+  box-shadow: 0 6px 0 #b8933a;
+  cursor: pointer;
+  animation: lobby-pulse-btn 2.2s ease-in-out infinite;
+}
+
+@keyframes lobby-pulse-btn {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.035);
+  }
+}
+
+.lobby-start__hint {
+  font-size: 14px;
+  font-weight: 700;
+  color: rgba(255, 248, 236, 0.7);
+  margin-top: 8px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
 .godot-stage {
@@ -104,29 +393,282 @@ body {
 }
 
 .debug-panel {
+  position: relative;
+  z-index: 20;
   margin-top: 16px;
   font-size: 0.75rem;
   opacity: 0.8;
 }
 
+/* 팀별 화면 좌우 풀블리드 분할 (발굴/조립/충전 공용 셸) */
 .play-area {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
   display: flex;
-  gap: 24px;
-  margin-top: 16px;
 }
 
 .play-area__team {
-  flex: 1;
+  position: relative;
+  flex: 1 1 50%;
   min-width: 0;
-  padding: 12px;
-  border: 1px solid #2a323d;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.play-area__team--A {
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.play-area__team-header {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 68px;
+  flex-shrink: 0;
+  padding: 0 22px;
+  background: rgba(15, 20, 18, 0.55);
+  backdrop-filter: blur(10px) saturate(130%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+}
+
+.play-area__team-header--a {
+  border-bottom: 1px solid oklch(55% 0.1 40 / 0.4);
+}
+
+.play-area__team-header--b {
+  border-bottom: 1px solid oklch(50% 0.08 235 / 0.4);
+}
+
+.play-area__team-icon {
+  width: 34px;
+  height: 34px;
   border-radius: 8px;
-  background: rgba(16, 21, 28, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.play-area__team-header--a .play-area__team-icon {
+  background: linear-gradient(160deg, oklch(62% 0.17 42), oklch(42% 0.15 40));
+}
+
+.play-area__team-header--b .play-area__team-icon {
+  background: linear-gradient(160deg, oklch(58% 0.12 235), oklch(38% 0.1 235));
+}
+
+.play-area__team-icon-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.play-area__team-name {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #fff;
+  font-weight: 800;
+  font-size: 20px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+  letter-spacing: 0.3px;
+}
+
+.play-area__team-count {
+  color: #fff;
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 800;
+  font-size: 20px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.play-area__team-count span {
+  opacity: 0.55;
+  font-weight: 600;
+}
+
+.play-area__team-body {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ---------- 발굴 HUD ---------- */
+
+.exca-view {
+  position: absolute;
+  inset: 0;
+}
+
+.exca-sidebar {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 150px;
+  background: rgba(15, 20, 18, 0.55);
+  backdrop-filter: blur(10px);
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.play-area__team--A .exca-sidebar {
+  left: 0;
+  border-right: 1px solid oklch(55% 0.1 40 / 0.35);
+  border-radius: 0 14px 14px 0;
+}
+
+.play-area__team--B .exca-sidebar {
+  right: 0;
+  border-left: 1px solid oklch(50% 0.08 235 / 0.35);
+  border-radius: 14px 0 0 14px;
+}
+
+.exca-sidebar__title {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.exca-sidebar__row-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.exca-sidebar__dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.exca-sidebar__name {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.exca-sidebar__bar {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.exca-sidebar__bar-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease-out;
+}
+
+.exca-progress {
+  position: absolute;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(520px, 60%);
+  text-align: center;
+}
+
+.exca-progress__label {
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+}
+
+.exca-progress__label strong {
+  color: #fff;
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 800;
+}
+
+.exca-progress__track {
+  height: 24px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0.35));
+  box-shadow: inset 0 3px 6px rgba(0, 0, 0, 0.75), inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+  position: relative;
+}
+
+.exca-progress__fill {
+  height: 100%;
+  background: linear-gradient(180deg, #efe2c6 0%, #c99a63 14%, #8b5e34 60%, #5c3d24 100%);
+  position: relative;
+  border-radius: 12px 0 0 12px;
+  transition: width 0.3s ease-out;
+}
+
+.exca-progress__fill::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+.exca-debuff {
+  position: absolute;
+  top: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(50, 20, 15, 0.6);
+  border: 1px solid rgba(200, 60, 50, 0.4);
+  color: #ffcdb8;
+  font-size: 13px;
+  font-weight: 700;
+  animation: exca-debuff-pulse 1.6s ease-in-out infinite;
+  white-space: nowrap;
+}
+
+@keyframes exca-debuff-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(200, 60, 50, 0);
+  }
+  50% {
+    box-shadow: 0 0 14px 2px rgba(200, 60, 50, 0.35);
+  }
 }
 
 .phase-placeholder {
-  opacity: 0.7;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  opacity: 0.85;
   font-style: italic;
+  font-size: 18px;
+  color: #fff8ec;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 }
 
 .progress-bar {
@@ -141,31 +683,6 @@ body {
   height: 100%;
   background: linear-gradient(90deg, #43aa8b, #90be6d);
   transition: width 0.2s ease-out;
-}
-
-.excavation-view__bones {
-  list-style: none;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.excavation-view__bones li {
-  background: #1c232c;
-  border-radius: 4px;
-  padding: 2px 8px;
-  font-size: 0.85rem;
-}
-
-.excavation-view__debuff {
-  color: #f9c74f;
-}
-
-.excavation-view__players {
-  list-style: none;
-  padding: 0;
-  font-size: 0.85rem;
 }
 
 .excavation-controls {
