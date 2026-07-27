@@ -2,14 +2,12 @@
 
 import { randomUUID } from "node:crypto";
 import {
-  BONE_IDS,
   CHARGING_DURATION_MS,
   DINO_RUN_DURATION_MS,
   DECORATION_CATALOG,
   DECORATION_VOTE_DURATION_MS,
   EXCAVATION_POINTS_PER_BONE,
-  MAX_PLAYERS,
-  MAX_PLAYERS_PER_TEAM,
+  GAME_SCORE_MAX,
   MIN_PLAYERS,
   NAME_CANDIDATES,
   NICKNAME_MAX_LENGTH,
@@ -17,7 +15,11 @@ import {
   ROOM_CODE_LENGTH,
   ROOM_CODE_MAX_GENERATION_ATTEMPTS,
   ROUND_DURATION_MS,
+  SHOOTING_SCORE_ACCURACY_WEIGHT,
+  SHOOTING_SCORE_CORE_WEIGHT,
+  SHOOTING_SCORE_CORE_HITS_FOR_FULL_MARKS,
   TEAM_IDS,
+  totalGameScore,
   type AimUpdateInput,
   type BoneId,
   type CoreZone,
@@ -73,6 +75,8 @@ export type RoomRecord = {
   phaseDurations: Record<TeamId, PhaseDurations>;
   /** CHARGING에 처음 진입한 시각. chargingMs 계산에 쓴다. */
   chargingStartedAt: Record<TeamId, number | null>;
+  /** 공유 스켈레톤 하나의 이동·코어 로테이션 기준 시각. 두 팀 중 먼저 CHARGING에 들어간 팀이 정한다 (§2.3). */
+  sharedTrexStartedAt: number | null;
   /** 플레이어별 최신 유효 조준 좌표 (§17.9). */
   aimState: Map<PlayerId, AimState>;
   /** 플레이어별 발사 쿨다운·shotId 중복 방지 상태 (§17.10). */
@@ -107,6 +111,7 @@ function resetTeamGameplayState(team: TeamState, now: number): void {
     coreChangesAt: 0,
     form: "NONE",
   };
+  team.scores = { excavation: null, dinoRun: null, charging: null };
 }
 
 function makeEmptyTeamState(teamId: TeamId, now: number): TeamState {
@@ -119,6 +124,7 @@ function makeEmptyTeamState(teamId: TeamId, now: number): TeamState {
     excavation: { points: 0, nextBoneAt: EXCAVATION_POINTS_PER_BONE, discoveredBoneIds: [], fossils: 0, efficiencyMultiplier: 1, debuffEndsAt: null },
     dinoRun: { obstacleOffsetsMs: [], clearedByPlayer: {}, performance: null, grade: null },
     charging: { energy: 0, stability: 100, activeCore: "HEART", coreChangesAt: 0, form: "NONE" },
+    scores: { excavation: null, dinoRun: null, charging: null },
   };
   resetTeamGameplayState(team, now);
   return team;
@@ -189,7 +195,7 @@ export class RoomManager {
     return this.rooms.get(roomCode);
   }
 
-  createRoom(hostSocketId: string): CreateRoomResult | null {
+  createRoom(hostSocketId: string, roomName: string, maxPlayersPerTeam: number): CreateRoomResult | null {
     const existing = this.findRoomByHostSocket(hostSocketId);
     if (existing) return { room: existing, joinUrl: this.joinUrlFor(existing.state.roomCode) };
 
@@ -201,6 +207,8 @@ export class RoomManager {
       schemaVersion: 1,
       revision: 1,
       roomCode,
+      roomName,
+      maxPlayersPerTeam,
       roomPhase: "LOBBY",
       createdAt: now,
       roundStartedAt: null,
@@ -228,6 +236,7 @@ export class RoomManager {
         B: { excavationMs: null, assemblyMs: null, chargingMs: null },
       },
       chargingStartedAt: { A: null, B: null },
+      sharedTrexStartedAt: null,
       aimState: new Map(),
       shotTracking: new Map(),
       ...makeVoteState(),
@@ -258,7 +267,7 @@ export class RoomManager {
     const room = this.rooms.get(roomCode);
     if (!room) return { ok: false, error: "ROOM_NOT_FOUND" };
     if (room.state.roomPhase !== "LOBBY") return { ok: false, error: "ROOM_ALREADY_STARTED" };
-    if (room.state.players.length >= MAX_PLAYERS) return { ok: false, error: "ROOM_FULL" };
+    if (room.state.players.length >= room.state.maxPlayersPerTeam * 2) return { ok: false, error: "ROOM_FULL" };
 
     const nickname = rawNickname.trim();
     const lengthOk = nickname.length >= NICKNAME_MIN_LENGTH && nickname.length <= NICKNAME_MAX_LENGTH;
@@ -270,9 +279,9 @@ export class RoomManager {
     if (taken) return { ok: false, error: "NICKNAME_TAKEN" };
 
     const teamId = this.assignTeam(room);
-    if (room.state.teams[teamId].playerIds.length >= MAX_PLAYERS_PER_TEAM) {
+    if (room.state.teams[teamId].playerIds.length >= room.state.maxPlayersPerTeam) {
       const other: TeamId = teamId === "A" ? "B" : "A";
-      if (room.state.teams[other].playerIds.length >= MAX_PLAYERS_PER_TEAM) {
+      if (room.state.teams[other].playerIds.length >= room.state.maxPlayersPerTeam) {
         return { ok: false, error: "ROOM_FULL" };
       }
     }
@@ -341,6 +350,7 @@ export class RoomManager {
       B: { excavationMs: null, assemblyMs: null, chargingMs: null },
     };
     room.chargingStartedAt = { A: null, B: null };
+    room.sharedTrexStartedAt = null;
     room.aimState = new Map();
     room.shotTracking = new Map();
     Object.assign(room, makeVoteState());
@@ -379,6 +389,7 @@ export class RoomManager {
     if (result.phaseCompleted) {
       const team = room.state.teams[teamId];
       room.phaseDurations[teamId].excavationMs = now - team.phaseStartedAt;
+      team.scores.excavation = this.computeExcavationScore(room, now);
       team.phase = "ASSEMBLY";
       team.phaseStartedAt = now;
       team.phaseEndsAt = now + DINO_RUN_DURATION_MS;
@@ -387,6 +398,13 @@ export class RoomManager {
     }
     this.bumpRevision(room);
     return result;
+  }
+
+  /** 경기 1 점수: 라운드 시작 이후 완료까지 걸린 시간이 짧을수록 높다 (§2.3 타임 보너스). */
+  private computeExcavationScore(room: RoomRecord, now: number): number {
+    const startedAt = room.state.roundStartedAt ?? now;
+    const elapsedRatio = Math.min(1, Math.max(0, (now - startedAt) / ROUND_DURATION_MS));
+    return Math.round(GAME_SCORE_MAX * (1 - elapsedRatio));
   }
 
   /** §17.6 다이노런 점프. 고빈도라 revision은 올리지 않는다 (클리어 현황은 델타 이벤트로 전파). */
@@ -402,6 +420,8 @@ export class RoomManager {
     for (const teamId of TEAM_IDS) {
       const result = finishDinoRunIfNeeded(room, teamId, now);
       if (result) {
+        // 경기 2 점수: 팀 클리어율을 그대로 점수로 사용한다 (§2.3, §6.2).
+        room.state.teams[teamId].scores.dinoRun = Math.round(GAME_SCORE_MAX * result.performance);
         finished.push({ teamId, result });
         this.touch(room);
         this.bumpRevision(room);
@@ -438,10 +458,24 @@ export class RoomManager {
     let roundFinalized = false;
     if (outcome.justReachedRevived) {
       room.phaseDurations[teamId].chargingMs = room.chargingStartedAt[teamId] !== null ? now - room.chargingStartedAt[teamId]! : null;
+      this.finalizeChargingScore(room, teamId);
       roundFinalized = this.checkRoundCompletion(room, now);
     }
     this.bumpRevision(room);
     return { ...outcome, roundFinalized };
+  }
+
+  /** 경기 3 점수: 팀 전체 명중률과 활성 코어 명중 수를 기준으로 매긴다 (§2.3, §6.3). */
+  private finalizeChargingScore(room: RoomRecord, teamId: TeamId): void {
+    const members = room.state.players.filter((p) => p.teamId === teamId);
+    const totalShots = members.reduce((sum, p) => sum + p.stats.shots, 0);
+    const totalHits = members.reduce((sum, p) => sum + p.stats.hits, 0);
+    const totalCoreHits = members.reduce((sum, p) => sum + p.stats.coreHits, 0);
+    const accuracy = totalShots > 0 ? totalHits / totalShots : 0;
+    const coreFactor = Math.min(1, totalCoreHits / SHOOTING_SCORE_CORE_HITS_FOR_FULL_MARKS);
+    room.state.teams[teamId].scores.charging = Math.round(
+      SHOOTING_SCORE_ACCURACY_WEIGHT * accuracy + SHOOTING_SCORE_CORE_WEIGHT * coreFactor,
+    );
   }
 
   /** 배경 틱(§6.3 10Hz)에서 팀별 티라노 위치·코어 로테이션·시간 초과를 처리한다. */
@@ -455,8 +489,8 @@ export class RoomManager {
 
       const transition = expireChargingIfNeeded(room, teamId, now);
 
-      const transform = computeTrexTransform(room, teamId, now);
-      const { core, nextChangeAt } = computeActiveCore(room, teamId, now);
+      const transform = computeTrexTransform(room, now);
+      const { core, nextChangeAt } = computeActiveCore(room, now);
       const coreChanged = team.charging.activeCore !== core;
       if (coreChanged) {
         team.charging.activeCore = core;
@@ -470,6 +504,7 @@ export class RoomManager {
         this.bumpRevision(room);
         if (transition === "TO_REVIVED_YRANNO") {
           room.phaseDurations[teamId].chargingMs = room.chargingStartedAt[teamId] !== null ? now - room.chargingStartedAt[teamId]! : null;
+          this.finalizeChargingScore(room, teamId);
           if (this.checkRoundCompletion(room, now)) roundFinalized = true;
         }
       }
@@ -477,55 +512,26 @@ export class RoomManager {
     return { updates, roundFinalized };
   }
 
-  private teamProgressScore(team: TeamState): number {
-    switch (team.phase) {
-      case "EXCAVATION":
-        return 0 + team.excavation.discoveredBoneIds.length / BONE_IDS.length;
-      case "ASSEMBLY":
-        return (
-          1 +
-          Object.values(team.dinoRun.clearedByPlayer).reduce((sum, list) => sum + list.length, 0) /
-            Math.max(1, team.dinoRun.obstacleOffsetsMs.length * Math.max(1, team.playerIds.length))
-        );
-      case "CHARGING":
-        return 2 + team.charging.energy / 100;
-      case "REVIVED":
-        return 3 + (team.charging.form === "NORMAL" ? 1 : 0.5);
-      default:
-        return 0;
-    }
-  }
-
-  /** 정상 부활, 양 팀 모두 와이라노로 종료, 라운드 시간 초과 중 하나라도 해당되면 승패를 확정한다. */
+  /**
+   * §3 누적 점수제. 경기 단위로 승패를 가리지 않고, 양 팀 모두 REVIVED(정상이든 와이라노든)에
+   * 도달했거나 라운드 시간이 끝났을 때만 3경기 누적 점수 총합을 비교해 승자를 확정한다.
+   * 부활 판정(정상/와이라노)은 이 비교와 무관한 팀별 개별 상태다 (§2.3 부활 판정).
+   */
   checkRoundCompletion(room: RoomRecord, now: number): boolean {
     if (room.state.roomPhase !== "PLAYING") return false;
 
-    for (const teamId of TEAM_IDS) {
-      const team = room.state.teams[teamId];
-      if (team.phase === "REVIVED" && team.charging.form === "NORMAL") {
-        this.finalizeRoundWinner(room, teamId, "NORMAL_REVIVAL");
-        return true;
-      }
-    }
-
     const bothRevived = TEAM_IDS.every((teamId) => room.state.teams[teamId].phase === "REVIVED");
-    if (bothRevived) {
-      // 여기 도달했다는 것은 둘 다 정상(NORMAL)이 아니라 와이라노로 끝났다는 뜻이다 (정상은 위에서 즉시 처리됨).
-      this.finalizeRoundWinner(room, null, "DRAW");
-      return true;
-    }
+    const timedOut = room.state.roundEndsAt !== null && now >= room.state.roundEndsAt;
+    if (!bothRevived && !timedOut) return false;
 
-    if (room.state.roundEndsAt !== null && now >= room.state.roundEndsAt) {
-      const scoreA = this.teamProgressScore(room.state.teams.A);
-      const scoreB = this.teamProgressScore(room.state.teams.B);
-      if (scoreA === scoreB) {
-        this.finalizeRoundWinner(room, null, "DRAW");
-      } else {
-        this.finalizeRoundWinner(room, scoreA > scoreB ? "A" : "B", "TIME_LIMIT");
-      }
-      return true;
+    const totalA = totalGameScore(room.state.teams.A.scores);
+    const totalB = totalGameScore(room.state.teams.B.scores);
+    if (totalA === totalB) {
+      this.finalizeRoundWinner(room, null, "DRAW");
+    } else {
+      this.finalizeRoundWinner(room, totalA > totalB ? "A" : "B", "SCORE_TOTAL");
     }
-    return false;
+    return true;
   }
 
   private finalizeRoundWinner(room: RoomRecord, teamId: TeamId | null, reason: NonNullable<RoomState["winner"]["reason"]>): void {

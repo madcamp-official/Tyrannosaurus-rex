@@ -221,7 +221,11 @@ async function main(): Promise<void> {
     host = connect(origin, "HOST");
     await waitForConnect(host);
     const created = await ackEmit<{ roomCode: string; state: RoomState }>((ack) =>
-      host!.emit("room:create", { requestId: randomUUID(), settings: { maxPlayers: 10, roundDurationSec: 300, language: "ko" } }, ack),
+      host!.emit(
+        "room:create",
+        { requestId: randomUUID(), roomName: "봇 테스트 방", settings: { maxPlayersPerTeam: 5, roundDurationSec: 300, language: "ko" } },
+        ack,
+      ),
     );
     if (!created.ok) throw new Error(`room:create 실패: ${created.error.code}`);
     roomCode = created.data.roomCode;
@@ -260,9 +264,13 @@ async function main(): Promise<void> {
     socket.on("energy:coreChanged", (evt) => {
       board.coreByTeam[evt.data.teamId] = evt.data.to;
     });
+  }
 
-    const ready = await ackEmit((ack) => socket.emit("player:setReady", { requestId: randomUUID(), ready: true }, ack));
-    if (!ready.ok) throw new Error(`setReady 실패(${nickname})`);
+  // Plan.md §2.2: 전원 준비 완료 시 자동 시작되므로, 마지막 봇이 준비를 마치기 전에는 방이
+  // 아직 열려 있어야 한다 — 그래서 전원을 먼저 입장시킨 뒤 마지막에 한 번에 준비시킨다.
+  for (const bot of bots) {
+    const ready = await ackEmit((ack) => bot.socket.emit("player:setReady", { requestId: randomUUID(), ready: true }, ack));
+    if (!ready.ok) throw new Error(`setReady 실패(${bot.nickname})`);
   }
 
   // 결과 이벤트는 어떤 봇 소켓으로든 한 번만 처리하면 된다.
@@ -288,14 +296,13 @@ async function main(): Promise<void> {
     log(`${evt.data.teamId}팀 페이즈: ${evt.data.from} → ${evt.data.to}`);
   });
 
+  // Plan.md §2.2: 전원 준비 완료 시 서버가 자동으로 게임을 시작한다 — 별도의 game:start 호출이 필요 없다.
   if (host) {
-    const started = await ackEmit((ack) => host!.emit("game:start", { requestId: randomUUID() }, ack));
-    if (!started.ok) throw new Error("game:start 실패");
-    log("게임 시작 (self-host)");
+    log("게임 자동 시작 (self-host, 전원 준비 완료)");
   } else if (idle) {
-    log(`대기 봇 ${playerCount}명 준비 완료 — 봇은 게임을 하지 않습니다. QR/모바일로 입장해 직접 플레이하세요.`);
+    log(`대기 봇 ${playerCount}명 준비 완료 — 다른 팀원이 아직 준비 전이면 대기 중, 전원 준비되면 자동으로 시작됩니다.`);
   } else {
-    log(`봇 ${playerCount}명 준비 완료 — 데스크탑에서 "게임 시작"을 눌러주세요.`);
+    log(`봇 ${playerCount}명 준비 완료 — 전원 준비되면 자동으로 게임이 시작됩니다.`);
   }
 
   // idle 모드는 사람이 로비에서 뜸 들이는 시간까지 감안해 넉넉히 잡는다.

@@ -1,8 +1,21 @@
 /** Plan.md §5.1, §17.1, §17.4. 데스크탑 로비: 방 생성, QR, 팀 배정, 게임 시작. */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
-import { BONE_IDS, PUZZLE_TARGET_TRANSFORMS, type Ack, type GameResultEvent, type GameStartResponse, type PlayerId, type RoomCreateResponse, type RoomState, type TeamId } from "@trex/shared";
+import {
+  BONE_IDS,
+  DEFAULT_MAX_PLAYERS_PER_TEAM,
+  MAX_PLAYERS_PER_TEAM_CAP,
+  PUZZLE_TARGET_TRANSFORMS,
+  ROOM_NAME_MAX_LENGTH,
+  TEAM_DISPLAY_NAMES,
+  type Ack,
+  type GameResultEvent,
+  type PlayerId,
+  type RoomCreateResponse,
+  type RoomState,
+  type TeamId,
+} from "@trex/shared";
 import { connectSocket, type AppSocket } from "../socket";
 import { GodotStage, useGodotBridge } from "../godot/GodotStage";
 import { DebugPanel } from "../DebugPanel";
@@ -31,6 +44,8 @@ export function DesktopLobby(): JSX.Element {
   const [joinUrl, setJoinUrl] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
+  const [connected, setConnected] = useState(false);
+  const [creating, setCreating] = useState(false);
   const [ephemeral, setEphemeral] = useState<ChargingEphemeral>({ trexByTeam: {}, crosshairsByPlayer: {}, hitFlashByTeam: {} });
   const [gameResult, setGameResult] = useState<GameResultEvent | null>(null);
   const { bridge } = useGodotBridge();
@@ -39,20 +54,7 @@ export function DesktopLobby(): JSX.Element {
     const socket = connectSocket("HOST");
     socketRef.current = socket;
 
-    socket.on("connect", () => {
-      socket.emit(
-        "room:create",
-        { requestId: newRequestId(), settings: { maxPlayers: 10, roundDurationSec: 300, language: "ko" } },
-        (ack: Ack<RoomCreateResponse>) => {
-          if (!ack.ok) {
-            setStartError(ack.error.message);
-            return;
-          }
-          setJoinUrl(ack.data.joinUrl);
-          setRoomState(ack.data.state);
-        },
-      );
-    });
+    socket.on("connect", () => setConnected(true));
 
     socket.on("room:state", (evt) => {
       setRoomState(evt.data);
@@ -169,6 +171,24 @@ export function DesktopLobby(): JSX.Element {
     QRCode.toDataURL(joinUrl, { margin: 1, width: 240 }).then(setQrDataUrl).catch(() => setQrDataUrl(null));
   }, [joinUrl]);
 
+  const handleCreateRoom = (roomName: string, maxPlayersPerTeam: number) => {
+    setStartError(null);
+    setCreating(true);
+    socketRef.current?.emit(
+      "room:create",
+      { requestId: newRequestId(), roomName, settings: { maxPlayersPerTeam, roundDurationSec: 300, language: "ko" } },
+      (ack: Ack<RoomCreateResponse>) => {
+        setCreating(false);
+        if (!ack.ok) {
+          setStartError(ack.error.message);
+          return;
+        }
+        setJoinUrl(ack.data.joinUrl);
+        setRoomState(ack.data.state);
+      },
+    );
+  };
+
   useEffect(() => {
     if (!roomState) return;
     bridge.sendFullSnapshot({
@@ -180,13 +200,6 @@ export function DesktopLobby(): JSX.Element {
     });
   }, [roomState, bridge]);
 
-  const handleStart = () => {
-    setStartError(null);
-    socketRef.current?.emit("game:start", { requestId: newRequestId() }, (ack: Ack<GameStartResponse>) => {
-      if (!ack.ok) setStartError(ack.error.message);
-    });
-  };
-
   return (
     <main className="desktop-lobby">
       <GodotStage />
@@ -197,21 +210,24 @@ export function DesktopLobby(): JSX.Element {
           <p>죽은 티라노, 정말 살려드립니다</p>
         </header>
 
-        {!roomState && (
+        {!roomState && !connected && (
           <section className="desktop-lobby__join">
-            {startError ? <p className="error">방을 만들지 못했습니다: {startError}</p> : <p>서버에 연결하는 중…</p>}
+            <p>서버에 연결하는 중…</p>
           </section>
+        )}
+
+        {!roomState && connected && (
+          <CreateRoomForm onCreate={handleCreateRoom} creating={creating} error={startError} />
         )}
 
         {roomState?.roomPhase === "LOBBY" && (
           <section className="desktop-lobby__join">
+            <h2 className="desktop-lobby__room-name">{roomState.roomName}</h2>
             <div className="room-code">{roomState.roomCode}</div>
             {qrDataUrl && <img src={qrDataUrl} alt="입장 QR 코드" width={240} height={240} />}
             <TeamList roomState={roomState} />
             {startError && <p className="error">{startError}</p>}
-            <button type="button" onClick={handleStart}>
-              게임 시작
-            </button>
+            <p className="desktop-lobby__hint">전원 준비되면 자동으로 시작됩니다</p>
           </section>
         )}
 
@@ -226,13 +242,66 @@ export function DesktopLobby(): JSX.Element {
   );
 }
 
+function CreateRoomForm({
+  onCreate,
+  creating,
+  error,
+}: {
+  onCreate: (roomName: string, maxPlayersPerTeam: number) => void;
+  creating: boolean;
+  error: string | null;
+}): JSX.Element {
+  const [roomName, setRoomName] = useState("");
+  const [maxPlayersPerTeam, setMaxPlayersPerTeam] = useState(DEFAULT_MAX_PLAYERS_PER_TEAM);
+
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    const trimmed = roomName.trim();
+    if (trimmed.length === 0 || creating) return;
+    onCreate(trimmed, maxPlayersPerTeam);
+  };
+
+  return (
+    <section className="desktop-lobby__join desktop-lobby__create-form">
+      <form onSubmit={handleSubmit}>
+        <label>
+          방 이름
+          <input
+            value={roomName}
+            onChange={(e) => setRoomName(e.target.value.slice(0, ROOM_NAME_MAX_LENGTH))}
+            maxLength={ROOM_NAME_MAX_LENGTH}
+            placeholder="방 이름을 입력하세요"
+            autoFocus
+          />
+        </label>
+        <label>
+          팀별 최대 인원
+          <input
+            type="number"
+            min={1}
+            max={MAX_PLAYERS_PER_TEAM_CAP}
+            value={maxPlayersPerTeam}
+            onChange={(e) => setMaxPlayersPerTeam(Math.min(MAX_PLAYERS_PER_TEAM_CAP, Math.max(1, Number(e.target.value) || 1)))}
+          />
+        </label>
+        {error && <p className="error">{error}</p>}
+        <button type="submit" disabled={creating || roomName.trim().length === 0}>
+          방 만들기
+        </button>
+      </form>
+    </section>
+  );
+}
+
 function TeamList({ roomState }: { roomState: RoomState }): JSX.Element {
   const teamIds: TeamId[] = ["A", "B"];
   return (
     <div className="team-list">
       {teamIds.map((teamId) => (
         <div key={teamId} className={`team-list__team team-list__team--${teamId}`}>
-          <h2>{teamId}팀</h2>
+          <h2>
+            {TEAM_DISPLAY_NAMES[teamId]} <span className="team-list__count">{roomState.teams[teamId].playerIds.length}/{roomState.maxPlayersPerTeam}명</span>
+          </h2>
           <ul>
             {roomState.players
               .filter((p) => p.teamId === teamId)

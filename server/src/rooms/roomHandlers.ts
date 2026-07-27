@@ -43,7 +43,7 @@ export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: Ro
     const cached = idempotency.get<RoomCreateResponse>(socket.id, parsed.data.requestId);
     if (cached) return ack(cached);
 
-    const created = rooms.createRoom(socket.id);
+    const created = rooms.createRoom(socket.id, parsed.data.roomName, parsed.data.settings.maxPlayersPerTeam);
     if (!created) {
       const res = ackErr(parsed.data.requestId, "SERVER_ERROR", "failed to allocate room code", true);
       idempotency.set(socket.id, parsed.data.requestId, res);
@@ -127,6 +127,7 @@ export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: Ro
     }
     ack(ackOk(parsed.data.requestId, { playerId, ready: parsed.data.ready }));
     broadcastRoomState(io, rooms, roomCode);
+    maybeAutoStart(io, rooms, roomCode);
   });
 
   socket.on("game:start", (req, ack) => {
@@ -238,6 +239,20 @@ export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: Ro
     broadcastPlayerConnectionChanged(io, rooms, found.room.state.roomCode, found.playerId, false);
     broadcastRoomState(io, rooms, found.room.state.roomCode);
   });
+}
+
+/** Plan.md §2.2: 전원(양 팀 모두) 준비 완료 시 호스트 버튼 없이 자동으로 게임을 시작한다. */
+function maybeAutoStart(io: AppServer, rooms: RoomManager, roomCode: string): void {
+  const room = rooms.getRoom(roomCode);
+  if (!room || rooms.canStart(room) !== null) return;
+
+  const { roundEndsAt } = rooms.startGame(room);
+  const state = rooms.getPublicState(room);
+  io.to(roomChannel(roomCode)).emit(
+    "room:phaseChanged",
+    toServerEvent(roomCode, state.revision, { from: "LOBBY", to: "PLAYING", endsAt: roundEndsAt }),
+  );
+  broadcastRoomState(io, rooms, roomCode);
 }
 
 function broadcastPlayerConnectionChanged(

@@ -65,6 +65,39 @@ body {
   text-align: center;
 }
 
+.desktop-lobby__room-name {
+  margin: 0;
+  text-align: center;
+}
+
+.desktop-lobby__hint {
+  opacity: 0.75;
+  font-size: 0.9rem;
+}
+
+.desktop-lobby__create-form form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.desktop-lobby__create-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+.desktop-lobby__create-form input {
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #2a323d;
+  background: #1c232c;
+  color: inherit;
+  font-size: 1rem;
+}
+
 .team-list {
   display: flex;
   gap: 24px;
@@ -73,6 +106,12 @@ body {
 
 .team-list__team {
   min-width: 200px;
+}
+
+.team-list__count {
+  font-size: 0.75rem;
+  opacity: 0.75;
+  font-weight: 400;
 }
 
 .godot-stage {
@@ -122,6 +161,12 @@ body {
   border: 1px solid #2a323d;
   border-radius: 8px;
   background: rgba(16, 21, 28, 0.85);
+}
+
+/* 사격 단계(경기 3): 공유 스켈레톤 아레나가 두 팀 패널 사이 중앙 열에 하나만 뜬다. */
+.play-area__shared-arena {
+  flex: 1.4;
+  min-width: 0;
 }
 
 .phase-placeholder {
