@@ -229,6 +229,9 @@ export type TrexTransformEvent = {
   facing: Facing;
   poseId: PoseId;
   effectiveAt: number;
+  /** 현재 활성 코어(약점) 이름과, 서버가 계산해 내려주는 그 코어의 절대 정규화 좌표. */
+  activeCore: CoreZone;
+  corePosition: NormalizedPoint;
 };
 
 export type ShotResolvedEvent = EnergyFireResponse & {
