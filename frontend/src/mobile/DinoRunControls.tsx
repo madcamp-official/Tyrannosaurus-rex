@@ -101,7 +101,7 @@ export function DinoRunControls({
         })}
         <div className="dino-run__ground" />
       </div>
-      <p className="hint">화면을 탭해서 장애물을 뛰어넘으세요! 잘 달릴수록 골격이 튼튼하게 조립됩니다.</p>
+      <p className="mobile-game__hint">화면을 탭해서 장애물을 뛰어넘으세요! 잘 달릴수록 골격이 튼튼하게 조립됩니다.</p>
     </div>
   );
 }

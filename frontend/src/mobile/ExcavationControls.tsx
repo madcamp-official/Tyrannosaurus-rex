@@ -96,15 +96,15 @@ export function ExcavationControls({
 
   return (
     <div className="excavation-controls">
-      <p>흔들어서 뼈를 발굴하세요!</p>
+      <p className="mobile-game__title">흔들어서 뼈를 발굴하세요!</p>
       {motionPermission === "UNKNOWN" && (
-        <button type="button" onClick={() => void requestMotionPermission()}>
+        <button type="button" className="mobile-game__button" onClick={() => void requestMotionPermission()}>
           흔들기 센서 켜기
         </button>
       )}
-      {motionPermission === "DENIED" && <p className="hint">센서 권한이 꺼져 있어요. 아래 버튼으로 발굴하세요.</p>}
-      {motionPermission === "UNSUPPORTED" && <p className="hint">이 기기는 흔들기를 지원하지 않아요. 아래 버튼으로 발굴하세요.</p>}
-      {motionPermission === "GRANTED" && <p className="hint">흔드는 대로 자동으로 인식돼요.</p>}
+      {motionPermission === "DENIED" && <p className="mobile-game__hint">센서 권한이 꺼져 있어요. 아래 버튼으로 발굴하세요.</p>}
+      {motionPermission === "UNSUPPORTED" && <p className="mobile-game__hint">이 기기는 흔들기를 지원하지 않아요. 아래 버튼으로 발굴하세요.</p>}
+      {motionPermission === "GRANTED" && <p className="mobile-game__hint">흔드는 대로 자동으로 인식돼요.</p>}
       <button type="button" className={`dig-button${shakeFlash ? " dig-button--flash" : ""}`} onClick={handleTap}>
         🦴 파기
       </button>

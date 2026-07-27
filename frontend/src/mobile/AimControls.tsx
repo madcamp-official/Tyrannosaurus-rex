@@ -144,10 +144,12 @@ export function AimControls({ socket }: { socket: AppSocket }): JSX.Element {
       </div>
 
       {aimMode === "GYRO" && orientationPermission !== "GRANTED" && (
-        <p className="hint">{orientationPermission === "UNSUPPORTED" ? "이 기기는 자이로를 지원하지 않아요." : "자이로 권한이 필요해요."}</p>
+        <p className="mobile-game__hint">
+          {orientationPermission === "UNSUPPORTED" ? "이 기기는 자이로를 지원하지 않아요." : "자이로 권한이 필요해요."}
+        </p>
       )}
       {aimMode === "GYRO" && orientationPermission === "GRANTED" && (
-        <button type="button" onClick={calibrate}>
+        <button type="button" className="mobile-game__button" onClick={calibrate}>
           {calibrated ? "다시 영점 잡기" : "화면 중앙을 겨눈 뒤 영점 잡기"}
         </button>
       )}
