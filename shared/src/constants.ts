@@ -6,8 +6,7 @@ export const TEAM_DISPLAY_NAMES: Record<"A" | "B", string> = {
   B: "F라노 팀",
 };
 
-// TODO: 테스트용으로 5로 줄임 — 나중에 13으로 되돌릴 것.
-export const CORE_BONE_COUNT = 5;
+export const CORE_BONE_COUNT = 13;
 export const EXCAVATION_POINTS_PER_BONE = 60;
 export const EXCAVATION_SHAKE_COOLDOWN_MS = 200;
 export const MOBILE_INPUT_FLUSH_MS = 100;
