@@ -1,5 +1,7 @@
 /** Plan.md §13, §14.2, §15 도메인 타입. 서버 권위 상태와 클라이언트 표시에 공유된다. */
 
+import { BONES_PER_PLAYER } from "./constants.js";
+
 export type RoomCode = string; // ^[0-9]{4}$
 export type PlayerId = string;
 export type SocketId = string;
@@ -39,6 +41,11 @@ export const BONE_IDS: readonly BoneId[] = [
   "TAIL_MIDDLE",
   "TAIL_TIP",
 ];
+
+/** 팀 발굴 목표 뼈 개수 = 팀 인원수 × BONES_PER_PLAYER (최대 BONE_IDS.length개까지). */
+export function boneCountForTeam(playerCount: number): number {
+  return Math.min(BONE_IDS.length, Math.max(1, playerCount) * BONES_PER_PLAYER);
+}
 
 export type TeamId = "A" | "B";
 export const TEAM_IDS: readonly TeamId[] = ["A", "B"];

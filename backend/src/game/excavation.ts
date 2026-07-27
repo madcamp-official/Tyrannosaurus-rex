@@ -2,7 +2,7 @@
 
 import {
   BONE_IDS,
-  CORE_BONE_COUNT,
+  boneCountForTeam,
   EXCAVATION_EVENT_FOSSIL_CHANCE,
   EXCAVATION_EVENT_GOLD_BONE_CHANCE,
   EXCAVATION_GOLD_BONE_POINT_DISCOUNT,
@@ -120,8 +120,9 @@ export function applyExcavateInput(
   team.excavation.points += pointsAdded;
 
   const boneOrder = room.boneOrder;
+  const targetBoneCount = boneCountForTeam(team.playerIds.length);
   const boneAwards: BoneId[] = [];
-  while (team.excavation.points >= team.excavation.nextBoneAt && team.excavation.discoveredBoneIds.length < CORE_BONE_COUNT) {
+  while (team.excavation.points >= team.excavation.nextBoneAt && team.excavation.discoveredBoneIds.length < targetBoneCount) {
     const boneId = boneOrder[team.excavation.discoveredBoneIds.length]!;
     team.excavation.discoveredBoneIds.push(boneId);
     team.excavation.nextBoneAt += EXCAVATION_POINTS_PER_BONE;
@@ -139,7 +140,7 @@ export function applyExcavateInput(
     event = { kind: "GOLD_BONE", endsAt: null };
   }
 
-  const phaseCompleted = team.excavation.discoveredBoneIds.length >= CORE_BONE_COUNT;
+  const phaseCompleted = team.excavation.discoveredBoneIds.length >= targetBoneCount;
 
   return { accepted: true, pointsAdded, boneAwards, event, phaseCompleted };
 }
