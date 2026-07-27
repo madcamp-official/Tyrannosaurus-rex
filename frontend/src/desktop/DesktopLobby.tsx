@@ -12,6 +12,7 @@ import {
   TEAM_NAME_MAX_LENGTH,
   type Ack,
   type GameResultEvent,
+  type GameStartResponse,
   type PlayerId,
   type RoomCreateResponse,
   type RoomState,
@@ -261,6 +262,13 @@ export function DesktopLobby(): JSX.Element {
     setHomeStarted(true);
   };
 
+  const handleStart = () => {
+    setStartError(null);
+    socketRef.current?.emit("game:start", { requestId: newRequestId() }, (ack: Ack<GameStartResponse>) => {
+      if (!ack.ok) setStartError(ack.error.message);
+    });
+  };
+
   if (!homeStarted) {
     return (
       <main className="desktop-lobby">
@@ -287,7 +295,7 @@ export function DesktopLobby(): JSX.Element {
       <div className="desktop-lobby__scrim" />
 
       <div className="desktop-lobby__overlay">
-        {!roomState && (
+        {!connected && (
           <header className="lobby-header">
             <img className="lobby-header__logo" src="/images/logo.png" alt="내 티라노를 살려내!" />
             <p className="lobby-header__subtitle">죽은 티라노, 정말 살려드립니다</p>
@@ -328,6 +336,9 @@ export function DesktopLobby(): JSX.Element {
                 </div>
               )}
 
+              <button type="button" className="lobby-start__button" onClick={handleStart}>
+                게임 시작
+              </button>
               <p className="lobby-start__hint">전원 준비되면 자동으로 시작됩니다</p>
             </div>
 
@@ -369,59 +380,63 @@ function CreateRoomForm({
 
   return (
     <section className="lobby-connecting">
-      <form className="lobby-create-card" onSubmit={handleSubmit}>
-        <label className="lobby-create-card__field">
-          <span>방 이름</span>
-          <input
-            className="lobby-create-card__input"
-            value={roomName}
-            onChange={(e) => setRoomName(e.target.value.slice(0, ROOM_NAME_MAX_LENGTH))}
-            maxLength={ROOM_NAME_MAX_LENGTH}
-            placeholder="방 이름을 입력하세요"
-            autoFocus
-          />
-        </label>
-        <label className="lobby-create-card__field">
-          <span>팀 A 이름</span>
-          <input
-            className="lobby-create-card__input"
-            value={teamAName}
-            onChange={(e) => setTeamAName(e.target.value.slice(0, TEAM_NAME_MAX_LENGTH))}
-            maxLength={TEAM_NAME_MAX_LENGTH}
-            placeholder={TEAM_DISPLAY_NAMES.A}
-          />
-        </label>
-        <label className="lobby-create-card__field">
-          <span>팀 B 이름</span>
-          <input
-            className="lobby-create-card__input"
-            value={teamBName}
-            onChange={(e) => setTeamBName(e.target.value.slice(0, TEAM_NAME_MAX_LENGTH))}
-            maxLength={TEAM_NAME_MAX_LENGTH}
-            placeholder={TEAM_DISPLAY_NAMES.B}
-          />
-        </label>
-        <label className="lobby-create-card__field">
-          <span>팀별 최대 인원</span>
-          <input
-            className="lobby-create-card__input"
-            type="number"
-            min={1}
-            max={MAX_PLAYERS_PER_TEAM_CAP}
-            value={maxPlayersPerTeam}
-            onChange={(e) => setMaxPlayersPerTeam(Math.min(MAX_PLAYERS_PER_TEAM_CAP, Math.max(1, Number(e.target.value) || 1)))}
-          />
-        </label>
-        {error && (
-          <div className="lobby-error-banner lobby-error-banner--inline">
-            <span className="lobby-error-banner__icon">⚠</span>
-            <span>{error}</span>
-          </div>
-        )}
-        <button type="submit" className="lobby-start__button" disabled={creating || roomName.trim().length === 0}>
-          방 만들기
-        </button>
-      </form>
+      <div className="lobby-main__center">
+        <img className="lobby-header__logo" src="/images/logo.png" alt="내 티라노를 살려내!" />
+        <p className="lobby-header__subtitle">죽은 티라노, 정말 살려드립니다</p>
+        <form className="lobby-create-card" onSubmit={handleSubmit}>
+          <label className="lobby-create-card__field">
+            <span>방 이름</span>
+            <input
+              className="lobby-create-card__input"
+              value={roomName}
+              onChange={(e) => setRoomName(e.target.value.slice(0, ROOM_NAME_MAX_LENGTH))}
+              maxLength={ROOM_NAME_MAX_LENGTH}
+              placeholder="방 이름을 입력하세요"
+              autoFocus
+            />
+          </label>
+          <label className="lobby-create-card__field">
+            <span>팀 A 이름</span>
+            <input
+              className="lobby-create-card__input"
+              value={teamAName}
+              onChange={(e) => setTeamAName(e.target.value.slice(0, TEAM_NAME_MAX_LENGTH))}
+              maxLength={TEAM_NAME_MAX_LENGTH}
+              placeholder={TEAM_DISPLAY_NAMES.A}
+            />
+          </label>
+          <label className="lobby-create-card__field">
+            <span>팀 B 이름</span>
+            <input
+              className="lobby-create-card__input"
+              value={teamBName}
+              onChange={(e) => setTeamBName(e.target.value.slice(0, TEAM_NAME_MAX_LENGTH))}
+              maxLength={TEAM_NAME_MAX_LENGTH}
+              placeholder={TEAM_DISPLAY_NAMES.B}
+            />
+          </label>
+          <label className="lobby-create-card__field">
+            <span>팀별 최대 인원</span>
+            <input
+              className="lobby-create-card__input"
+              type="number"
+              min={1}
+              max={MAX_PLAYERS_PER_TEAM_CAP}
+              value={maxPlayersPerTeam}
+              onChange={(e) => setMaxPlayersPerTeam(Math.min(MAX_PLAYERS_PER_TEAM_CAP, Math.max(1, Number(e.target.value) || 1)))}
+            />
+          </label>
+          {error && (
+            <div className="lobby-error-banner lobby-error-banner--inline">
+              <span className="lobby-error-banner__icon">⚠</span>
+              <span>{error}</span>
+            </div>
+          )}
+          <button type="submit" className="lobby-start__button" disabled={creating || roomName.trim().length === 0}>
+            방 만들기
+          </button>
+        </form>
+      </div>
     </section>
   );
 }

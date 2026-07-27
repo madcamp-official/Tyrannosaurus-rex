@@ -60,7 +60,7 @@ body {
 }
 
 .lobby-header__subtitle {
-  font-size: clamp(14px, 1.4vw, 18px);
+  font-size: clamp(16px, 1.6vw, 21px);
   font-weight: 700;
   color: rgba(255, 248, 236, 0.85);
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
@@ -148,7 +148,7 @@ body {
   color: #3d2a12;
   font-family: "Baloo 2", sans-serif;
   font-weight: 800;
-  font-size: 19px;
+  font-size: 22px;
   padding: 10px 38px;
   border: none;
   border-radius: 16px;
@@ -167,7 +167,7 @@ body {
 }
 
 .home-screen__hint {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   color: rgba(255, 248, 236, 0.9);
   margin: 0;
@@ -201,14 +201,14 @@ body {
 }
 
 .lobby-connecting__title {
-  font-size: 26px;
+  font-size: 30px;
   font-weight: 800;
   color: #fff8ec;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
 }
 
 .lobby-connecting__hint {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 700;
   color: rgba(255, 248, 236, 0.7);
 }
@@ -222,7 +222,7 @@ body {
   padding: 16px 28px;
   border-radius: 16px;
   font-weight: 800;
-  font-size: 18px;
+  font-size: 20px;
   box-shadow: 0 8px 24px rgba(120, 50, 30, 0.35);
 }
 
@@ -254,7 +254,7 @@ body {
 }
 
 .lobby-main__center .lobby-header__logo {
-  height: 56px;
+  height: 280px;
 }
 
 .lobby-code-card {
@@ -286,7 +286,7 @@ body {
 }
 
 .lobby-code-card__qr span {
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: rgba(255, 248, 236, 0.75);
 }
@@ -301,7 +301,7 @@ body {
 }
 
 .lobby-code-card--qr-only .lobby-code-card__qr span {
-  font-size: 16px;
+  font-size: 18px;
 }
 
 .lobby-team-card {
@@ -333,7 +333,7 @@ body {
 .lobby-team-card__name {
   font-family: "Baloo 2", sans-serif;
   font-weight: 700;
-  font-size: 26px;
+  font-size: 30px;
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
@@ -346,7 +346,7 @@ body {
 }
 
 .lobby-team-card__count {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 800;
   color: rgba(255, 255, 255, 0.65);
 }
@@ -365,7 +365,7 @@ body {
   border-radius: 10px;
   margin-bottom: 4px;
   background: rgba(255, 255, 255, 0.18);
-  font-size: 17px;
+  font-size: 19px;
   font-weight: 800;
   color: #fff8ec;
 }
@@ -378,7 +378,7 @@ body {
   background: transparent;
   opacity: 0.45;
   padding: 2px 14px;
-  font-size: 13px;
+  font-size: 15px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.4);
 }
@@ -398,7 +398,7 @@ body {
 }
 
 .lobby-team-card__status-text {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 700;
   color: rgba(138, 130, 120, 0.7);
 }
@@ -412,7 +412,7 @@ body {
   color: #3d2a12;
   font-family: "Baloo 2", sans-serif;
   font-weight: 800;
-  font-size: 28px;
+  font-size: 32px;
   padding: 14px 60px;
   border: none;
   border-radius: 20px;
@@ -432,7 +432,7 @@ body {
 }
 
 .lobby-start__hint {
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   color: rgba(255, 248, 236, 0.7);
   margin-top: 8px;
@@ -458,7 +458,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 14px;
+  font-size: 16px;
   font-weight: 700;
   color: rgba(255, 248, 236, 0.75);
 }
@@ -469,7 +469,7 @@ body {
   border: 1px solid rgba(255, 240, 220, 0.35);
   background: rgba(0, 0, 0, 0.28);
   color: #fff8ec;
-  font-size: 16px;
+  font-size: 18px;
   font-family: inherit;
 }
 
@@ -478,7 +478,7 @@ body {
   text-align: center;
   font-family: "Baloo 2", sans-serif;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 17px;
   color: rgba(255, 248, 236, 0.75);
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
 }
