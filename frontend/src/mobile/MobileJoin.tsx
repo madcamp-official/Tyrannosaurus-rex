@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
-import { TEAM_DISPLAY_NAMES, type Ack, type PlayerId, type RoomJoinResponse, type RoomState, type TeamId } from "@trex/shared";
+import type { Ack, PlayerId, RoomJoinResponse, RoomState, TeamId } from "@trex/shared";
 import { connectSocket, type AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
 import { ExcavationControls } from "./ExcavationControls";
@@ -118,7 +118,7 @@ export function MobileJoin(): JSX.Element {
     return (
       <main className="mobile-join">
         <h1>결과</h1>
-        {roomState.winner.teamId && <p>{TEAM_DISPLAY_NAMES[roomState.winner.teamId]} 승리!</p>}
+        {roomState.winner.teamId && <p>{roomState.teamNames[roomState.winner.teamId]} 승리!</p>}
         {!roomState.winner.teamId && <p>무승부</p>}
         {socket && <DecorationVote socket={socket} />}
       </main>
@@ -140,7 +140,7 @@ export function MobileJoin(): JSX.Element {
 
   return (
     <main className="mobile-join">
-      <p>{teamId ? TEAM_DISPLAY_NAMES[teamId] : ""}으로 입장했습니다.</p>
+      <p>{teamId && roomState ? roomState.teamNames[teamId] : ""}으로 입장했습니다.</p>
       <button type="button" onClick={toggleReady}>
         {ready ? "준비 완료 ✅ (취소)" : "준비하기"}
       </button>

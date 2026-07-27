@@ -44,7 +44,10 @@ export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: Ro
     const cached = idempotency.get<RoomCreateResponse>(socket.id, parsed.data.requestId);
     if (cached) return ack(cached);
 
-    const created = rooms.createRoom(socket.id, parsed.data.roomName, parsed.data.settings.maxPlayersPerTeam);
+    const created = rooms.createRoom(socket.id, parsed.data.roomName, parsed.data.settings.maxPlayersPerTeam, {
+      A: parsed.data.settings.teamAName,
+      B: parsed.data.settings.teamBName,
+    });
     if (!created) {
       const res = ackErr(parsed.data.requestId, "SERVER_ERROR", "failed to allocate room code", true);
       idempotency.set(socket.id, parsed.data.requestId, res);

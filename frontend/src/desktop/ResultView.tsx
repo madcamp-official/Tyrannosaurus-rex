@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import {
   DECORATION_CATALOG,
-  TEAM_DISPLAY_NAMES,
   type Ack,
   type DecorationCategory,
   type GameRematchResponse,
@@ -67,7 +66,7 @@ export function ResultView({
   return (
     <section className="result-view">
       <h2>
-        {roomState.winner.teamId ? `${TEAM_DISPLAY_NAMES[roomState.winner.teamId]} 승리!` : "무승부"}
+        {roomState.winner.teamId ? `${roomState.teamNames[roomState.winner.teamId]} 승리!` : "무승부"}
         {roomState.winner.reason && <span className="result-view__reason"> ({describeReason(roomState.winner.reason)})</span>}
       </h2>
 
@@ -77,7 +76,7 @@ export function ResultView({
           return (
             <div key={teamId} className="result-view__team">
               <h3>
-                {TEAM_DISPLAY_NAMES[teamId]} {finalNames[teamId] ? `— ${finalNames[teamId]}` : ""}
+                {roomState.teamNames[teamId]} {finalNames[teamId] ? `— ${finalNames[teamId]}` : ""}
               </h3>
               <p>{teamResult?.form === "YRANNO" ? "🦖 와이라노..." : "🦖 정상 부활"}</p>
               <ul>
@@ -117,7 +116,7 @@ export function ResultView({
           <ol>
             {gameResult.mvp.map((entry) => (
               <li key={entry.playerId}>
-                {entry.nickname} ({TEAM_DISPLAY_NAMES[entry.teamId]}) — {entry.score}점
+                {entry.nickname} ({roomState.teamNames[entry.teamId]}) — {entry.score}점
               </li>
             ))}
           </ol>

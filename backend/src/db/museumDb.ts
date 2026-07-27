@@ -7,7 +7,7 @@ import { existsSync, mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname } from "node:path";
 import type { DatabaseSync as DatabaseSyncType } from "node:sqlite";
-import type { DecorationCategory, MuseumTyranno, RevivalForm, TeamId } from "@trex/shared";
+import { TEAM_DISPLAY_NAMES, type DecorationCategory, type MuseumTyranno, type RevivalForm, type TeamId } from "@trex/shared";
 
 // node:sqlite는 Node에 아주 최근 추가된 내장 모듈이라 Vite/vitest의 번들링 파이프라인이
 // "node:" 접두사를 잘못 처리한다. 정적 import 대신 런타임 require로 우회한다.
@@ -18,6 +18,7 @@ type MuseumRow = {
   id: string;
   room_name: string;
   team_id: string;
+  team_name: string | null;
   is_winner: number;
   form: string;
   tyranno_name: string | null;
@@ -38,6 +39,8 @@ function rowToRecord(row: MuseumRow): MuseumTyranno {
     id: row.id,
     roomName: row.room_name,
     teamId: row.team_id as TeamId,
+    // 마이그레이션 이전 행은 team_name이 없을 수 있어 기본 표시 이름으로 대체한다.
+    teamName: row.team_name ?? TEAM_DISPLAY_NAMES[row.team_id as TeamId],
     isWinner: row.is_winner === 1,
     form: row.form as RevivalForm,
     tyrannoName: row.tyranno_name,
@@ -81,6 +84,12 @@ function openDatabase(): DatabaseSyncType {
       created_at INTEGER NOT NULL
     )
   `);
+  // 팀 커스텀 이름 컬럼은 나중에 추가됐다 — 기존 DB 파일엔 없을 수 있어 있으면 조용히 실패한다.
+  try {
+    database.exec(`ALTER TABLE museum_tyrannos ADD COLUMN team_name TEXT`);
+  } catch {
+    // 이미 컬럼이 있으면 무시한다.
+  }
   return database;
 }
 
@@ -88,10 +97,10 @@ const db = openDatabase();
 
 const insertStatement = db.prepare(`
   INSERT INTO museum_tyrannos (
-    id, room_name, team_id, is_winner, form, tyranno_name, team_members,
+    id, room_name, team_id, team_name, is_winner, form, tyranno_name, team_members,
     mvp_nickname, mvp_score, decorations, excavation_ms, assembly_ms, charging_ms,
     accuracy, fossils, created_at
-  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 `);
 
 export function insertMuseumEntry(entry: MuseumTyranno): void {
@@ -99,6 +108,7 @@ export function insertMuseumEntry(entry: MuseumTyranno): void {
     entry.id,
     entry.roomName,
     entry.teamId,
+    entry.teamName,
     entry.isWinner ? 1 : 0,
     entry.form,
     entry.tyrannoName,

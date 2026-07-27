@@ -9,6 +9,7 @@ import {
   PUZZLE_TARGET_TRANSFORMS,
   ROOM_NAME_MAX_LENGTH,
   TEAM_DISPLAY_NAMES,
+  TEAM_NAME_MAX_LENGTH,
   type Ack,
   type GameResultEvent,
   type PlayerId,
@@ -217,12 +218,22 @@ export function DesktopLobby(): JSX.Element {
     QRCode.toDataURL(joinUrl, { margin: 1, width: 240 }).then(setQrDataUrl).catch(() => setQrDataUrl(null));
   }, [joinUrl]);
 
-  const handleCreateRoom = (roomName: string, maxPlayersPerTeam: number) => {
+  const handleCreateRoom = (roomName: string, maxPlayersPerTeam: number, teamAName: string, teamBName: string) => {
     setStartError(null);
     setCreating(true);
     socketRef.current?.emit(
       "room:create",
-      { requestId: newRequestId(), roomName, settings: { maxPlayersPerTeam, roundDurationSec: 300, language: "ko" } },
+      {
+        requestId: newRequestId(),
+        roomName,
+        settings: {
+          maxPlayersPerTeam,
+          roundDurationSec: 300,
+          language: "ko",
+          teamAName: teamAName.trim() || undefined,
+          teamBName: teamBName.trim() || undefined,
+        },
+      },
       (ack: Ack<RoomCreateResponse>) => {
         setCreating(false);
         if (!ack.ok) {
@@ -334,18 +345,20 @@ function CreateRoomForm({
   creating,
   error,
 }: {
-  onCreate: (roomName: string, maxPlayersPerTeam: number) => void;
+  onCreate: (roomName: string, maxPlayersPerTeam: number, teamAName: string, teamBName: string) => void;
   creating: boolean;
   error: string | null;
 }): JSX.Element {
   const [roomName, setRoomName] = useState("");
   const [maxPlayersPerTeam, setMaxPlayersPerTeam] = useState(DEFAULT_MAX_PLAYERS_PER_TEAM);
+  const [teamAName, setTeamAName] = useState("");
+  const [teamBName, setTeamBName] = useState("");
 
   const handleSubmit = (event: FormEvent) => {
     event.preventDefault();
     const trimmed = roomName.trim();
     if (trimmed.length === 0 || creating) return;
-    onCreate(trimmed, maxPlayersPerTeam);
+    onCreate(trimmed, maxPlayersPerTeam, teamAName, teamBName);
   };
 
   return (
@@ -360,6 +373,26 @@ function CreateRoomForm({
             maxLength={ROOM_NAME_MAX_LENGTH}
             placeholder="방 이름을 입력하세요"
             autoFocus
+          />
+        </label>
+        <label className="lobby-create-card__field">
+          <span>팀 A 이름</span>
+          <input
+            className="lobby-create-card__input"
+            value={teamAName}
+            onChange={(e) => setTeamAName(e.target.value.slice(0, TEAM_NAME_MAX_LENGTH))}
+            maxLength={TEAM_NAME_MAX_LENGTH}
+            placeholder={TEAM_DISPLAY_NAMES.A}
+          />
+        </label>
+        <label className="lobby-create-card__field">
+          <span>팀 B 이름</span>
+          <input
+            className="lobby-create-card__input"
+            value={teamBName}
+            onChange={(e) => setTeamBName(e.target.value.slice(0, TEAM_NAME_MAX_LENGTH))}
+            maxLength={TEAM_NAME_MAX_LENGTH}
+            placeholder={TEAM_DISPLAY_NAMES.B}
           />
         </label>
         <label className="lobby-create-card__field">
@@ -398,7 +431,7 @@ function LobbyTeams({ roomState }: { roomState: RoomState }): JSX.Element {
           <div key={teamId} className={`lobby-team-card lobby-team-card--${teamId.toLowerCase()}`}>
             <div className="lobby-team-card__header">
               <span className="lobby-team-card__name">
-                {TEAM_EMBLEM[teamId]} {TEAM_DISPLAY_NAMES[teamId]}
+                {TEAM_EMBLEM[teamId]} {roomState.teamNames[teamId]}
               </span>
               <span className="lobby-team-card__count">
                 {players.length}/{roomState.maxPlayersPerTeam}명

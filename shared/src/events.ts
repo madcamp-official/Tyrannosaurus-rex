@@ -1,7 +1,7 @@
 /** Plan.md §16~18. Socket.IO 이벤트 payload. 요청은 Zod로 런타임 검증하고, 타입은 스키마에서 추론한다. */
 
 import { z } from "zod";
-import { MAX_PLAYERS_PER_TEAM_CAP, ROOM_NAME_MAX_LENGTH } from "./constants.js";
+import { MAX_PLAYERS_PER_TEAM_CAP, ROOM_NAME_MAX_LENGTH, TEAM_NAME_MAX_LENGTH } from "./constants.js";
 import type {
   Ack,
   AimMode,
@@ -90,6 +90,8 @@ export const roomCreateRequestSchema = z.object({
     maxPlayersPerTeam: z.number().int().min(1).max(MAX_PLAYERS_PER_TEAM_CAP),
     roundDurationSec: z.literal(300),
     language: z.literal("ko"),
+    teamAName: z.string().trim().min(1).max(TEAM_NAME_MAX_LENGTH).optional(),
+    teamBName: z.string().trim().min(1).max(TEAM_NAME_MAX_LENGTH).optional(),
   }),
 });
 export type RoomCreateRequest = z.infer<typeof roomCreateRequestSchema>;

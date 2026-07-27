@@ -80,6 +80,7 @@ export const MIN_PLAYERS = 2;
 export const MAX_PLAYERS_PER_TEAM_CAP = 10;
 export const DEFAULT_MAX_PLAYERS_PER_TEAM = 5;
 export const ROOM_NAME_MAX_LENGTH = 20;
+export const TEAM_NAME_MAX_LENGTH = 12;
 export const NICKNAME_MIN_LENGTH = 1;
 export const NICKNAME_MAX_LENGTH = 8;
 export const ROOM_CODE_LENGTH = 4;

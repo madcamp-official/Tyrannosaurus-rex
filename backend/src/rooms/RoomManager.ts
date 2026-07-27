@@ -18,6 +18,7 @@ import {
   SHOOTING_SCORE_ACCURACY_WEIGHT,
   SHOOTING_SCORE_CORE_WEIGHT,
   SHOOTING_SCORE_CORE_HITS_FOR_FULL_MARKS,
+  TEAM_DISPLAY_NAMES,
   TEAM_IDS,
   totalGameScore,
   type AimUpdateInput,
@@ -195,7 +196,12 @@ export class RoomManager {
     return this.rooms.get(roomCode);
   }
 
-  createRoom(hostSocketId: string, roomName: string, maxPlayersPerTeam: number): CreateRoomResult | null {
+  createRoom(
+    hostSocketId: string,
+    roomName: string,
+    maxPlayersPerTeam: number,
+    teamNames?: Partial<Record<TeamId, string>>,
+  ): CreateRoomResult | null {
     const existing = this.findRoomByHostSocket(hostSocketId);
     if (existing) return { room: existing, joinUrl: this.joinUrlFor(existing.state.roomCode) };
 
@@ -209,6 +215,10 @@ export class RoomManager {
       roomCode,
       roomName,
       maxPlayersPerTeam,
+      teamNames: {
+        A: teamNames?.A ?? TEAM_DISPLAY_NAMES.A,
+        B: teamNames?.B ?? TEAM_DISPLAY_NAMES.B,
+      },
       roomPhase: "LOBBY",
       createdAt: now,
       roundStartedAt: null,

@@ -1,7 +1,7 @@
 /** Plan.md §8. 완성한 티라노를 전시하는 컬렉션 화면 — 서버 DB(GET /api/museum)가 유일한 소스다. */
 
 import { useEffect, useState } from "react";
-import { TEAM_DISPLAY_NAMES, type MuseumTyranno } from "@trex/shared";
+import type { MuseumTyranno } from "@trex/shared";
 
 export function MuseumPage(): JSX.Element {
   const [entries, setEntries] = useState<MuseumTyranno[]>([]);
@@ -43,7 +43,7 @@ export function MuseumPage(): JSX.Element {
             <li key={entry.id} className={`museum-entry museum-entry--${entry.form.toLowerCase()}`}>
               <h2>{entry.tyrannoName ?? "이름 미정"}</h2>
               <p>{entry.form === "YRANNO" ? "와이라노" : "정상 부활"}{entry.isWinner ? " · 🏆 우승" : ""}</p>
-              <p>{entry.roomName} · {TEAM_DISPLAY_NAMES[entry.teamId]} · {entry.teamMembers.join(", ")}</p>
+              <p>{entry.roomName} · {entry.teamName} · {entry.teamMembers.join(", ")}</p>
               {entry.mvpNickname && <p>MVP {entry.mvpNickname} ({entry.mvpScore}점)</p>}
               <p>명중률 {(entry.accuracy * 100).toFixed(0)}%</p>
             </li>

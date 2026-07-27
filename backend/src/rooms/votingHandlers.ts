@@ -117,6 +117,7 @@ function saveMuseumEntry(room: RoomRecord, teamId: "A" | "B", tyrannoName: strin
     id: randomUUID(),
     roomName: room.state.roomName,
     teamId,
+    teamName: room.state.teamNames[teamId],
     isWinner: room.state.winner.teamId === teamId,
     form: team.charging.form,
     tyrannoName,

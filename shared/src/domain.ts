@@ -192,6 +192,8 @@ export type RoomState = {
   roomCode: RoomCode;
   roomName: string;
   maxPlayersPerTeam: number;
+  /** Plan.md §2.2. 호스트가 방 생성 시 지정한 팀 표시 이름. 미지정 시 TEAM_DISPLAY_NAMES 기본값. */
+  teamNames: Record<TeamId, string>;
   roomPhase: RoomPhase;
   createdAt: number;
   roundStartedAt: number | null;
@@ -212,6 +214,7 @@ export type MuseumTyranno = {
   id: string;
   roomName: string;
   teamId: TeamId;
+  teamName: string;
   isWinner: boolean;
   form: RevivalForm;
   tyrannoName: string | null;

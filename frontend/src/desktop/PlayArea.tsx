@@ -1,7 +1,7 @@
 /** Plan.md §5.1, §10.3 "Godot이 지연되더라도 서버·React 흐름을 완주 가능하게" — 2D 안전 화면 겸 기본 HUD.
  * 좌우 풀블리드 분할로 각 팀의 3D 무대(Godot, 배경) 위에 단계별 오버레이를 얹는다. */
 
-import { CORE_BONE_COUNT, TEAM_DISPLAY_NAMES, type PlayerId, type PublicPlayer, type RoomState, type TeamId, type TeamState } from "@trex/shared";
+import { CORE_BONE_COUNT, type PlayerId, type PublicPlayer, type RoomState, type TeamId, type TeamState } from "@trex/shared";
 import { ExcavationTeamPanel } from "./ExcavationView";
 import { DinoRunTeamPanel } from "./DinoRunView";
 import { ChargingSharedArena, ChargingTeamStats, type CrosshairDisplay, type TrexDisplay } from "./ChargingView";
@@ -43,7 +43,17 @@ function RingsIcon(): JSX.Element {
   );
 }
 
-function TeamHeader({ teamId, players, team }: { teamId: TeamId; players: PublicPlayer[]; team: TeamState }): JSX.Element {
+function TeamHeader({
+  teamId,
+  teamName,
+  players,
+  team,
+}: {
+  teamId: TeamId;
+  teamName: string;
+  players: PublicPlayer[];
+  team: TeamState;
+}): JSX.Element {
   const connected = players.filter((p) => p.connected).length;
   return (
     <div className={`play-area__team-header play-area__team-header--${teamId.toLowerCase()}`}>
@@ -51,7 +61,7 @@ function TeamHeader({ teamId, players, team }: { teamId: TeamId; players: Public
         <span className="play-area__team-icon">
           <span className="play-area__team-icon-dot" />
         </span>
-        {TEAM_DISPLAY_NAMES[teamId]}
+        {teamName}
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -118,7 +128,7 @@ export function PlayArea({ roomState, ephemeral }: { roomState: RoomState; ephem
         key={teamId}
         className={`play-area__team play-area__team--${teamId}${hasSharedArena ? " play-area__team--sidebar" : ""}`}
       >
-        <TeamHeader teamId={teamId} players={players} team={team} />
+        <TeamHeader teamId={teamId} teamName={roomState.teamNames[teamId]} players={players} team={team} />
         <div className="play-area__team-body">
           <TeamPhaseContent team={team} roomState={roomState} />
         </div>
