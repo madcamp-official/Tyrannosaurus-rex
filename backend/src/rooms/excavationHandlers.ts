@@ -36,7 +36,6 @@ export function registerExcavationHandlers(io: AppServer, socket: AppSocket, roo
           teamId,
           points: team.excavation.points,
           nextBoneAt: team.excavation.nextBoneAt,
-          efficiencyMultiplier: team.excavation.efficiencyMultiplier,
           playerId,
           playerInputs: player.stats.excavationInputs,
         }),

@@ -12,7 +12,6 @@ export function applyExcavationProgress(
     teamId: TeamId;
     points: number;
     nextBoneAt: number;
-    efficiencyMultiplier: number;
     playerId: PlayerId;
     playerInputs: number;
   },
@@ -28,7 +27,6 @@ export function applyExcavationProgress(
           ...team.excavation,
           points: data.points,
           nextBoneAt: data.nextBoneAt,
-          efficiencyMultiplier: data.efficiencyMultiplier,
         },
       },
     },
@@ -56,7 +54,7 @@ export function applyBoneFound(state: RoomState, data: { teamId: TeamId; boneId:
   };
 }
 
-export function applyExcavationEvent(state: RoomState, data: { teamId: TeamId; kind: "STONE" | "FOSSIL" | "GOLD_BONE" }): RoomState {
+export function applyExcavationEvent(state: RoomState, data: { teamId: TeamId; kind: "FOSSIL" | "GOLD_BONE" }): RoomState {
   if (data.kind !== "FOSSIL") return state;
   const team = state.teams[data.teamId];
   return {

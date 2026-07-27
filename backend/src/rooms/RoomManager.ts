@@ -101,8 +101,6 @@ function resetTeamGameplayState(team: TeamState, now: number): void {
     nextBoneAt: EXCAVATION_POINTS_PER_BONE,
     discoveredBoneIds: [],
     fossils: 0,
-    efficiencyMultiplier: 1,
-    debuffEndsAt: null,
   };
   team.dinoRun = { obstacleOffsetsMs: [], clearedByPlayer: {}, deadPlayerIds: [], performance: null, grade: null };
   team.charging = {
@@ -122,7 +120,7 @@ function makeEmptyTeamState(teamId: TeamId, now: number): TeamState {
     phaseStartedAt: now,
     phaseEndsAt: null,
     playerIds: [],
-    excavation: { points: 0, nextBoneAt: EXCAVATION_POINTS_PER_BONE, discoveredBoneIds: [], fossils: 0, efficiencyMultiplier: 1, debuffEndsAt: null },
+    excavation: { points: 0, nextBoneAt: EXCAVATION_POINTS_PER_BONE, discoveredBoneIds: [], fossils: 0 },
     dinoRun: { obstacleOffsetsMs: [], clearedByPlayer: {}, deadPlayerIds: [], performance: null, grade: null },
     charging: { energy: 0, stability: 100, activeCore: "HEART", coreChangesAt: 0, form: "NONE" },
     scores: { excavation: null, dinoRun: null, charging: null },

@@ -1,4 +1,4 @@
-/** 기타/Excavation HUD.dc.html 목업 반영. 팀 기여도 사이드바 + 다음 뼈까지 진행도 + 효율 저하 배지. */
+/** 기타/Excavation HUD.dc.html 목업 반영. 팀 기여도 사이드바 + 다음 뼈까지 진행도. */
 
 import { EXCAVATION_POINTS_PER_BONE, type PublicPlayer, type TeamState } from "@trex/shared";
 
@@ -36,10 +36,6 @@ export function ExcavationTeamPanel({ team, players }: { team: TeamState; player
           </div>
         ))}
       </div>
-
-      {team.excavation.efficiencyMultiplier < 1 && (
-        <div className="exca-debuff">⛰️ 돌 발견! 효율 {Math.round(team.excavation.efficiencyMultiplier * 100)}%</div>
-      )}
 
       <div className="exca-progress">
         <div className="exca-progress__label">

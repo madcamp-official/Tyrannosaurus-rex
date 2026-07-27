@@ -5,12 +5,9 @@ import {
   CORE_BONE_COUNT,
   EXCAVATION_EVENT_FOSSIL_CHANCE,
   EXCAVATION_EVENT_GOLD_BONE_CHANCE,
-  EXCAVATION_EVENT_STONE_CHANCE,
   EXCAVATION_GOLD_BONE_POINT_DISCOUNT,
   EXCAVATION_MAX_INPUTS_PER_SECOND,
   EXCAVATION_POINTS_PER_BONE,
-  EXCAVATION_STONE_DEBUFF_MS,
-  EXCAVATION_STONE_EFFICIENCY_MULTIPLIER,
   EXCAVATION_TEAM_OVERFLOW_EFFICIENCY,
   type BoneId,
   type ExcavateInput,
@@ -22,7 +19,7 @@ import { seededRandom01, seededShuffle } from "./seededRandom.js";
 
 export type RateBucket = { tokens: number; lastRefillMs: number };
 
-export type ExcavationEventKind = "STONE" | "FOSSIL" | "GOLD_BONE";
+export type ExcavationEventKind = "FOSSIL" | "GOLD_BONE";
 
 export type ExcavationApplyResult = {
   accepted: boolean;
@@ -81,9 +78,8 @@ function consumeTeamBucket(bucket: RateBucket, rawCount: number, now: number): n
 
 function rollEvent(seed: string, tickIndex: number): ExcavationEventKind | null {
   const r = seededRandom01(`${seed}:event`, tickIndex);
-  if (r < EXCAVATION_EVENT_STONE_CHANCE) return "STONE";
-  if (r < EXCAVATION_EVENT_STONE_CHANCE + EXCAVATION_EVENT_FOSSIL_CHANCE) return "FOSSIL";
-  if (r < EXCAVATION_EVENT_STONE_CHANCE + EXCAVATION_EVENT_FOSSIL_CHANCE + EXCAVATION_EVENT_GOLD_BONE_CHANCE) return "GOLD_BONE";
+  if (r < EXCAVATION_EVENT_FOSSIL_CHANCE) return "FOSSIL";
+  if (r < EXCAVATION_EVENT_FOSSIL_CHANCE + EXCAVATION_EVENT_GOLD_BONE_CHANCE) return "GOLD_BONE";
   return null;
 }
 
@@ -117,13 +113,7 @@ export function applyExcavateInput(
   const player = room.state.players.find((p) => p.id === playerId);
   if (player) player.stats.excavationInputs += playerAccepted;
 
-  if (team.excavation.debuffEndsAt !== null && now >= team.excavation.debuffEndsAt) {
-    team.excavation.efficiencyMultiplier = 1;
-    team.excavation.debuffEndsAt = null;
-  }
-
-  const teamThrottled = consumeTeamBucket(state.teamBucket, playerAccepted, now);
-  const pointsAdded = teamThrottled * team.excavation.efficiencyMultiplier;
+  const pointsAdded = consumeTeamBucket(state.teamBucket, playerAccepted, now);
   team.excavation.points += pointsAdded;
 
   const boneOrder = room.boneOrder;
@@ -138,11 +128,7 @@ export function applyExcavateInput(
   state.tick += 1;
   const eventKind = rollEvent(room.roundSeed!, state.tick);
   let event: ExcavationApplyResult["event"] = null;
-  if (eventKind === "STONE") {
-    team.excavation.efficiencyMultiplier = EXCAVATION_STONE_EFFICIENCY_MULTIPLIER;
-    team.excavation.debuffEndsAt = now + EXCAVATION_STONE_DEBUFF_MS;
-    event = { kind: "STONE", endsAt: team.excavation.debuffEndsAt };
-  } else if (eventKind === "FOSSIL") {
+  if (eventKind === "FOSSIL") {
     team.excavation.fossils += 1;
     event = { kind: "FOSSIL", endsAt: null };
   } else if (eventKind === "GOLD_BONE") {

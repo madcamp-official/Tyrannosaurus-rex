@@ -9,6 +9,10 @@ const ARENA_WIDTH := 6.0
 const ARENA_DEPTH := 4.0
 const REVEAL_POP_DURATION := 0.5
 const SNAP_DURATION := 0.3
+## excavation:progress는 입력마다(초당 최대 12회) 오지만, 매번 파면 뼈 하나 찾는 사이에도
+## 땅이 다 파여서 후반부에 시각적 변화가 없어진다. 진행도가 이만큼 움직일 때마다 한 번만 판다
+## (뼈 하나당 0~100%를 대략 10번에 나눠 파는 셈).
+const EXCAVATION_DIG_STEP := 10.0
 
 var team_id: String = "A"
 var _ground: GroundDig
@@ -18,6 +22,7 @@ var _pending_discovered: Array[String] = []
 var _phase: String = "EXCAVATION"
 var _hit_particles: CPUParticles3D
 var _label: Label3D
+var _last_dig_progress := -EXCAVATION_DIG_STEP
 
 func setup(id: String) -> void:
 	team_id = id
@@ -100,6 +105,12 @@ func set_phase(phase: String) -> void:
 	var previous := _phase
 	_phase = phase
 	_apply_ground_visibility()
+	if phase == "EXCAVATION" and previous != "EXCAVATION":
+		# 재경기 등으로 발굴 페이즈에 다시 들어올 때, 이전 라운드에 파낸 땅이 그대로 남아있지
+		# 않도록 평평하게 되돌린다.
+		if _ground:
+			_ground.reset()
+		_last_dig_progress = -EXCAVATION_DIG_STEP
 	if phase == "ASSEMBLY" and previous == "EXCAVATION" and _model_ready:
 		_model.scatter(team_id.hash())
 
@@ -108,9 +119,15 @@ func _apply_ground_visibility() -> void:
 		_ground.visible = _phase == "EXCAVATION"
 
 ## React가 excavation:progress마다 보내는 이번 뼈 구간 진행도(0~100)를 받아 땅을 파낸다.
+## 진행도가 EXCAVATION_DIG_STEP만큼 움직였을 때만 실제로 파서, 뼈 하나 찾는 동안 땅이
+## 다 파여버리지 않고 발굴 전체 구간에 걸쳐 조금씩 변화하게 한다.
 func on_excavation_progress(progress: float) -> void:
-	if _ground and _phase == "EXCAVATION":
-		_ground.dig_random_scoop(progress)
+	if not _ground or _phase != "EXCAVATION":
+		return
+	if absf(progress - _last_dig_progress) < EXCAVATION_DIG_STEP:
+		return
+	_last_dig_progress = progress
+	_ground.dig_random_scoop(progress)
 
 func on_bone_discovered(bone_id: String) -> void:
 	_reveal_piece(bone_id, true)

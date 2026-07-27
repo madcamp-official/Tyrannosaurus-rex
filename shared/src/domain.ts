@@ -163,8 +163,6 @@ export type TeamState = {
     nextBoneAt: number;
     discoveredBoneIds: BoneId[];
     fossils: number;
-    efficiencyMultiplier: number;
-    debuffEndsAt: number | null;
   };
   dinoRun: DinoRunState;
   charging: {

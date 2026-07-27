@@ -4,6 +4,7 @@ import {
   CHARGING_DURATION_MS,
   CHARGING_START_STABILITY_BASE,
   CHARGING_START_STABILITY_RANGE,
+  DINO_DEATH_GRACE_MS,
   DINO_GRADE_CLUMSY,
   DINO_GRADE_GOOD,
   DINO_GRADE_PERFECT,
@@ -90,7 +91,7 @@ export function checkDinoDeaths(room: RoomRecord, teamId: TeamId, now: number): 
     if (team.dinoRun.deadPlayerIds.includes(playerId)) continue;
     const cleared = team.dinoRun.clearedByPlayer[playerId] ?? [];
     const missedAnObstacle = team.dinoRun.obstacleOffsetsMs.some(
-      (offsetMs, index) => !cleared.includes(index) && elapsed > offsetMs + DINO_JUMP_WINDOW_MS,
+      (offsetMs, index) => !cleared.includes(index) && elapsed > offsetMs + DINO_JUMP_WINDOW_MS + DINO_DEATH_GRACE_MS,
     );
     if (missedAnObstacle) {
       team.dinoRun.deadPlayerIds.push(playerId);

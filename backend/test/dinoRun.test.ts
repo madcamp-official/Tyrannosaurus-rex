@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CHARGING_START_STABILITY_BASE,
+  DINO_DEATH_GRACE_MS,
   DINO_JUMP_WINDOW_MS,
   DINO_OBSTACLE_COUNT,
   DINO_RUN_DURATION_MS,
@@ -118,17 +119,19 @@ describe("dino run", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
     const firstOffset = room.state.teams.A.dinoRun.obstacleOffsetsMs[0]!;
 
-    const beforeDeath = rooms.tickDinoDeaths(room, now + firstOffset + DINO_JUMP_WINDOW_MS - 10);
+    // 창이 닫힌 직후는 아직 유예 시간(DINO_DEATH_GRACE_MS) 안이라 죽지 않는다 — 네트워크
+    // 지연으로 창 끝자락에 보낸 점프가 늦게 도착할 여유를 준다.
+    const beforeDeath = rooms.tickDinoDeaths(room, now + firstOffset + DINO_JUMP_WINDOW_MS + 10);
     expect(beforeDeath).toEqual([]);
     expect(room.state.teams.A.dinoRun.deadPlayerIds).toEqual([]);
 
     // A/B 모두 같은 roundSeed로 만든 동일한 장애물 스케줄을 쓰므로(§4 공정성), 두 팀 다 죽는다.
-    const died = rooms.tickDinoDeaths(room, now + firstOffset + DINO_JUMP_WINDOW_MS + 10);
+    const died = rooms.tickDinoDeaths(room, now + firstOffset + DINO_JUMP_WINDOW_MS + DINO_DEATH_GRACE_MS + 10);
     expect(died).toContainEqual({ teamId: "A", playerId: playerA });
     expect(room.state.teams.A.dinoRun.deadPlayerIds).toEqual([playerA]);
 
     // 다시 틱해도 이미 죽은 플레이어는 중복으로 보고되지 않는다.
-    const again = rooms.tickDinoDeaths(room, now + firstOffset + DINO_JUMP_WINDOW_MS + 1000);
+    const again = rooms.tickDinoDeaths(room, now + firstOffset + DINO_JUMP_WINDOW_MS + DINO_DEATH_GRACE_MS + 1000);
     expect(again).toEqual([]);
 
     const jumpAfterDeath = rooms.applyDinoJumpInput(room, "A", playerA, now + firstOffset + 2000);

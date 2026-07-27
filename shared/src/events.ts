@@ -265,14 +265,13 @@ export interface ServerToClientEvents {
       teamId: TeamId;
       points: number;
       nextBoneAt: number;
-      efficiencyMultiplier: number;
       playerId: PlayerId;
       playerInputs: number;
     }>,
   ) => void;
   "excavation:boneFound": (evt: ServerEvent<{ teamId: TeamId; boneId: BoneId; index: number }>) => void;
   "excavation:eventTriggered": (
-    evt: ServerEvent<{ teamId: TeamId; kind: "STONE" | "FOSSIL" | "GOLD_BONE"; endsAt: number | null }>,
+    evt: ServerEvent<{ teamId: TeamId; kind: "FOSSIL" | "GOLD_BONE"; endsAt: number | null }>,
   ) => void;
   "dino:started": (
     evt: ServerEvent<{ teamId: TeamId; obstacleOffsetsMs: number[]; startedAt: number; endsAt: number }>,
