@@ -8,6 +8,7 @@ import { broadcastRoomState, toServerEvent } from "./broadcast.js";
 import { ackErr, ackOk } from "../validation/ack.js";
 import { TokenBucketLimiter } from "../validation/rateLimit.js";
 import { computeMvpRanking } from "../game/mvp.js";
+import { CORE_OFFSETS } from "../game/charging.js";
 
 const fireLimiter = new TokenBucketLimiter(4, 4);
 
@@ -121,6 +122,7 @@ export function tickRoomCharging(io: AppServer, rooms: RoomManager, roomCode: st
   const channel = roomChannel(roomCode);
 
   for (const update of updates) {
+    const coreOffset = CORE_OFFSETS[update.core];
     io.to(channel).emit(
       "trex:transform",
       toServerEvent(roomCode, room.state.revision, {
@@ -130,6 +132,8 @@ export function tickRoomCharging(io: AppServer, rooms: RoomManager, roomCode: st
         facing: update.transform.facing,
         poseId: update.transform.poseId,
         effectiveAt: now,
+        activeCore: update.core,
+        corePosition: { x: update.transform.position.x + coreOffset.x, y: update.transform.position.y + coreOffset.y },
       }),
     );
 
