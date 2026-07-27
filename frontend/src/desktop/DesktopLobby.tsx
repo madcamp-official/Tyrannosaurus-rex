@@ -326,38 +326,42 @@ export function DesktopLobby(): JSX.Element {
         {!roomState && connected && <CreateRoomForm onCreate={handleCreateRoom} creating={creating} error={startError} />}
 
         {roomState?.roomPhase === "LOBBY" && (
-          <section className="lobby-main">
-            <TeamCard roomState={roomState} teamId="A" />
-
-            <div className="lobby-main__center">
-              <img className="lobby-header__logo" src="/images/logo.png" alt="내 티라노를 살려내!" />
+          <>
+            <header className="lobby-header lobby-header--centered">
+              <img className="lobby-header__logo lobby-header__logo--big" src="/images/logo.png" alt="내 티라노를 살려내!" />
               <p className="lobby-header__subtitle">죽은 티라노, 정말 살려드립니다</p>
+            </header>
 
-              <div className="lobby-code-card lobby-code-card--qr-only">
-                <div className="lobby-code-card__qr">
-                  {qrDataUrl && <img src={qrDataUrl} alt="입장 QR 코드" width={220} height={220} />}
-                  <span>📱 스캔해서 입장</span>
-                  <span className="lobby-code-card__code">코드 {roomState.roomCode}</span>
+            <section className="lobby-main">
+              <TeamCard roomState={roomState} teamId="A" />
+
+              <div className="lobby-main__center">
+                <div className="lobby-code-card lobby-code-card--qr-only">
+                  <div className="lobby-code-card__qr">
+                    {qrDataUrl && <img src={qrDataUrl} alt="입장 QR 코드" width={220} height={220} />}
+                    <span>📱 스캔해서 입장</span>
+                    <span className="lobby-code-card__code">코드 {roomState.roomCode}</span>
+                  </div>
                 </div>
+
+                <h2 className="lobby-room-name">{roomState.roomName}</h2>
+
+                {startError && (
+                  <div className="lobby-error-banner lobby-error-banner--inline">
+                    <span className="lobby-error-banner__icon">⚠</span>
+                    <span>{startError}</span>
+                  </div>
+                )}
+
+                <button type="button" className="lobby-start__button" onClick={handleStart}>
+                  게임 시작
+                </button>
+                <p className="lobby-start__hint">전원 준비되면 자동으로 시작됩니다</p>
               </div>
 
-              <h2 className="lobby-room-name">{roomState.roomName}</h2>
-
-              {startError && (
-                <div className="lobby-error-banner lobby-error-banner--inline">
-                  <span className="lobby-error-banner__icon">⚠</span>
-                  <span>{startError}</span>
-                </div>
-              )}
-
-              <button type="button" className="lobby-start__button" onClick={handleStart}>
-                게임 시작
-              </button>
-              <p className="lobby-start__hint">전원 준비되면 자동으로 시작됩니다</p>
-            </div>
-
-            <TeamCard roomState={roomState} teamId="B" />
-          </section>
+              <TeamCard roomState={roomState} teamId="B" />
+            </section>
+          </>
         )}
 
         {roomState && roomState.roomPhase === "PLAYING" && <PlayArea roomState={roomState} ephemeral={ephemeral} />}
@@ -395,7 +399,7 @@ function CreateRoomForm({
   return (
     <section className="lobby-connecting">
       <div className="lobby-main__center">
-        <img className="lobby-header__logo" src="/images/logo.png" alt="내 티라노를 살려내!" />
+        <img className="lobby-header__logo lobby-header__logo--big" src="/images/logo.png" alt="내 티라노를 살려내!" />
         <p className="lobby-header__subtitle">죽은 티라노, 정말 살려드립니다</p>
         <form className="lobby-create-card" onSubmit={handleSubmit}>
           <label className="lobby-create-card__field">

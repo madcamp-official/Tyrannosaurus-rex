@@ -243,11 +243,24 @@ body {
   text-align: left;
 }
 
+.lobby-header--centered {
+  flex-direction: column;
+  text-align: center;
+  padding-bottom: 14px;
+}
+
 .lobby-header__logo {
   height: 68px;
   width: auto;
   flex-shrink: 0;
   filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.45));
+}
+
+.lobby-header__logo--big {
+  height: 280px;
+  /* 로고 PNG 하단에 여백이 baked-in 되어 있어(전체 높이의 약 20%),
+     그만큼을 상쇄해 서브타이틀과의 시각적 간격을 좁힌다. */
+  margin-bottom: -56px;
 }
 
 .lobby-header__subtitle {
@@ -429,7 +442,7 @@ body {
   max-width: min(1500px, 94vw);
   display: flex;
   flex-direction: row;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   flex-wrap: wrap;
   gap: clamp(24px, 6vw, 100px);
@@ -442,13 +455,6 @@ body {
   align-items: center;
   gap: 14px;
   flex-shrink: 0;
-}
-
-.lobby-main__center .lobby-header__logo {
-  height: 280px;
-  /* 로고 PNG 하단에 여백이 baked-in 되어 있어(전체 높이의 약 20%),
-     그만큼을 상쇄해 서브타이틀과의 시각적 간격을 좁힌다. */
-  margin-bottom: -56px;
 }
 
 .lobby-code-card {
@@ -619,17 +625,11 @@ body {
   border-radius: 20px;
   box-shadow: 0 6px 0 #b8933a;
   cursor: pointer;
-  animation: lobby-pulse-btn 2.2s ease-in-out infinite;
+  transition: transform 0.15s ease-out;
 }
 
-@keyframes lobby-pulse-btn {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.035);
-  }
+.lobby-start__button:hover {
+  transform: scale(1.05);
 }
 
 .lobby-start__hint {
