@@ -39,13 +39,13 @@ func _build_environment() -> void:
 
 func _build_camera() -> void:
 	var camera := Camera3D.new()
-	# 발굴 파기 연출이 잘 보이도록 기존보다 땅에 가깝고 낮은 각도로 당겼다.
-	camera.position = Vector3(0, 6.5, 13)
-	camera.fov = 70.0
+	# 발굴 구덩이가 더 잘 보이도록 더 당기고, 시선이 구덩이 쪽(더 아래)을 향하게 각도를 세웠다.
+	camera.position = Vector3(0, 8, 11)
+	camera.fov = 74.0
 	camera.near = 0.1
 	camera.far = 100.0
 	add_child(camera)
-	camera.look_at_from_position(camera.position, Vector3(0, 0.6, 0), Vector3.UP)
+	camera.look_at_from_position(camera.position, Vector3(0, 0.1, 0), Vector3.UP)
 	camera.current = true
 
 func _build_stages() -> void:
