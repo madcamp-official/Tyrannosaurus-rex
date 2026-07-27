@@ -76,7 +76,7 @@ export type TrexTransformPayload = {
 };
 export type EnergyHitPayload = {
   teamId: TeamId;
-  hitZone: "HEART" | "SKULL" | "SPINE" | "BONE" | "JOINT_OUTSIDE" | null;
+  hitZone: "HEART" | "SKULL" | "SPINE" | "BONE" | null;
   hitPoint: NormalizedPoint | null;
   energy: number;
   stability: number;

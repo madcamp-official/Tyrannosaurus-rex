@@ -49,8 +49,6 @@ export const AIM_UPDATE_MAX_HZ = 30;
 export const AIM_STALE_MS = 500;
 export const ENERGY_HIT_BONE = 4;
 export const ENERGY_HIT_CORE = 7;
-export const ENERGY_HIT_JOINT_OUTSIDE = 2;
-export const STABILITY_HIT_JOINT_OUTSIDE = -3;
 export const STABILITY_HIT_CORE = 2;
 export const ENERGY_TARGET = 100;
 export const STABILITY_TARGET = 100;
@@ -58,10 +56,8 @@ export const STABILITY_TARGET = 100;
 // MVP 기본값이며, 실제 3D 히트박스가 생기면 Godot 쪽과 맞춰 조정한다.
 export const CORE_HIT_RADIUS = 0.05;
 export const BONE_HIT_RADIUS = 0.18;
-export const JOINT_HIT_RADIUS = 0.28;
-export const CORE_ROTATION_INTERVAL_MS = 15_000;
 export const TREX_MOVE_AMPLITUDE = 0.28; // 중심(0.5)에서 좌우로 흔들리는 폭
-export const TREX_MOVE_PERIOD_MS = 4_000;
+export const TREX_MOVE_PERIOD_MS = 6_500;
 
 // Plan.md §2.3, §3 3경기 누적 점수제. 구체적 계수가 문서에 없어 MVP 기본값으로 정한다.
 export const GAME_SCORE_MAX = 100;

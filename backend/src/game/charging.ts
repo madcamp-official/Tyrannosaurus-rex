@@ -3,13 +3,9 @@
 import {
   BONE_HIT_RADIUS,
   CORE_HIT_RADIUS,
-  CORE_ROTATION_INTERVAL_MS,
   ENERGY_HIT_BONE,
   ENERGY_HIT_CORE,
-  ENERGY_HIT_JOINT_OUTSIDE,
-  JOINT_HIT_RADIUS,
   STABILITY_HIT_CORE,
-  STABILITY_HIT_JOINT_OUTSIDE,
   TREX_MOVE_AMPLITUDE,
   TREX_MOVE_PERIOD_MS,
   type CoreZone,
@@ -21,7 +17,6 @@ import {
 import type { RoomRecord } from "../rooms/RoomManager.js";
 import { seededRandom01 } from "./seededRandom.js";
 
-const CORE_ORDER: readonly CoreZone[] = ["HEART", "SKULL", "SPINE"];
 export const CORE_OFFSETS: Record<CoreZone, NormalizedPoint> = {
   HEART: { x: 0, y: 0 },
   SKULL: { x: -0.1, y: -0.04 },
@@ -36,7 +31,8 @@ export type TrexTransform = {
 };
 
 const TREX_Y_CENTER = 0.55;
-const TREX_Y_AMPLITUDE = 0.05;
+// 좌우로만 흔들리는 느낌을 없애려고 세로 폭도 가로(TREX_MOVE_AMPLITUDE)에 준하게 키웠다.
+const TREX_Y_AMPLITUDE = 0.2;
 
 function smoothstep(t: number): number {
   return t * t * (3 - 2 * t);
@@ -76,17 +72,14 @@ export function computeTrexTransform(room: RoomRecord, now: number): TrexTransfo
   };
 }
 
-/** 공유 스켈레톤 하나에 대한 코어 로테이션이라 양 팀이 항상 같은 부위를 본다. */
-export function computeActiveCore(room: RoomRecord, now: number): { core: CoreZone; nextChangeAt: number } {
-  const startedAt = room.sharedTrexStartedAt ?? now;
-  const elapsed = Math.max(0, now - startedAt);
-  const index = Math.floor(elapsed / CORE_ROTATION_INTERVAL_MS) % CORE_ORDER.length;
-  const nextChangeAt = startedAt + (Math.floor(elapsed / CORE_ROTATION_INTERVAL_MS) + 1) * CORE_ROTATION_INTERVAL_MS;
-  return { core: CORE_ORDER[index]!, nextChangeAt };
+/** 코어는 더 이상 부위를 옮겨 다니지 않고 항상 심장 위치에 고정된다. */
+export function computeActiveCore(_room: RoomRecord, _now: number): { core: CoreZone; nextChangeAt: number } {
+  return { core: "HEART", nextChangeAt: Number.POSITIVE_INFINITY };
 }
 
 export type HitResolution = { hitZone: HitZone | null; energyDelta: number; stabilityDelta: number };
 
+/** 티라노를 맞히면 점수, 코어(심장)를 맞히면 추가 점수, 완전히 빗나가면 0점 — 3단계 판정을 없앴다. */
 export function resolveHit(aimPoint: NormalizedPoint, trexCenter: NormalizedPoint, activeCore: CoreZone): HitResolution {
   const coreCenter = { x: trexCenter.x + CORE_OFFSETS[activeCore].x, y: trexCenter.y + CORE_OFFSETS[activeCore].y };
   const distToCore = Math.hypot(aimPoint.x - coreCenter.x, aimPoint.y - coreCenter.y);
@@ -97,9 +90,6 @@ export function resolveHit(aimPoint: NormalizedPoint, trexCenter: NormalizedPoin
   const distToBody = Math.hypot(aimPoint.x - trexCenter.x, aimPoint.y - trexCenter.y);
   if (distToBody <= BONE_HIT_RADIUS) {
     return { hitZone: "BONE", energyDelta: ENERGY_HIT_BONE, stabilityDelta: 0 };
-  }
-  if (distToBody <= JOINT_HIT_RADIUS) {
-    return { hitZone: "JOINT_OUTSIDE", energyDelta: ENERGY_HIT_JOINT_OUTSIDE, stabilityDelta: STABILITY_HIT_JOINT_OUTSIDE };
   }
   return { hitZone: null, energyDelta: 0, stabilityDelta: 0 };
 }
