@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { NAME_CANDIDATES } from "@trex/shared";
 import { RoomManager } from "../src/rooms/RoomManager.js";
 
 function setupFinishedRoom() {
@@ -37,52 +36,34 @@ describe("game:rematch", () => {
   });
 });
 
-describe("name voting", () => {
-  it("only accepts votes while the room is in DECORATION phase", () => {
-    const { rooms, room, playerA } = setupFinishedRoom();
-    const rejected = rooms.castNameVote(room, "A", playerA, NAME_CANDIDATES[0]!.id);
-    expect(rejected).toBe(false);
-
-    room.state.roomPhase = "DECORATION";
-    const accepted = rooms.castNameVote(room, "A", playerA, NAME_CANDIDATES[0]!.id);
-    expect(accepted).toBe(true);
+describe("result screen wait window", () => {
+  it("does not finalize before the room enters DECORATION phase", () => {
+    const { rooms, room } = setupFinishedRoom();
+    room.votingEndsAt = Date.now() - 1;
+    const finalized = rooms.finalizeVotingIfDue(room, Date.now());
+    expect(finalized).toBe(false);
   });
 
-  it("rejects candidateIds outside the name catalog", () => {
-    const { rooms, room, playerA } = setupFinishedRoom();
-    room.state.roomPhase = "DECORATION";
-    const ok = rooms.castNameVote(room, "A", playerA, "NOT_A_REAL_CANDIDATE");
-    expect(ok).toBe(false);
-  });
-
-  it("finalizes the majority-vote winner once the voting window closes", () => {
-    const { rooms, room, playerA } = setupFinishedRoom();
+  it("does not finalize before the wait window elapses", () => {
+    const { rooms, room } = setupFinishedRoom();
     room.state.roomPhase = "DECORATION";
     room.votingEndsAt = Date.now() + 1000;
 
-    const candidateId = NAME_CANDIDATES[0]!.id;
-    rooms.castNameVote(room, "A", playerA, candidateId);
-
     const before = rooms.finalizeVotingIfDue(room, Date.now());
-    expect(before).toBe(false); // voting window hasn't closed yet
-
-    const finalized = rooms.finalizeVotingIfDue(room, Date.now() + 2000);
-    expect(finalized).toBe(true);
-    expect(room.nameSelections.A).toBe(candidateId);
-    expect(room.votingFinalized).toBe(true);
-
-    // A second finalize call must be a no-op.
-    const again = rooms.finalizeVotingIfDue(room, Date.now() + 3000);
-    expect(again).toBe(false);
+    expect(before).toBe(false);
   });
 
-  it("picks a random candidate for a team that cast no name votes", () => {
+  it("finalizes exactly once after the wait window elapses", () => {
     const { rooms, room } = setupFinishedRoom();
     room.state.roomPhase = "DECORATION";
     room.votingEndsAt = Date.now() - 1;
 
-    rooms.finalizeVotingIfDue(room, Date.now());
-    expect(room.nameSelections.A).not.toBeNull();
-    expect(NAME_CANDIDATES.map((c) => c.id)).toContain(room.nameSelections.A);
+    const finalized = rooms.finalizeVotingIfDue(room, Date.now());
+    expect(finalized).toBe(true);
+    expect(room.votingFinalized).toBe(true);
+
+    // A second finalize call must be a no-op.
+    const again = rooms.finalizeVotingIfDue(room, Date.now() + 1000);
+    expect(again).toBe(false);
   });
 });

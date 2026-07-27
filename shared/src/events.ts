@@ -168,13 +168,6 @@ export const sensorStatusRequestSchema = z.object({
 export type SensorStatusRequest = z.infer<typeof sensorStatusRequestSchema>;
 export type SensorStatusResponse = { acknowledged: true };
 
-export const nameVoteRequestSchema = z.object({
-  requestId: requestIdSchema,
-  candidateId: z.string().min(1),
-});
-export type NameVoteRequest = z.infer<typeof nameVoteRequestSchema>;
-export type NameVoteResponse = { teamId: TeamId; counts: Record<string, number>; selectedName: string | null; votingEndsAt: number };
-
 export const gameRematchRequestSchema = z.object({
   requestId: requestIdSchema,
 });
@@ -252,7 +245,6 @@ export interface ClientToServerEvents {
   "aim:update": (input: AimUpdateInput) => void;
   "energy:fire": (req: EnergyFireRequest, ack: (res: Ack<EnergyFireResponse>) => void) => void;
   "sensor:status": (req: SensorStatusRequest, ack: (res: Ack<SensorStatusResponse>) => void) => void;
-  "name:vote": (req: NameVoteRequest, ack: (res: Ack<NameVoteResponse>) => void) => void;
   "game:rematch": (req: GameRematchRequest, ack: (res: Ack<GameRematchResponse>) => void) => void;
   "room:requestState": (req: RoomRequestStateRequest, ack: (res: Ack<RoomRequestStateResponse>) => void) => void;
 }
@@ -301,7 +293,6 @@ export interface ServerToClientEvents {
     evt: ServerEvent<{ teamId: TeamId; form: RoomState["teams"][TeamId]["charging"]["form"]; energy: number; stability: number }>,
   ) => void;
   "game:result": (evt: ServerEvent<GameResultEvent>) => void;
-  "name:voteUpdated": (evt: ServerEvent<NameVoteResponse>) => void;
   "room:closed": (evt: ServerEvent<{ reason: string }>) => void;
   "room:error": (evt: { eventId: string; serverTime: number; error: ApiError }) => void;
 }

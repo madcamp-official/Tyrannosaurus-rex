@@ -14,7 +14,6 @@ import { io, type Socket } from "socket.io-client";
 import { randomUUID } from "node:crypto";
 import {
   DECORATION_VOTE_DURATION_MS,
-  NAME_CANDIDATES,
   type BoneId,
   type ClientToServerEvents,
   type CoreZone,
@@ -160,10 +159,6 @@ async function runBotLoop(bot: Bot, board: Blackboard, log: (msg: string) => voi
   }
 }
 
-async function castVotes(bot: Bot): Promise<void> {
-  await ackEmit((ack) => bot.socket.emit("name:vote", { requestId: randomUUID(), candidateId: NAME_CANDIDATES[0]!.id }, ack));
-}
-
 async function main(): Promise<void> {
   const argv = process.argv.slice(2);
   const origin = process.env.SIMULATE_ORIGIN ?? "http://localhost:3001";
@@ -305,13 +300,11 @@ async function main(): Promise<void> {
   await Promise.all([resultPromise, ...(idle ? [] : bots.map((bot) => runBotLoop(bot, board, log)))]);
 
   if (!idle) {
-    log("이름 투표 중…");
-    for (const bot of bots) await castVotes(bot);
-    log("투표 완료. 투표 자동 확정을 기다립니다…");
-    // 호스트 소켓을 여기서 바로 닫으면 서버가 방을 즉시 정리해버려서, 투표 마감(20초) 전에
+    log("결과 화면 대기 중…");
+    // 호스트 소켓을 여기서 바로 닫으면 서버가 방을 즉시 정리해버려서, 대기 마감(20초) 전에
     // 방이 사라져 박물관 저장 등 마감 시점 처리가 실행될 기회조차 없어진다.
     await new Promise((resolve) => setTimeout(resolve, DECORATION_VOTE_DURATION_MS + 2_000));
-    log("투표 확정 완료. 데스크탑 결과 화면과 박물관을 확인하세요.");
+    log("대기 완료. 데스크탑 결과 화면과 박물관을 확인하세요.");
   }
 
   clearTimeout(timeout);

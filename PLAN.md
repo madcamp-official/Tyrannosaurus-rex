@@ -465,27 +465,11 @@
 
 ---
 
-## 7. 티꾸
+## 7. 티꾸 (제거됨)
 
-`티꾸`는 부활한 티라노를 팀원들이 함께 꾸미는 짧은 보상 단계다.
-
-### 방식
-
-- 결과 화면에서 20초 동안 진행한다.
-- 각 플레이어는 모바일에서 원하는 아이템에 투표한다.
-- 카테고리별 최다 득표 아이템을 티라노에 적용한다.
-- 동률이면 먼저 과반에 도달한 아이템, 과반이 없으면 서버가 후보 중 무작위 선택한다.
-
-### MVP 아이템
-
-| 카테고리 | 아이템 |
-|---|---|
-| 모자 | 왕관, 탐험가 모자, 리본 |
-| 안경 | 선글라스, 하트 안경, 단안경 |
-| 목 장식 | 나비넥타이, 목걸이, 스카프 |
-| 배경 | 정글, 화산, 박물관 |
-
-와이라노 결과에서는 티꾸 대신 결과 화면에 와이라노 레퍼런스 이미지를 표시한다.
+티꾸(꾸미기 투표)와 티라노 이름 투표 기능은 시간 부족으로 스코프에서 제외했다.
+결과 화면은 20초 대기 창만 유지하며(박물관 저장 타이밍용), 그동안 투표는
+발생하지 않는다.
 
 ---
 
@@ -495,22 +479,22 @@
 
 ### 전시 정보
 
-- 티라노 이름
 - 정상 또는 와이라노 상태
 - 팀 이름과 팀원
 - 완성 시각
 - 발굴 시간
 - 다이노런 클리어율과 조립 등급
 - 명중률
-- 적용한 티꾸 아이템
 - 발견한 일반 화석
+
+(티라노 이름·티꾸 아이템은 투표 기능 제거로 항상 빈 값으로 저장된다. §7 참고)
 
 ### 저장 방식
 
 - 회원가입은 여전히 없지만, 박물관 데이터는 서버의 SQLite(`node:sqlite`) DB에 저장한다.
-- 티꾸·이름 투표가 확정되는 시점에 팀별로 한 건씩 기록한다(`backend/src/db/museumDb.ts`).
+- 결과 화면 대기(20초)가 끝나는 시점에 팀별로 한 건씩 기록한다(`backend/src/db/museumDb.ts`).
 - `GET /api/museum`으로 최근 20마리까지 최신순 조회. 브라우저·기기와 무관하게 같은 서버를 쓰는 모두가 같은 박물관을 본다(이전 `localStorage` 방식과 달리 브라우저에 종속되지 않음).
-- 팀원 목록·티꾸 데코레이션처럼 항상 통째로만 조회되는 데이터는 정규화 없이 JSON 컬럼으로 저장한다.
+- 팀원 목록처럼 항상 통째로만 조회되는 데이터는 정규화 없이 JSON 컬럼으로 저장한다.
 
 ---
 
@@ -762,7 +746,6 @@ React → Godot:
 | `TREX_TRANSFORM` | 팀별 위치, 회전, pose ID | 티라노 보간 |
 | `ENERGY_HIT` | 팀, 부위, 에너지, 안정도 | 레이저·피격 파티클 |
 | `REVIVAL_RESULT` | 정상·와이라노 결과 | 정상은 3D 시네마틱, 와이라노는 신호만(3D 연출 없음) |
-| `DECORATION_STATE` | 적용 아이템과 색상 | 3D 액세서리 교체 |
 | `MUSEUM_ENTRIES` | 전시 티라노 목록 | 박물관 배치 |
 
 Godot → React:
@@ -896,12 +879,11 @@ Main.tscn
 - 조직 생성은 실제 메시 생성이 아니라 dissolve 셰이더의 threshold 애니메이션으로 표현한다.
 - 결과에 영향을 주는 시점은 서버 이벤트이며 시네마틱 길이는 승패 판정과 분리한다.
 
-### 12.7 티꾸와 박물관
+### 12.7 박물관
 
-- 모자·안경·목 장식은 리그의 `HeadSocket`, `FaceSocket`, `NeckSocket`에 부착한다.
-- 아이템은 `DecorationCatalog` 리소스에서 ID, 장면 경로, 소켓, 위치 보정을 관리한다.
-- 박물관은 저장된 `MuseumTyranno` 데이터를 받아 전시대별 모델과 장식을 생성한다.
+- 박물관은 저장된 `MuseumTyranno` 데이터를 받아 전시대별 모델을 생성한다.
 - 최근 20마리를 모두 고해상도 렌더하지 않고 카메라 주변 전시만 활성화한다.
+- 티꾸(장식) 기능은 제거되어 Godot 쪽 장식 소켓/`DecorationCatalog`는 구현하지 않는다 (§7 참고).
 
 ### 12.8 3D 에셋 규격
 
@@ -1282,8 +1264,6 @@ handshake는 역할과 클라이언트 버전만 확인한다. 모바일의 실�
 | `aim:update` | 모바일 | 없음 | 30Hz |
 | `energy:fire` | 모바일 | 필수 | 쿨다운 350ms |
 | `sensor:status` | 모바일 | 필수 | 상태 변경 시 |
-| `decoration:vote` | 모바일 | 필수 | 카테고리당 변경 5회 |
-| `name:vote` | 모바일 | 필수 | 변경 5회 |
 | `game:rematch` | 데스크탑 | 필수 | 초당 1회 |
 | `room:requestState` | 양쪽 | 필수 | 5초당 1회 |
 
@@ -1490,45 +1470,7 @@ type SensorStatusRequest = {
 
 서버는 센서 상태를 게임 판정에 사용하지 않고 로비와 진단 UI에만 표시한다.
 
-### 17.12 `decoration:vote`
-
-```ts
-type DecorationCategory = "HAT" | "GLASSES" | "NECK" | "BACKGROUND";
-
-type DecorationVoteRequest = {
-  requestId: RequestId;
-  category: DecorationCategory;
-  itemId: string;
-};
-
-type DecorationVoteResponse = {
-  category: DecorationCategory;
-  counts: Record<string, number>;
-  selectedItemId: string | null;
-  votingEndsAt: number;
-};
-```
-
-item ID는 서버의 허용 목록에 있어야 한다. 투표 종료 후 최다 득표를 선택하고 동점 규칙을 적용한다.
-
-### 17.13 `name:vote`
-
-```ts
-type NameVoteRequest = {
-  requestId: RequestId;
-  candidateId: string;
-};
-
-type NameVoteResponse = {
-  counts: Record<string, number>;
-  selectedName: string | null;
-  votingEndsAt: number;
-};
-```
-
-서버가 제공한 후보 ID만 허용하며 사용자가 임의 문자열을 제출하지 못하게 한다.
-
-### 17.14 `game:rematch`
+### 17.12 `game:rematch`
 
 ```ts
 type GameRematchRequest = {
@@ -1590,9 +1532,6 @@ type ServerEvent<T> = {
 | `energy:coreChanged` | 팀, 이전·현재 코어, 다음 변경 시각 | 방 전체 |
 | `revival:formChanged` | 팀, form, 에너지, 안정도 | 방 전체 |
 | `game:result` | 승자, 이유, 팀·개인 통계 | 방 전체 |
-| `decoration:voteUpdated` | 카테고리, counts | 방 전체 |
-| `decoration:completed` | 선택 아이템 전체 | 방 전체 |
-| `name:voteUpdated` | 후보와 counts | 방 전체 |
 | `room:closed` | reason | 방 전체 |
 | `room:error` | `ApiError` | 해당 소켓 |
 

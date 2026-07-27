@@ -8,7 +8,6 @@ import { newRequestId } from "../util/requestId";
 import { ExcavationControls } from "./ExcavationControls";
 import { DinoRunControls } from "./DinoRunControls";
 import { AimControls } from "./AimControls";
-import { NameVote } from "./NameVote";
 import {
   applyDinoFinished,
   applyDinoProgress,
@@ -114,13 +113,12 @@ export function MobileJoin(): JSX.Element {
   }
 
   if (roomState && (roomState.roomPhase === "RESULT" || roomState.roomPhase === "DECORATION") && playerId) {
-    const socket = socketRef.current;
     return (
       <main className="mobile-join">
         <h1>결과</h1>
         {roomState.winner.teamId && <p>{TEAM_DISPLAY_NAMES[roomState.winner.teamId]} 승리!</p>}
         {!roomState.winner.teamId && <p>무승부</p>}
-        {socket && <NameVote socket={socket} />}
+        <p className="hint">데스크탑 화면에서 결과를 확인하세요.</p>
       </main>
     );
   }
