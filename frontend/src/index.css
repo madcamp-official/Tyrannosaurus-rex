@@ -291,6 +291,13 @@ body {
   font-size: 16px;
 }
 
+.lobby-code-card__code {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  color: rgba(255, 248, 236, 0.5) !important;
+  letter-spacing: 0.04em;
+}
+
 .lobby-teams {
   display: flex;
   gap: clamp(40px, 12vw, 160px);

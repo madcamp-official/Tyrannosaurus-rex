@@ -324,6 +324,7 @@ export function DesktopLobby(): JSX.Element {
               <div className="lobby-code-card__qr">
                 {qrDataUrl && <img src={qrDataUrl} alt="입장 QR 코드" width={220} height={220} />}
                 <span>📱 스캔해서 입장</span>
+                <span className="lobby-code-card__code">코드 {roomState.roomCode}</span>
               </div>
             </div>
 
