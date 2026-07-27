@@ -1498,6 +1498,88 @@ body {
   background: rgba(16, 21, 28, 0.85);
 }
 
+.result-view__stats {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.result-view__stats li {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.result-view__stat-label {
+  font-weight: 700;
+  min-width: 2.4em;
+}
+
+.result-view__stat-time {
+  opacity: 0.75;
+}
+
+.result-view__stat-sep {
+  opacity: 0.4;
+}
+
+.result-view__stat-score {
+  font-weight: 700;
+}
+
+.result-view__total-score {
+  margin-top: 10px;
+  font-size: 2.6rem;
+  font-weight: 800;
+  font-family: "Baloo 2", sans-serif;
+  color: #f5c542;
+  text-align: center;
+}
+
+.result-view__mvp {
+  width: 100%;
+  box-sizing: border-box;
+  margin: 24px 0;
+  padding: 16px 20px;
+  border: 1px solid #2a323d;
+  border-radius: 8px;
+  background: rgba(16, 21, 28, 0.85);
+}
+
+.result-view__mvp-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.result-view__mvp-row {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.result-view__mvp-rank {
+  font-weight: 800;
+  min-width: 1.6em;
+  opacity: 0.7;
+}
+
+.result-view__mvp-name {
+  flex: 1;
+  text-align: left;
+}
+
+.result-view__mvp-score {
+  font-weight: 700;
+  color: #f5c542;
+}
+
 .result-view__voting {
   margin-top: 12px;
   font-size: 0.75rem;
