@@ -155,9 +155,11 @@ export function MobileJoin(): JSX.Element {
         {team.phase === "ASSEMBLY" && socket && playerId && <DinoRunControls socket={socket} team={team} playerId={playerId} />}
         {team.phase === "CHARGING" && socket && <AimControls socket={socket} />}
         {team.phase === "REVIVED" && (
-          <p className="mobile-game__title" style={{ position: "relative", zIndex: 2, padding: "0 24px" }}>
-            {team.charging.form === "NORMAL" ? "🦖 부활 완료!" : "🦖 와이라노가 되어버렸어요."} 데스크탑 화면을 확인하세요.
-          </p>
+          <div className="mobile-game__revived">
+            <p className="mobile-game__title">
+              {team.charging.form === "NORMAL" ? "🦖 부활 완료!" : "🦖 와이라노가 되어버렸어요."} 데스크탑 화면을 확인하세요.
+            </p>
+          </div>
         )}
       </main>
     );
