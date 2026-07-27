@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BONE_IDS, CORE_BONE_COUNT, EXCAVATION_MAX_INPUTS_PER_SECOND, EXCAVATION_POINTS_PER_BONE, ROUND_TRANSITION_MS } from "@trex/shared";
+import { BONE_IDS, boneCountForTeam, EXCAVATION_MAX_INPUTS_PER_SECOND, EXCAVATION_POINTS_PER_BONE, ROUND_TRANSITION_MS } from "@trex/shared";
 import { RoomManager } from "../src/rooms/RoomManager.js";
 import { makeBoneOrder } from "../src/game/excavation.js";
 
@@ -24,9 +24,10 @@ function digUntilDone(
   playerId: string,
   startNow: number,
 ): number {
+  const targetBoneCount = boneCountForTeam(room.state.teams[teamId].playerIds.length);
   let seq = 1;
   let now = startNow;
-  for (let i = 0; i < 200 && room.state.teams[teamId].excavation.discoveredBoneIds.length < CORE_BONE_COUNT; i += 1) {
+  for (let i = 0; i < 200 && room.state.teams[teamId].excavation.discoveredBoneIds.length < targetBoneCount; i += 1) {
     now += 1000;
     rooms.applyExcavation(room, teamId, playerId, { seq: seq++, count: 5, sourceCounts: { motion: 5, tap: 0 }, clientTime: now }, now);
   }
@@ -111,7 +112,7 @@ describe("applyExcavation via RoomManager", () => {
 
     digUntilDone(rooms, room, "A", playerA, Date.now());
 
-    const expectedAwarded = expectedOrder.slice(0, CORE_BONE_COUNT);
+    const expectedAwarded = expectedOrder.slice(0, boneCountForTeam(room.state.teams.A.playerIds.length));
     expect(room.state.teams.A.excavation.discoveredBoneIds).toEqual(expectedAwarded);
     expect(room.phaseDurations.A.excavationMs).not.toBeNull();
   });

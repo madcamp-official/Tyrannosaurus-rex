@@ -6,8 +6,8 @@ export const TEAM_DISPLAY_NAMES: Record<"A" | "B", string> = {
   B: "F라노 팀",
 };
 
-// TODO: 테스트용으로 5로 줄임 — 나중에 13으로 되돌릴 것.
-export const CORE_BONE_COUNT = 5;
+// 팀 발굴 목표 뼈 개수는 고정값이 아니라 팀 인원수 × BONES_PER_PLAYER로 정해진다(boneCountForTeam 참고).
+export const BONES_PER_PLAYER = 4;
 export const EXCAVATION_POINTS_PER_BONE = 60;
 export const EXCAVATION_SHAKE_COOLDOWN_MS = 200;
 export const MOBILE_INPUT_FLUSH_MS = 100;
@@ -57,7 +57,7 @@ export const STABILITY_TARGET = 100;
 export const CORE_HIT_RADIUS = 0.05;
 export const BONE_HIT_RADIUS = 0.18;
 export const TREX_MOVE_AMPLITUDE = 0.28; // 중심(0.5)에서 좌우로 흔들리는 폭
-export const TREX_MOVE_PERIOD_MS = 6_500;
+export const TREX_MOVE_PERIOD_MS = 12_000;
 
 // Plan.md §2.3, §3 3경기 누적 점수제. 구체적 계수가 문서에 없어 MVP 기본값으로 정한다.
 export const GAME_SCORE_MAX = 100;

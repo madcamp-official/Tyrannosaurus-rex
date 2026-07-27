@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { roomCodeSchema, roomJoinRequestSchema } from "./events.js";
-import { BONE_IDS, CORE_BONE_COUNT } from "./index.js";
+import { BONE_IDS, boneCountForTeam } from "./index.js";
 
 describe("shared contracts", () => {
   it("accepts a valid 4-digit room code", () => {
@@ -21,10 +21,18 @@ describe("shared contracts", () => {
     expect(result.success).toBe(false);
   });
 
-  it("has enough named bones to cover the core bone count", () => {
-    // CORE_BONE_COUNT는 테스트 중 조정될 수 있는 밸런스 값이라, 정확히 같을 필요는 없고
-    // BONE_IDS가 그 개수만큼은 항상 있어야 한다(모자라면 makeBoneOrder가 못 채운다).
-    expect(BONE_IDS.length).toBeGreaterThanOrEqual(CORE_BONE_COUNT);
+  it("has enough named bones to cover the largest possible team bone count", () => {
+    // boneCountForTeam은 아무리 인원이 많아도 BONE_IDS.length를 넘지 않아야
+    // makeBoneOrder가 매번 채울 수 있다.
+    expect(BONE_IDS.length).toBeGreaterThanOrEqual(boneCountForTeam(100));
     expect(new Set(BONE_IDS).size).toBe(BONE_IDS.length);
+  });
+
+  it("scales the target bone count with team size, capped at BONE_IDS.length", () => {
+    expect(boneCountForTeam(1)).toBe(4);
+    expect(boneCountForTeam(2)).toBe(8);
+    expect(boneCountForTeam(3)).toBe(12);
+    expect(boneCountForTeam(4)).toBe(BONE_IDS.length);
+    expect(boneCountForTeam(10)).toBe(BONE_IDS.length);
   });
 });
