@@ -119,14 +119,27 @@ func _apply_ground_visibility() -> void:
 		_ground.visible = _phase == "EXCAVATION"
 
 ## React가 excavation:progress마다 보내는 이번 뼈 구간 진행도(0~100)를 받아 땅을 파낸다.
-## 진행도가 EXCAVATION_DIG_STEP만큼 움직였을 때만 실제로 파서, 뼈 하나 찾는 동안 땅이
+## 진행도가 EXCAVATION_DIG_STEP만큼 움직였을 때만 실제로 파서, 뼈 하나 얻는 동안 땅이
 ## 다 파여버리지 않고 발굴 전체 구간에 걸쳐 조금씩 변화하게 한다.
+var _debug_dig_count := 0
+var _debug_label: Label3D
+
 func on_excavation_progress(progress: float) -> void:
+	if not _debug_label:
+		_debug_label = Label3D.new()
+		_debug_label.position = Vector3(0, 2.6, 0)
+		_debug_label.font_size = 64
+		_debug_label.modulate = Color(1, 0.2, 0.2)
+		_debug_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		add_child(_debug_label)
+	_debug_label.text = "recv progress=%.1f" % progress
 	if not _ground or _phase != "EXCAVATION":
 		return
 	if absf(progress - _last_dig_progress) < EXCAVATION_DIG_STEP:
 		return
 	_last_dig_progress = progress
+	_debug_dig_count += 1
+	_debug_label.text = "DIG #%d @ %.1f" % [_debug_dig_count, progress]
 	_ground.dig_random_scoop(progress)
 
 func on_bone_discovered(bone_id: String) -> void:
