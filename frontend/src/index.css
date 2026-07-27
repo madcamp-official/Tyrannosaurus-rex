@@ -1008,6 +1008,10 @@ body {
   color: #9aa4b2;
 }
 
+.exca-result--draw .exca-result__label {
+  color: #7fd0e8;
+}
+
 .exca-result__score {
   font-size: clamp(20px, 2.4vw, 28px);
   font-weight: 800;

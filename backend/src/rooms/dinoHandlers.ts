@@ -1,6 +1,6 @@
 /** Plan.md §17.6, §18. 다이노런 점프 판정과 30초 종료 배경 틱. */
 
-import { DINO_JUMP_MAX_PER_SECOND, dinoJumpRequestSchema } from "@trex/shared";
+import { DINO_JUMP_MAX_PER_SECOND, TEAM_IDS, dinoJumpRequestSchema } from "@trex/shared";
 import type { RoomManager } from "./RoomManager.js";
 import type { AppServer, AppSocket } from "./types.js";
 import { roomChannel } from "./channels.js";
@@ -48,7 +48,7 @@ export function registerDinoHandlers(io: AppServer, socket: AppSocket, rooms: Ro
   });
 }
 
-/** 100ms 배경 틱: 놓친 장애물로 탈락한 플레이어를 알리고, 30초가 끝난 팀을 평가해 CHARGING으로 전환한다. */
+/** 100ms 배경 틱: 놓친 장애물로 탈락한 플레이어를 알리고, 30초가 끝난 팀을 평가한다. */
 export function tickRoomDinoRun(io: AppServer, rooms: RoomManager, roomCode: string): void {
   const room = rooms.getRoom(roomCode);
   if (!room || room.state.roomPhase !== "PLAYING") return;
@@ -61,8 +61,7 @@ export function tickRoomDinoRun(io: AppServer, rooms: RoomManager, roomCode: str
     io.to(channel).emit("dino:playerDied", toServerEvent(roomCode, room.state.revision, { teamId, playerId }));
   }
 
-  const finished = rooms.tickDinoRun(room, now);
-  if (finished.length === 0) return;
+  const { finished, teamResults } = rooms.tickDinoRun(room, now);
   for (const { teamId, result } of finished) {
     io.to(channel).emit(
       "dino:finished",
@@ -73,14 +72,31 @@ export function tickRoomDinoRun(io: AppServer, rooms: RoomManager, roomCode: str
         startStability: result.startStability,
       }),
     );
+  }
+  // 먼저 끝난 팀은 조용히 상대를 기다리고, 두 팀 다 끝나면 WIN/LOSE/DRAW를 함께 알린다.
+  // 실제 CHARGING 전환은 tickDinoRunHandoff가 ROUND_TRANSITION_MS를 기다렸다가 처리한다.
+  for (const teamResult of teamResults) {
+    io.to(channel).emit("dino:teamResult", toServerEvent(roomCode, room.state.revision, teamResult));
+  }
+  if (finished.length > 0 || teamResults.length > 0) {
+    broadcastRoomState(io, rooms, roomCode);
+  }
+}
+
+/** 100ms 배경 틱: 두 팀 다 다이노런을 끝내고 대기 시간이 지나면 함께 CHARGING으로 전환한다. */
+export function tickDinoRunHandoff(io: AppServer, rooms: RoomManager, roomCode: string): void {
+  const room = rooms.getRoom(roomCode);
+  if (!room || room.state.roomPhase !== "PLAYING") return;
+
+  const transitioned = rooms.tickDinoRunTransition(room, Date.now());
+  if (!transitioned) return;
+
+  const channel = roomChannel(roomCode);
+  for (const teamId of TEAM_IDS) {
+    const team = room.state.teams[teamId];
     io.to(channel).emit(
       "team:phaseChanged",
-      toServerEvent(roomCode, room.state.revision, {
-        teamId,
-        from: "ASSEMBLY",
-        to: "CHARGING",
-        endsAt: room.state.teams[teamId].phaseEndsAt,
-      }),
+      toServerEvent(roomCode, room.state.revision, { teamId, from: "ASSEMBLY", to: "CHARGING", endsAt: team.phaseEndsAt }),
     );
   }
   broadcastRoomState(io, rooms, roomCode);

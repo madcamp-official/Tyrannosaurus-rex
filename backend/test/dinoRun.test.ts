@@ -5,6 +5,7 @@ import {
   DINO_JUMP_WINDOW_MS,
   DINO_OBSTACLE_COUNT,
   DINO_RUN_DURATION_MS,
+  ROUND_TRANSITION_MS,
 } from "@trex/shared";
 import { RoomManager } from "../src/rooms/RoomManager.js";
 import { makeObstacleSchedule } from "../src/game/dinoRun.js";
@@ -86,7 +87,7 @@ describe("dino run", () => {
     expect(outcome.accepted).toBe(false);
   });
 
-  it("evaluates the run after 30s and moves both teams to CHARGING with scaled stability", () => {
+  it("evaluates the run after 30s, decides WIN/LOSE by clear rate, and moves both teams to CHARGING only after the wait", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
     // A팀은 전부 클리어, B팀은 0개.
     for (const offset of room.state.teams.A.dinoRun.obstacleOffsetsMs) {
@@ -94,7 +95,8 @@ describe("dino run", () => {
       expect(res.accepted && res.cleared).toBe(true);
     }
 
-    const finished = rooms.tickDinoRun(room, now + DINO_RUN_DURATION_MS + 1);
+    const evalNow = now + DINO_RUN_DURATION_MS + 1;
+    const { finished, teamResults } = rooms.tickDinoRun(room, evalNow);
     expect(finished.map((f) => f.teamId).sort()).toEqual(["A", "B"]);
 
     const a = finished.find((f) => f.teamId === "A")!.result;
@@ -106,13 +108,31 @@ describe("dino run", () => {
     expect(b.grade).toBe("MESSY");
     expect(b.startStability).toBe(CHARGING_START_STABILITY_BASE);
 
+    // 두 팀 다 끝나 곧바로 승/패는 갈리지만, 대기 시간이 지나기 전엔 CHARGING으로 넘어가지 않는다.
+    expect(teamResults).toContainEqual({ teamId: "A", result: "WIN", score: room.state.teams.A.scores.dinoRun });
+    expect(teamResults).toContainEqual({ teamId: "B", result: "LOSE", score: room.state.teams.B.scores.dinoRun });
+    expect(room.state.teams.A.phase).toBe("ASSEMBLY");
+    expect(rooms.tickDinoRunTransition(room, evalNow)).toBe(false);
+
+    const transitioned = rooms.tickDinoRunTransition(room, evalNow + ROUND_TRANSITION_MS + 1);
+    expect(transitioned).toBe(true);
+
     for (const teamId of ["A", "B"] as const) {
       expect(room.state.teams[teamId].phase).toBe("CHARGING");
       expect(room.state.teams[teamId].phaseEndsAt).not.toBeNull();
+      expect(room.state.teams[teamId].dinoRun.result).toBeNull();
     }
     expect(room.state.teams.A.charging.stability).toBe(100);
     expect(room.state.teams.B.charging.stability).toBe(CHARGING_START_STABILITY_BASE);
     expect(room.phaseDurations.A.assemblyMs).not.toBeNull();
+  });
+
+  it("marks both teams DRAW when clear rates tie", () => {
+    const { rooms, room, now } = setupAssemblyRoom();
+    // 아무도 뛰지 않아 둘 다 0% 클리어로 동률 — DRAW로 표시된다.
+    const { teamResults } = rooms.tickDinoRun(room, now + DINO_RUN_DURATION_MS + 1);
+    expect(teamResults).toContainEqual({ teamId: "A", result: "DRAW", score: room.state.teams.A.scores.dinoRun });
+    expect(teamResults).toContainEqual({ teamId: "B", result: "DRAW", score: room.state.teams.B.scores.dinoRun });
   });
 
   it("kills a player who lets an obstacle's window fully pass, and rejects further jumps from them", () => {
@@ -140,7 +160,7 @@ describe("dino run", () => {
 
   it("does not finish the run before the 30s deadline", () => {
     const { rooms, room, now } = setupAssemblyRoom();
-    const finished = rooms.tickDinoRun(room, now + DINO_RUN_DURATION_MS - 1000);
+    const { finished } = rooms.tickDinoRun(room, now + DINO_RUN_DURATION_MS - 1000);
     expect(finished).toEqual([]);
     expect(room.state.teams.A.phase).toBe("ASSEMBLY");
   });

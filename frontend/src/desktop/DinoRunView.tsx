@@ -20,6 +20,20 @@ export function DinoRunTeamPanel({ team, players }: { team: TeamState; players: 
   const remainingSec = Math.max(0, Math.ceil((team.phaseStartedAt + DINO_RUN_DURATION_MS - nowMs) / 1000));
   const total = team.dinoRun.obstacleOffsetsMs.length;
 
+  if (team.dinoRun.result) {
+    const isWin = team.dinoRun.result === "WIN";
+    const isDraw = team.dinoRun.result === "DRAW";
+    const variant = isWin ? "win" : isDraw ? "draw" : "lose";
+    return (
+      <div className={`exca-result exca-result--${variant}`}>
+        <div className="exca-result__label">{isWin ? "WIN" : isDraw ? "DRAW" : "LOSE"}</div>
+        <div className="exca-result__score">{Math.round(team.scores.dinoRun ?? 0)}점</div>
+        {team.dinoRun.grade && <p className="exca-result__hint">{GRADE_LABEL[team.dinoRun.grade]}</p>}
+        <p className="exca-result__hint">잠시 후 사격 화면으로 이동합니다…</p>
+      </div>
+    );
+  }
+
   return (
     <div className="dino-view">
       <p className="dino-view__timer">🏃 다이노런 진행 중 — {remainingSec}초 남음</p>

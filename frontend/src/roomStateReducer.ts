@@ -173,6 +173,24 @@ export function applyDinoFinished(
   };
 }
 
+export function applyDinoTeamResult(
+  state: RoomState,
+  data: { teamId: TeamId; result: "WIN" | "LOSE" | "DRAW"; score: number },
+): RoomState {
+  const team = state.teams[data.teamId];
+  return {
+    ...state,
+    teams: {
+      ...state.teams,
+      [data.teamId]: {
+        ...team,
+        dinoRun: { ...team.dinoRun, result: data.result },
+        scores: { ...team.scores, dinoRun: data.score },
+      },
+    },
+  };
+}
+
 export function applyShotResolved(
   state: RoomState,
   data: {

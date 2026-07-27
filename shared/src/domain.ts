@@ -145,6 +145,8 @@ export type DinoRunState = {
   /** 0~1 팀 클리어율. 30초 종료 시 확정. */
   performance: number | null;
   grade: DinoRunGrade | null;
+  /** 두 팀 다 끝나면 클리어율을 비교해 정해진다. 정해지면 잠시 대기 후 함께 CHARGING으로 넘어간다. */
+  result: "WIN" | "LOSE" | "DRAW" | null;
 };
 
 /** Plan.md §2.3, §3. 경기 1~3(발굴·다이노런·사격) 각각의 점수. 완료 전에는 null. 0~100 스케일. */
