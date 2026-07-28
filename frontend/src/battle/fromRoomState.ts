@@ -41,8 +41,15 @@ export function battleStateFromRoom(
 
   // 스켈레톤은 방에 하나뿐이라, 먼저 CHARGING에 들어간 팀의 트렉스 데이터를 그대로 쓰면 된다(§2.3).
   const primaryTeamId = chargingTeamIds[0]!;
-  const trex = ephemeral.trexByTeam[primaryTeamId];
-  if (!trex) return null; // 첫 트렉 틱(최대 100ms)이 아직 도착하지 않은 순간
+  // 첫 trex:transform 이벤트가 누락되거나 늦어져도 예전 Godot 사격 화면에 계속
+  // 머물지 않도록 중앙 기본값으로 즉시 배틀 화면을 연다. 서버 좌표가 도착하면 같은
+  // BattleState 경로에서 자연스럽게 실제 위치를 이어받는다.
+  const trex = ephemeral.trexByTeam[primaryTeamId] ?? {
+    position: { x: 0.5, y: 0.5 },
+    facing: "RIGHT" as const,
+    activeCore: roomState.teams[primaryTeamId].charging.activeCore,
+    corePosition: { x: 0.5, y: 0.5 },
+  };
 
   const now = Date.now();
   const remainingSec = Math.min(

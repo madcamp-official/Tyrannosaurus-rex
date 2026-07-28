@@ -76,9 +76,11 @@ describe("battleStateFromRoom", () => {
     expect(battleStateFromRoom(roomState, makeEphemeral(), [])).toBeNull();
   });
 
-  it("returns null until the first trex:transform tick has arrived for the charging team", () => {
+  it("opens the battle screen with a centered fallback before the first trex:transform tick", () => {
     const roomState = makeRoomState();
-    expect(battleStateFromRoom(roomState, makeEphemeral(), ["A"])).toBeNull();
+    const battle = battleStateFromRoom(roomState, makeEphemeral(), ["A"]);
+    expect(battle).not.toBeNull();
+    expect(battle!.trex).toEqual({ x: 0.5, y: 0.5, facing: 1, corePos: [0.5, 0.5] });
   });
 
   it("converts server data into BattleState — core label, facing sign, and team aggregates", () => {

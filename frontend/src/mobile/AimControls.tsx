@@ -1,7 +1,7 @@
 /** Plan.md §5.2, §6.3. 자이로 전용 조준 파이프라인 + 발사(터치패드 모드는 제거). */
 
 import { useEffect, useRef, useState } from "react";
-import { AIM_UPDATE_MAX_HZ, CHARGING_PRACTICE_DURATION_MS, PHASE_START_GRACE_MS, SHOT_COOLDOWN_MS, type NormalizedPoint, type SensorPermission, type TeamState } from "@trex/shared";
+import { AIM_UPDATE_MAX_HZ, SHOT_COOLDOWN_MS, type NormalizedPoint, type SensorPermission } from "@trex/shared";
 import type { AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
 
@@ -22,27 +22,7 @@ function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
-/** CHARGING_PRACTICE 동안 표시하는 영점 조정 카운트다운. 서버 phaseStartedAt 기준이라 화면마다 어긋나지 않는다. */
-function usePracticeCountdown(active: boolean, phaseStartedAt: number): number {
-  const [nowMs, setNowMs] = useState(() => Date.now());
-
-  useEffect(() => {
-    if (!active) return undefined;
-    let raf = 0;
-    const loop = () => {
-      setNowMs(Date.now());
-      raf = requestAnimationFrame(loop);
-    };
-    raf = requestAnimationFrame(loop);
-    return () => cancelAnimationFrame(raf);
-  }, [active]);
-
-  if (!active) return 0;
-  const elapsed = Math.max(0, nowMs - phaseStartedAt - PHASE_START_GRACE_MS);
-  return Math.max(0, Math.ceil((CHARGING_PRACTICE_DURATION_MS - elapsed) / 1000));
-}
-
-export function AimControls({ socket, team, practice = false }: { socket: AppSocket; team?: TeamState; practice?: boolean }): JSX.Element {
+export function AimControls({ socket, practice = false }: { socket: AppSocket; practice?: boolean }): JSX.Element {
   const [orientationPermission, setOrientationPermission] = useState<SensorPermission>("UNKNOWN");
   const [calibrated, setCalibrated] = useState(false);
   const [point, setPoint] = useState<NormalizedPoint>({ x: 0.5, y: 0.5 });
@@ -60,8 +40,6 @@ export function AimControls({ socket, team, practice = false }: { socket: AppSoc
   const lastRawRef = useRef({ beta: 0, gamma: 0 });
   const hasReadingRef = useRef(false);
   const seqRef = useRef(0);
-
-  const practiceRemainingSec = usePracticeCountdown(practice, team?.phaseStartedAt ?? Date.now());
 
   useEffect(() => {
     if (typeof window.DeviceOrientationEvent === "undefined") {
@@ -155,7 +133,7 @@ export function AimControls({ socket, team, practice = false }: { socket: AppSoc
   return (
     <div className="aim-controls">
       {practice && (
-        <p className="aim-controls__practice-banner">🎯 영점 조정 연습 중 · {practiceRemainingSec}초 뒤 사격 시작</p>
+        <p className="aim-controls__practice-banner">🎯 영점을 맞춘 뒤 데스크탑 화면을 확인하세요</p>
       )}
 
       {orientationPermission !== "GRANTED" && (

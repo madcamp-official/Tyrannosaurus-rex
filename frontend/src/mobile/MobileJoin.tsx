@@ -170,7 +170,7 @@ export function MobileJoin(): JSX.Element {
           // (calibrated 등 내부 state)이 실제 CHARGING으로 넘어갈 때 유지된다 — 조건별로
           // 서로 다른 자리에 <AimControls>를 두면 phase가 바뀌는 순간 컴포넌트가
           // 통째로 마운트 해제·재마운트되어 영점이 초기화되는 버그가 있었다.
-          <AimControls socket={socket} team={team} practice={team.phase === "CHARGING_PRACTICE"} />
+          <AimControls socket={socket} practice={team.phase === "CHARGING_PRACTICE"} />
         )}
         {team.phase === "REVIVED" && (
           <div className="mobile-game__revived">

@@ -5,9 +5,9 @@ signal pieces_ready(piece_ids: Array[String])
 
 const SKELETON_SCENE: PackedScene = preload("res://assets/models/trex_skeleton/skeleton.gltf")
 const MODEL_SCALE := 0.01
-## 발굴돼 흩어져 있는 동안(scatter)만 조각을 실제 조립 크기보다 키워서 잘 보이게 한다 —
-## 조립(snap)될 때는 target transform의 scale(1.0)로 다시 자연스럽게 줄어든다.
-const SCATTER_PIECE_SCALE := 1.8
+## 발굴과 조립에서 흩어진 조각을 원래 표시 크기(1.8)의 2.5배로 키운다.
+## 올바른 자리에 snap된 조각은 target transform의 scale(1.0)로 돌아가 완성 골격 비율을 유지한다.
+const SCATTER_PIECE_SCALE := 4.5
 
 ## 퍼즐용 대형 조각 13개.
 ## 작은 발가락/척추뼈를 하나씩 떼지 않고, 사람이 한눈에 구분할 수 있는

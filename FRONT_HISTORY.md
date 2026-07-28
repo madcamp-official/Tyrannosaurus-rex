@@ -218,3 +218,15 @@
 - API/Socket.IO/Shared 계약 변경: 없음.
 - 환경 변수 변경: 없음.
 - 검증 결과: `npm run typecheck`, `npm test`(72개), Godot 4.7.1 Web export, `npm run build`, `git diff --check` 통과.
+
+## 2026-07-29 - 사격 화면 즉시 진입 및 영점 카운트다운 단일화
+
+- 구현 목적: 서버의 첫 티라노 이동 이벤트가 누락돼도 새 KAIST 사격 화면이 반드시 열리게 하고 영점 카운트다운 중복을 제거한다.
+- 주요 변경 사항:
+  - 사격 페이즈 진입 즉시 중앙 기본 스켈레톤으로 `BattleScreen`을 렌더링하고, `trex:transform` 수신 후 실제 좌표를 이어받는다.
+  - 영점 조정 카운트다운은 데스크탑에만 유지하며 모바일은 카운트 숫자 대신 영점 조정 안내만 표시한다.
+  - 발굴에서 확대한 화석 크기를 조립 단계의 흩어진 조각에도 동일하게 유지한다. 올바르게 결합된 조각은 완성 골격 비율로 복귀한다.
+- 배포 확인: 이전 사격 변경 커밋은 운영 서버에 정상 반영되어 있었고 낮·노을·GLTF·BIN 자산 및 최신 CSS/JS가 모두 제공되고 있음을 확인했다.
+- API/Socket.IO/Shared 계약 변경: 없음.
+- 환경 변수 변경: 없음.
+- 검증 결과: `npm run typecheck`, `npm test`(72개), Godot 4.7.1 Web export, `npm run build`, `git diff --check` 통과.

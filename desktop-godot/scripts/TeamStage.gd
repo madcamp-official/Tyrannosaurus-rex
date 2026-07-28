@@ -9,7 +9,6 @@ const ARENA_WIDTH := 6.0
 const ARENA_DEPTH := 4.0
 const REVEAL_POP_DURATION := 0.6
 const SNAP_DURATION := 0.3
-const EXCAVATION_FOSSIL_SCALE := 2.5
 ## excavation:progress는 입력마다(초당 최대 12회) 오지만, 매번 파면 뼈 하나 찾는 사이에도
 ## 땅이 다 파여서 후반부에 시각적 변화가 없어진다. 진행도가 이만큼 움직일 때마다 한 번만 판다
 ## (뼈 하나당 0~100%를 대략 10번에 나눠 파는 셈).
@@ -174,7 +173,6 @@ func _reveal_piece(bone_id: String, animate: bool) -> void:
 	var piece := _model.get_piece(bone_id)
 	if not piece or piece.visible:
 		return
-	piece.scale *= EXCAVATION_FOSSIL_SCALE
 	piece.visible = true
 	if not animate:
 		return
