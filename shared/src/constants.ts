@@ -36,17 +36,18 @@ export const METEOR_HIT_SCORE_PENALTY = 15; // 운석에 맞을 때마다 깎이
 export const METEOR_BONUS_SCORE_REWARD = 20; // 보너스 아이템을 잡으면 얻는 점수
 // 좌우 위치(0~1) 기준 충돌 판정 반경 — 이 안에 있으면 맞은(또는 잡은) 것으로 인정한다.
 export const SKY_OBJECT_COLLISION_RADIUS = 0.09;
-export const SKY_OBJECT_COUNT = 24; // 1분 동안 떨어지는 운석+아이템 총 개수
-export const SKY_OBJECT_BONUS_CHANCE = 0.18; // 이 중 보너스 아이템일 확률
+export const SKY_OBJECT_COUNT = 34; // 1분 동안 떨어지는 운석+아이템 총 개수
+export const SKY_OBJECT_BONUS_CHANCE = 0.1; // 이 중 보너스 아이템일 확률
 export const SKY_OBJECT_MIN_OFFSET_MS = 3_000; // 시작 3초는 아무것도 안 떨어지는 몸풀기 구간
 export const SKY_OBJECT_MAX_OFFSET_MS = 57_000;
-export const SKY_OBJECT_MIN_GAP_MS = 1_200;
-// 오브젝트가 화면 위에서 판정 지점까지 떨어지는 데 걸리는 시간(연출용).
-export const SKY_OBJECT_FALL_MS = 1_800;
+export const SKY_OBJECT_MIN_GAP_MS = 900;
+// 오브젝트가 화면 위에서 판정 지점까지 떨어지는 데 걸리는 시간(연출용) — 짧을수록 빠르게 떨어진다.
+export const SKY_OBJECT_FALL_MS = 1_150;
 // 좌우 위치 보고 빈도 상한(자이로 기울임 → 서버 전송).
 export const DINO_POSITION_UPDATE_MAX_HZ = 20;
-// 팀 성능(0~1) 정규화 기준 — 팀원 1인이 이 점수를 내면 만점으로 친다.
-export const METEOR_DODGE_REFERENCE_SCORE_PER_PLAYER = 120;
+// 팀 성능(0~1) 정규화 기준 — 팀원 1인이 이 점수를 내면 만점으로 친다. 보너스 아이템이
+// 줄어든 만큼(SKY_OBJECT_BONUS_CHANCE) 만점 난이도가 그대로 유지되도록 낮춰 맞췄다.
+export const METEOR_DODGE_REFERENCE_SCORE_PER_PLAYER = 70;
 // 조립 평가 등급 경계 (팀 성능 0~1 기준)
 export const DINO_GRADE_PERFECT = 0.85;
 export const DINO_GRADE_GOOD = 0.6;
