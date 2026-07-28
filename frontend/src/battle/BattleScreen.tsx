@@ -33,7 +33,7 @@ export function BattleScreen({
     <div className="battle-viewport">
       <div
         className="battle-stage"
-        style={{ width: STAGE_W, height: STAGE_H, transform: `scale(${scale})` }}
+        style={{ width: STAGE_W, height: STAGE_H, transform: `translate(-50%, -50%) scale(${scale})` }}
       >
         <BattleArena battle={battle} shotEvents={shotEvents} aimPoints={aimPoints} />
 
@@ -49,10 +49,7 @@ export function BattleScreen({
             </div>
           </div>
 
-          <div className="battle-chip battle-chip--right">
-            <span className="battle-chip__dot" />
-            CHARGING · {battle.stage}단계
-          </div>
+          <div className="battle-topbar__spacer" aria-hidden="true" />
         </div>
 
         <div className="battle-boards">

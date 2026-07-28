@@ -27,7 +27,9 @@
 }
 
 .battle-stage {
-  position: relative;
+  position: absolute;
+  top: 50%;
+  left: 50%;
   flex: 0 0 auto;
   transform-origin: center center;
   overflow: hidden;
@@ -343,21 +345,22 @@
 }
 
 .battle-timer {
+  width: 216px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  padding: 14px 40px 16px;
-  border-radius: 24px;
-  background: var(--glass-bg);
-  border: 1px solid var(--glass-border);
-  backdrop-filter: blur(16px);
-  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.4);
+  gap: 3px;
+  padding: 10px 24px 11px;
+  border-radius: 16px;
+  background: rgba(8, 10, 12, 0.8);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.32);
   position: relative;
 }
 
 .battle-timer__label {
-  font-size: 14px;
+  font-size: 12px;
   font-weight: 700;
   opacity: 0.7;
   letter-spacing: 0.05em;
@@ -365,7 +368,7 @@
 
 .battle-timer__clock {
   font-family: "IBM Plex Mono", monospace;
-  font-size: 68px;
+  font-size: 36px;
   font-weight: 700;
   line-height: 1;
   letter-spacing: 0.02em;
@@ -376,11 +379,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 6px 16px;
+  padding: 4px 12px;
   border-radius: 999px;
   background: rgba(0, 0, 0, 0.32);
   font-family: "YeogiOttaeJalnan", "Gothic A1", sans-serif;
-  font-size: 15px;
+  font-size: 12px;
   font-weight: 600;
   color: var(--gold);
 }
@@ -695,12 +698,6 @@
   font-size: 34px;
   font-weight: 700;
   line-height: 1;
-}
-
-.battle-gauge__value-target {
-  font-size: 18px;
-  opacity: 0.55;
-  font-weight: 600;
 }
 
 .battle-gauge__bar {

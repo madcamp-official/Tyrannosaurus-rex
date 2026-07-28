@@ -31,7 +31,6 @@ function TeamEnergyCard({ teamId, teamName, energy, target, totalHits, coreHits 
       </div>
       <div className="battle-gauge__value">
         {Math.round(energy)}
-        <span className="battle-gauge__value-target">/{target}</span>
       </div>
       <div className="battle-gauge__bar">
         <div className="battle-gauge__bar-fill" style={{ width: `${pct}%` }} />
@@ -57,7 +56,6 @@ export function BattleGaugeStrip({ battle }: { battle: BattleState }): JSX.Eleme
       <div className="battle-vs">
         <span className="battle-vs__badge">VS</span>
         <span className="battle-vs__round">ROUND 1</span>
-        <span className="battle-vs__rule">먼저 {battle.energyTarget}%</span>
       </div>
       <TeamEnergyCard
         teamId="B"

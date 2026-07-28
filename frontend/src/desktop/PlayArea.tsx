@@ -154,7 +154,7 @@ function PracticeAimOverlay({
           );
         })}
       </div>
-      <p className="practice-aim__guide">휴대폰을 움직여 조준점이 과녁 중앙을 따라오는지 확인하세요</p>
+      <p className="practice-aim__guide">휴대폰을 움직여 과녁판 중앙을 맞추어, 영점을 조정하세요!</p>
       <div className="practice-aim__legend">
         {TEAM_IDS.map((teamId) => (
           <span key={teamId} className={`practice-aim__team practice-aim__team--${teamId.toLowerCase()}`}>
