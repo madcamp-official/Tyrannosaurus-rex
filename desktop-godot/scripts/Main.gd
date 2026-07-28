@@ -48,17 +48,24 @@ func _build_environment() -> void:
 
 ## 각 팀의 발굴 지형(GroundDig)은 16×16짜리 독립된 패치라, 그 바깥은 원래 아무것도 없어
 ## 카메라가 조금만 벗어나도 하늘 배경이 부자연스럽게 옆쪽까지 뻗어 보였다. 두 패치
-## "바깥"만 정확히 피해서 잔디 타일로 채운다 — 패치 영역 자체를 덮으면(첫 시도 때 실수)
-## 파낸 구덩이가 평평한 배경 평면에 가려 안 보이게 되므로 절대 겹치면 안 된다.
+## "바깥"만 정확히 피해서 잔디 타일로 채운다.
+##
+## 예전엔 패치 가장자리와 배경 타일 사이에 z-fighting 방지용으로 아주 작은 빈 틈(gap)을
+## 뒀는데, 카메라가 비스듬한 각도일 땐 원근 때문에 안 보였지만 탑다운으로 바뀌면서 그
+## 틈이 똑바로 갈라진 직선처럼 뚜렷하게 보였다. 이제 틈 대신 살짝 겹치게(overlap) 배치해
+## 그 자리를 메운다 — 겹치는 폭은 발굴 구역(반경 MAX_DIG_REACH≈5.8, 패치 절반=8)에 전혀
+## 닿지 않을 만큼 패치 바깥쪽 가장자리에서만 아주 조금이라 파낸 구덩이를 가릴 일은 없다.
+## z-fighting은 배경 타일을 아주 살짝만 아래로 내려서(그림자가 눈에 띄는 턱으로 보이지
+## 않을 만큼 작게) 피한다.
 func _build_ground_backdrop() -> void:
 	var mat := GroundDig.build_flat_material()
 	var patch_half := GroundDig.GROUND_SIZE * 0.5  # 8.0
 	var team_b_x: float = TEAM_OFFSET["B"].x  # 9.0
-	var gap := 0.02  # 패치 가장자리와 살짝 띄워 부동소수점 겹침(z-fighting)을 막는 여유
-	var side_center_x := team_b_x + patch_half + gap + patch_half
-	var far_z := patch_half + gap + patch_half
+	var overlap := 0.05
+	var side_center_x := team_b_x + patch_half * 2.0 - overlap
+	var far_z := patch_half * 2.0 - overlap
 
-	var middle_gap_width := (team_b_x - patch_half) * 2.0 - gap * 2.0  # 두 팀 패치 사이 빈 틈의 폭
+	var middle_gap_width := (team_b_x - patch_half) * 2.0 + overlap * 2.0  # 두 팀 패치 사이를 겹치게 채우는 폭
 
 	_add_backdrop_tile(mat, GroundDig.GROUND_SIZE, 24.0, -side_center_x, 0.0)
 	_add_backdrop_tile(mat, GroundDig.GROUND_SIZE, 24.0, side_center_x, 0.0)
@@ -70,7 +77,7 @@ func _add_backdrop_tile(material: ShaderMaterial, width: float, depth: float, x:
 	var tile := MeshInstance3D.new()
 	tile.mesh = GroundDig.build_flat_tile_mesh(width, depth)
 	tile.material_override = material
-	tile.position = Vector3(x, -0.03, z)
+	tile.position = Vector3(x, -0.01, z)
 	add_child(tile)
 
 func _build_camera() -> void:
