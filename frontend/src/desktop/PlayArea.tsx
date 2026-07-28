@@ -93,6 +93,8 @@ function TeamPhaseContent({ team, roomState }: { team: TeamState; roomState: Roo
       return <ExcavationTeamPanel team={team} players={players} />;
     case "ASSEMBLY":
       return <DinoRunTeamPanel team={team} players={players} />;
+    case "CHARGING_PRACTICE":
+      return <p className="phase-placeholder">🎯 영점 조정 연습 중… 곧 사격이 시작됩니다.</p>;
     case "CHARGING":
       return <ChargingTeamStats team={team} players={players} />;
     case "REVIVED":

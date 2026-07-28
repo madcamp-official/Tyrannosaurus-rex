@@ -48,7 +48,10 @@ export function registerDinoHandlers(io: AppServer, socket: AppSocket, rooms: Ro
   });
 }
 
-/** 100ms 배경 틱: 놓친 장애물로 탈락한 플레이어를 알리고, 30초가 끝난 팀을 평가해 CHARGING으로 전환한다. */
+/**
+ * 100ms 배경 틱: 놓친 장애물로 탈락한 플레이어를 알리고, 30초가 끝난 팀을 평가해
+ * CHARGING_PRACTICE(영점 조정 연습)로 전환한다. 연습 10초가 끝난 팀은 실제 CHARGING으로 전환한다.
+ */
 export function tickRoomDinoRun(io: AppServer, rooms: RoomManager, roomCode: string): void {
   const room = rooms.getRoom(roomCode);
   if (!room || room.state.roomPhase !== "PLAYING") return;
@@ -62,7 +65,6 @@ export function tickRoomDinoRun(io: AppServer, rooms: RoomManager, roomCode: str
   }
 
   const finished = rooms.tickDinoRun(room, now);
-  if (finished.length === 0) return;
   for (const { teamId, result } of finished) {
     io.to(channel).emit(
       "dino:finished",
@@ -78,10 +80,24 @@ export function tickRoomDinoRun(io: AppServer, rooms: RoomManager, roomCode: str
       toServerEvent(roomCode, room.state.revision, {
         teamId,
         from: "ASSEMBLY",
+        to: "CHARGING_PRACTICE",
+        endsAt: room.state.teams[teamId].phaseEndsAt,
+      }),
+    );
+  }
+
+  const practiceFinished = rooms.tickChargingPractice(room, now);
+  for (const teamId of practiceFinished) {
+    io.to(channel).emit(
+      "team:phaseChanged",
+      toServerEvent(roomCode, room.state.revision, {
+        teamId,
+        from: "CHARGING_PRACTICE",
         to: "CHARGING",
         endsAt: room.state.teams[teamId].phaseEndsAt,
       }),
     );
   }
-  broadcastRoomState(io, rooms, roomCode);
+
+  if (finished.length > 0 || practiceFinished.length > 0) broadcastRoomState(io, rooms, roomCode);
 }

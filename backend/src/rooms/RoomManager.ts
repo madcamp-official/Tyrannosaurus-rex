@@ -44,6 +44,7 @@ import {
 import {
   applyDinoJump,
   checkDinoDeaths,
+  finishChargingPracticeIfNeeded,
   finishDinoRunIfNeeded,
   makeObstacleSchedule,
   type DinoFinishResult,
@@ -481,10 +482,23 @@ export class RoomManager {
     return finished;
   }
 
-  /** §17.9. CHARGING 중에만 조준을 인정한다. 고빈도 이벤트라 revision을 올리지 않는다. */
+  /** 10초 영점 조정 연습이 끝난 팀을 실제 CHARGING으로 전환한다. 전환된 팀 목록을 돌려준다. */
+  tickChargingPractice(room: RoomRecord, now: number): TeamId[] {
+    const finished: TeamId[] = [];
+    for (const teamId of TEAM_IDS) {
+      if (finishChargingPracticeIfNeeded(room, teamId, now)) {
+        finished.push(teamId);
+        this.touch(room);
+        this.bumpRevision(room);
+      }
+    }
+    return finished;
+  }
+
+  /** §17.9. CHARGING과 연습(CHARGING_PRACTICE) 중에만 조준을 인정한다. 고빈도 이벤트라 revision을 올리지 않는다. */
   applyAim(room: RoomRecord, teamId: TeamId, playerId: PlayerId, input: AimUpdateInput, now: number): boolean {
     const phase = room.state.teams[teamId].phase;
-    if (phase !== "CHARGING") return false;
+    if (phase !== "CHARGING" && phase !== "CHARGING_PRACTICE") return false;
     const accepted = applyAimUpdate(room, playerId, input, now);
     if (accepted) this.touch(room);
     return accepted;

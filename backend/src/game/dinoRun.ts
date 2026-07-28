@@ -2,6 +2,7 @@
 
 import {
   CHARGING_DURATION_MS,
+  CHARGING_PRACTICE_DURATION_MS,
   CHARGING_START_STABILITY_BASE,
   CHARGING_START_STABILITY_RANGE,
   DINO_DEATH_GRACE_MS,
@@ -111,8 +112,9 @@ export function gradeForPerformance(performance: number): DinoRunGrade {
 export type DinoFinishResult = { performance: number; grade: DinoRunGrade; startStability: number };
 
 /**
- * 30초가 지났으면 팀 클리어율로 조립을 평가하고 CHARGING으로 전환한다.
+ * 30초가 지났으면 팀 클리어율로 조립을 평가하고 CHARGING_PRACTICE(영점 조정 연습)로 전환한다.
  * 클리어율 = 팀 전체 클리어 수 ÷ (장애물 수 × 팀원 수) — 인원과 무관하게 공정하다.
+ * 실제 CHARGING(사격 유효)은 연습이 끝나는 시점에 finishChargingPracticeIfNeeded가 시작한다.
  */
 export function finishDinoRunIfNeeded(room: RoomRecord, teamId: TeamId, now: number): DinoFinishResult | null {
   const team = room.state.teams[teamId];
@@ -129,15 +131,30 @@ export function finishDinoRunIfNeeded(room: RoomRecord, teamId: TeamId, now: num
   team.dinoRun.grade = grade;
 
   room.phaseDurations[teamId].assemblyMs = now - team.phaseStartedAt;
+  team.phase = "CHARGING_PRACTICE";
+  team.phaseStartedAt = now;
+  team.phaseEndsAt = now + CHARGING_PRACTICE_DURATION_MS;
+  team.charging.stability = startStability;
+
+  return { performance, grade, startStability };
+}
+
+/**
+ * 영점 조정 연습(10초)이 끝난 팀을 실제 CHARGING으로 전환한다. 사격(energy:fire)은 이
+ * 전환 이후에만 서버에서 인정된다.
+ */
+export function finishChargingPracticeIfNeeded(room: RoomRecord, teamId: TeamId, now: number): boolean {
+  const team = room.state.teams[teamId];
+  if (team.phase !== "CHARGING_PRACTICE") return false;
+  if (team.phaseEndsAt === null || now < team.phaseEndsAt) return false;
+
   team.phase = "CHARGING";
   team.phaseStartedAt = now;
   team.phaseEndsAt = now + CHARGING_DURATION_MS;
-  team.charging.stability = startStability;
   room.chargingStartedAt[teamId] = now;
   // 공유 스켈레톤은 방에서 먼저 CHARGING에 들어간 팀 기준으로 한 번만 시작된다 (§2.3).
   if (room.sharedTrexStartedAt === null) {
     room.sharedTrexStartedAt = now;
   }
-
-  return { performance, grade, startStability };
+  return true;
 }

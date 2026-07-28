@@ -59,7 +59,7 @@ export type PoseId = "IDLE" | "WALK" | "ROAR" | "HIT" | "REVIVE";
 export type Facing = "LEFT" | "RIGHT";
 
 export type RoomPhase = "LOBBY" | "PLAYING" | "RESULT" | "DECORATION";
-export type TeamPhase = "EXCAVATION" | "ASSEMBLY" | "CHARGING" | "REVIVED";
+export type TeamPhase = "EXCAVATION" | "ASSEMBLY" | "CHARGING_PRACTICE" | "CHARGING" | "REVIVED";
 
 export type NormalizedPoint = {
   x: number; // 0 <= x <= 1

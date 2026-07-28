@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CHARGING_PRACTICE_DURATION_MS,
   CHARGING_START_STABILITY_BASE,
   DINO_DEATH_GRACE_MS,
   DINO_JUMP_WINDOW_MS,
@@ -86,7 +87,7 @@ describe("dino run", () => {
     expect(outcome.accepted).toBe(false);
   });
 
-  it("evaluates the run after 30s and moves both teams to CHARGING with scaled stability", () => {
+  it("evaluates the run after 30s and moves both teams to CHARGING_PRACTICE with scaled stability", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
     // A팀은 전부 클리어, B팀은 0개.
     for (const offset of room.state.teams.A.dinoRun.obstacleOffsetsMs) {
@@ -107,12 +108,72 @@ describe("dino run", () => {
     expect(b.startStability).toBe(CHARGING_START_STABILITY_BASE);
 
     for (const teamId of ["A", "B"] as const) {
-      expect(room.state.teams[teamId].phase).toBe("CHARGING");
+      expect(room.state.teams[teamId].phase).toBe("CHARGING_PRACTICE");
       expect(room.state.teams[teamId].phaseEndsAt).not.toBeNull();
     }
     expect(room.state.teams.A.charging.stability).toBe(100);
     expect(room.state.teams.B.charging.stability).toBe(CHARGING_START_STABILITY_BASE);
     expect(room.phaseDurations.A.assemblyMs).not.toBeNull();
+    // 연습 중에는 아직 공유 스켈레톤/충전 시작 시각이 잡히지 않는다 — 실제 CHARGING 진입 시점으로 미룬다.
+    expect(room.sharedTrexStartedAt).toBeNull();
+    expect(room.chargingStartedAt.A).toBeNull();
+  });
+
+  it("moves a team from CHARGING_PRACTICE to real CHARGING once the 10s practice window ends", () => {
+    const { rooms, room, playerA, now } = setupAssemblyRoom();
+    for (const offset of room.state.teams.A.dinoRun.obstacleOffsetsMs) {
+      rooms.applyDinoJumpInput(room, "A", playerA, now + offset);
+    }
+    rooms.tickDinoRun(room, now + DINO_RUN_DURATION_MS + 1);
+
+    const practiceEndsAt = room.state.teams.A.phaseEndsAt!;
+    const tooEarly = rooms.tickChargingPractice(room, practiceEndsAt - 1);
+    expect(tooEarly).toEqual([]);
+    expect(room.state.teams.A.phase).toBe("CHARGING_PRACTICE");
+
+    const finished = rooms.tickChargingPractice(room, practiceEndsAt + 1);
+    expect(finished.sort()).toEqual(["A", "B"]);
+    for (const teamId of ["A", "B"] as const) {
+      expect(room.state.teams[teamId].phase).toBe("CHARGING");
+      expect(room.state.teams[teamId].phaseEndsAt).not.toBeNull();
+      expect(room.chargingStartedAt[teamId]).not.toBeNull();
+    }
+    expect(room.sharedTrexStartedAt).not.toBeNull();
+  });
+
+  it("accepts aim:update but rejects energy:fire during CHARGING_PRACTICE", () => {
+    const { rooms, room, playerA, now } = setupAssemblyRoom();
+    for (const offset of room.state.teams.A.dinoRun.obstacleOffsetsMs) {
+      rooms.applyDinoJumpInput(room, "A", playerA, now + offset);
+    }
+    rooms.tickDinoRun(room, now + DINO_RUN_DURATION_MS + 1);
+    expect(room.state.teams.A.phase).toBe("CHARGING_PRACTICE");
+
+    const aimAccepted = rooms.applyAim(
+      room,
+      "A",
+      playerA,
+      { seq: 1, point: { x: 0.5, y: 0.5 }, mode: "TOUCHPAD", calibrated: true, clientTime: Date.now() },
+      Date.now(),
+    );
+    expect(aimAccepted).toBe(true);
+
+    const fireOutcome = rooms.fireEnergy(room, "A", playerA, "shot-1", Date.now());
+    expect(fireOutcome.accepted).toBe(false);
+    expect(fireOutcome.reason).toBe("WRONG_TEAM_PHASE");
+  });
+
+  it("does not finish the practice window before CHARGING_PRACTICE_DURATION_MS has passed", () => {
+    const { rooms, room, playerA, now } = setupAssemblyRoom();
+    for (const offset of room.state.teams.A.dinoRun.obstacleOffsetsMs) {
+      rooms.applyDinoJumpInput(room, "A", playerA, now + offset);
+    }
+    rooms.tickDinoRun(room, now + DINO_RUN_DURATION_MS + 1);
+    const practiceStart = room.state.teams.A.phaseStartedAt;
+
+    const finished = rooms.tickChargingPractice(room, practiceStart + CHARGING_PRACTICE_DURATION_MS - 1000);
+    expect(finished).toEqual([]);
+    expect(room.state.teams.A.phase).toBe("CHARGING_PRACTICE");
   });
 
   it("kills a player who lets an obstacle's window fully pass, and rejects further jumps from them", () => {

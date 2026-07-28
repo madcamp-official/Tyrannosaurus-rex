@@ -42,6 +42,8 @@ export const DINO_GRADE_CLUMSY = 0.3;
 export const CHARGING_START_STABILITY_BASE = 40;
 export const CHARGING_START_STABILITY_RANGE = 60;
 
+/** ASSEMBLY 종료 직후 실제 CHARGING 시작 전 자이로/터치패드 영점을 맞춰볼 수 있는 연습 시간. */
+export const CHARGING_PRACTICE_DURATION_MS = 10_000;
 export const CHARGING_DURATION_MS = 90_000;
 export const CHARGING_TREX_TRANSFORM_HZ = 10;
 export const SHOT_COOLDOWN_MS = 350;

@@ -1,7 +1,15 @@
 /** Plan.md §5.2, §6.3. 자이로/터치패드 조준 공통 파이프라인 + 발사. */
 
 import { useEffect, useRef, useState, type PointerEvent } from "react";
-import { AIM_UPDATE_MAX_HZ, SHOT_COOLDOWN_MS, type AimMode, type NormalizedPoint, type SensorPermission } from "@trex/shared";
+import {
+  AIM_UPDATE_MAX_HZ,
+  CHARGING_PRACTICE_DURATION_MS,
+  SHOT_COOLDOWN_MS,
+  type AimMode,
+  type NormalizedPoint,
+  type SensorPermission,
+  type TeamState,
+} from "@trex/shared";
 import type { AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
 
@@ -15,7 +23,27 @@ function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
-export function AimControls({ socket }: { socket: AppSocket }): JSX.Element {
+/** CHARGING_PRACTICE 동안 표시하는 영점 조정 카운트다운. 서버 phaseStartedAt 기준이라 화면마다 어긋나지 않는다. */
+function usePracticeCountdown(active: boolean, phaseStartedAt: number): number {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!active) return undefined;
+    let raf = 0;
+    const loop = () => {
+      setNowMs(Date.now());
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [active]);
+
+  if (!active) return 0;
+  const elapsed = nowMs - phaseStartedAt;
+  return Math.max(0, Math.ceil((CHARGING_PRACTICE_DURATION_MS - elapsed) / 1000));
+}
+
+export function AimControls({ socket, team, practice = false }: { socket: AppSocket; team?: TeamState; practice?: boolean }): JSX.Element {
   const [aimMode, setAimMode] = useState<AimMode>("TOUCHPAD");
   const [orientationPermission, setOrientationPermission] = useState<SensorPermission>("UNKNOWN");
   const [calibrated, setCalibrated] = useState(false);
@@ -29,6 +57,8 @@ export function AimControls({ socket }: { socket: AppSocket }): JSX.Element {
   const filteredRef = useRef({ beta: 0, gamma: 0 });
   const dragOriginRef = useRef<{ x: number; y: number } | null>(null);
   const seqRef = useRef(0);
+
+  const practiceRemainingSec = usePracticeCountdown(practice, team?.phaseStartedAt ?? Date.now());
 
   useEffect(() => {
     if (typeof window.DeviceOrientationEvent === "undefined") setOrientationPermission("UNSUPPORTED");
@@ -134,6 +164,10 @@ export function AimControls({ socket }: { socket: AppSocket }): JSX.Element {
 
   return (
     <div className="aim-controls">
+      {practice && (
+        <p className="aim-controls__practice-banner">🎯 영점 조정 연습 중 · {practiceRemainingSec}초 뒤 사격 시작</p>
+      )}
+
       <div className="aim-controls__mode">
         <button type="button" className={aimMode === "TOUCHPAD" ? "active" : ""} onClick={() => switchMode("TOUCHPAD")}>
           터치패드
@@ -164,8 +198,8 @@ export function AimControls({ socket }: { socket: AppSocket }): JSX.Element {
         <div className="aim-pad__crosshair" style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }} />
       </div>
 
-      <button type="button" className="fire-button" disabled={cooldownActive} onClick={fire}>
-        발사
+      <button type="button" className="fire-button" disabled={practice || cooldownActive} onClick={fire}>
+        {practice ? "연습 중" : "발사"}
       </button>
     </div>
   );
