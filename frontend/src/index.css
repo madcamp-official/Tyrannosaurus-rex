@@ -1390,6 +1390,32 @@ body {
   100% { box-shadow: inset 0 0 0 0 rgba(255, 209, 102, 0); }
 }
 
+.dino-run__arrows {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+}
+
+.dino-run__arrow-btn {
+  flex: 1;
+  padding: 18px;
+  font-size: 1.8rem;
+  font-weight: 800;
+  color: #fff8ec;
+  background: rgba(255, 250, 240, 0.16);
+  backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid rgba(255, 240, 220, 0.35);
+  border-radius: 16px;
+  touch-action: none;
+  user-select: none;
+  cursor: pointer;
+}
+
+.dino-run__arrow-btn:active {
+  background: rgba(255, 250, 240, 0.32);
+}
+
 .dino-run--dead {
   align-items: center;
   justify-content: center;

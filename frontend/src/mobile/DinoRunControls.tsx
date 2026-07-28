@@ -21,6 +21,9 @@ const GYRO_SENSITIVITY_DEG = 45;
 const LOW_PASS_ALPHA = 0.3;
 const TOUCH_SENSITIVITY = 1.6;
 const FLASH_MS = 350;
+/** 방향 버튼을 누르고 있는 동안 한 틱(ARROW_INTERVAL_MS)마다 이동하는 비율(0~1 기준). */
+const ARROW_STEP = 0.028;
+const ARROW_INTERVAL_MS = 16;
 
 type OrientationPermissionApi = { requestPermission?: () => Promise<"granted" | "denied"> };
 
@@ -50,6 +53,7 @@ export function DinoRunControls({
   const filteredGammaRef = useRef(0);
   const dragOriginRef = useRef<{ clientX: number; x: number } | null>(null);
   const seqRef = useRef(0);
+  const arrowIntervalRef = useRef<number | null>(null);
 
   const dead = team.dinoRun.deadPlayerIds.includes(playerId);
   const lives = team.dinoRun.livesByPlayer[playerId] ?? METEOR_DODGE_LIVES;
@@ -150,6 +154,28 @@ export function DinoRunControls({
     dragOriginRef.current = null;
   };
 
+  const startArrow = (direction: 1 | -1) => (event: PointerEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (arrowIntervalRef.current !== null) window.clearInterval(arrowIntervalRef.current);
+    setX((prev) => clamp01(prev + direction * ARROW_STEP));
+    arrowIntervalRef.current = window.setInterval(() => {
+      setX((prev) => clamp01(prev + direction * ARROW_STEP));
+    }, ARROW_INTERVAL_MS);
+  };
+  const stopArrow = (event: PointerEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    if (arrowIntervalRef.current !== null) {
+      window.clearInterval(arrowIntervalRef.current);
+      arrowIntervalRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (arrowIntervalRef.current !== null) window.clearInterval(arrowIntervalRef.current);
+    };
+  }, []);
+
   // 서버 phaseStartedAt(서버 시계)과 로컬 시계의 오차는 연출용으로만 쓴다 — 실제 판정은
   // 서버 수신 시각 기준이다 (§6.2).
   const elapsed = nowMs - team.phaseStartedAt;
@@ -213,6 +239,28 @@ export function DinoRunControls({
         </div>
         <div className="dino-run__ground" />
       </div>
+      <div className="dino-run__arrows">
+        <button
+          type="button"
+          className="dino-run__arrow-btn"
+          onPointerDown={startArrow(-1)}
+          onPointerUp={stopArrow}
+          onPointerLeave={stopArrow}
+          onPointerCancel={stopArrow}
+        >
+          ◀
+        </button>
+        <button
+          type="button"
+          className="dino-run__arrow-btn"
+          onPointerDown={startArrow(1)}
+          onPointerUp={stopArrow}
+          onPointerLeave={stopArrow}
+          onPointerCancel={stopArrow}
+        >
+          ▶
+        </button>
+      </div>
       {orientationPermission === "GRANTED" && (
         <button type="button" className="mobile-game__button" onClick={recalibrate}>
           다시 영점 잡기
@@ -226,7 +274,7 @@ export function DinoRunControls({
       {(orientationPermission === "UNSUPPORTED" || orientationPermission === "DENIED") && (
         <p className="mobile-game__hint">자이로를 쓸 수 없어요 — 화면을 좌우로 드래그해서 피하세요!</p>
       )}
-      <p className="mobile-game__hint">폰을 좌우로 기울여 공룡을 움직여서 운석☄️을 피하고 보석💎을 잡으세요!</p>
+      <p className="mobile-game__hint">폰을 좌우로 기울이거나 ◀▶ 버튼으로 공룡을 움직여서 운석☄️을 피하고 보석💎을 잡으세요!</p>
     </div>
   );
 }
