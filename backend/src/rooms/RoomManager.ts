@@ -688,13 +688,20 @@ export class RoomManager {
 
     for (const teamId of TEAM_IDS) {
       const team = room.state.teams[teamId];
-      if (team.phase !== "CHARGING") continue;
+      const otherTeamId: TeamId = teamId === "A" ? "B" : "A";
+      const otherStillCharging = room.state.teams[otherTeamId].phase === "CHARGING";
+      const stillCharging = team.phase === "CHARGING";
+      // 스켈레톤은 방에 하나뿐인 공유 개체다(§2.3) — 한쪽 팀이 먼저 REVIVED에 도달해도
+      // 다른 팀이 아직 CHARGING 중이면 화면엔 계속 같은 자리에서 움직이는 모습을 보여줘야
+      // 한다. 안 그러면 먼저 끝난 팀 쪽 화면은 그 순간의 마지막 위치로 트윈이 끝난 채
+      // 멈춰버려("공룡이 움직이다가 마는") 부자연스럽다.
+      if (!stillCharging && !(team.phase === "REVIVED" && otherStillCharging)) continue;
 
-      const transition = expireChargingIfNeeded(room, teamId, now);
+      const transition = stillCharging ? expireChargingIfNeeded(room, teamId, now) : null;
 
       const transform = computeTrexTransform(room, now);
       const { core, nextChangeAt } = computeActiveCore(room, now);
-      const coreChanged = team.charging.activeCore !== core;
+      const coreChanged = stillCharging && team.charging.activeCore !== core;
       if (coreChanged) {
         team.charging.activeCore = core;
         team.charging.coreChangesAt = nextChangeAt;

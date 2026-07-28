@@ -2049,7 +2049,7 @@ body {
 }
 
 .practice-aim__guide {
-  margin: -8px 0 0;
+  margin: 10px 0 0;
   color: rgba(255, 248, 236, 0.72);
   font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
   font-size: clamp(16px, 1.6vw, 23px);

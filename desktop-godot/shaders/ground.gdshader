@@ -34,6 +34,10 @@ void fragment() {
 
 	float grass_to_dirt = smoothstep(0.006, 0.035, v_dirt);
 	float deep_mix = smoothstep(0.28, 0.92, v_dirt);
+	// 발굴 구덩이를 울퉁불퉁하게 바꾸면서 가파른 경사면(wall_factor가 높은 곳)이 파낸
+	// 구역 전체에 훨씬 넓게 생겼다 — 경사면마다 크게 어둡게 칠하다 보니, 땅을 팔수록
+	// (경사면이 늘어날수록) 화면 전체가 점점 어두워 보이는 문제가 있었다. 어둡기는
+	// 실제 깊이(deep_mix)가 주로 결정하고, 경사 자체의 비중은 크게 줄였다.
 	float wall_factor = smoothstep(0.18, 0.78, 1.0 - abs(n.y));
 	// 큰 얼룩과 작은 흙결을 섞어 같은 깊이도 단색 면처럼 보이지 않게 한다.
 	float broad_variation = sin(v_pos.x * 0.72 + v_pos.z * 0.31)

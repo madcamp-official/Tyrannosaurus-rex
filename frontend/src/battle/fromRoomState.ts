@@ -13,7 +13,7 @@ function stageFor(avgEnergy: number): number {
   return 1;
 }
 
-function teamFrom(allPlayers: PublicPlayer[], team: TeamState): BattleTeam {
+function teamFrom(allPlayers: PublicPlayer[], team: TeamState, teamName: string): BattleTeam {
   const teamPlayers = allPlayers.filter((p) => p.teamId === team.id);
   const battlePlayers: BattlePlayer[] = teamPlayers.map((p) => ({
     id: p.id,
@@ -23,6 +23,7 @@ function teamFrom(allPlayers: PublicPlayer[], team: TeamState): BattleTeam {
     energy: p.stats.energyContributed,
   }));
   return {
+    name: teamName,
     players: battlePlayers,
     energy: team.charging.energy,
     totalHits: teamPlayers.reduce((sum, p) => sum + p.stats.hits, 0),
@@ -51,8 +52,8 @@ export function battleStateFromRoom(
     }),
   );
 
-  const teamA = teamFrom(roomState.players, roomState.teams.A);
-  const teamB = teamFrom(roomState.players, roomState.teams.B);
+  const teamA = teamFrom(roomState.players, roomState.teams.A, roomState.teamNames.A);
+  const teamB = teamFrom(roomState.players, roomState.teams.B, roomState.teamNames.B);
 
   return {
     remainingSec: Number.isFinite(remainingSec) ? remainingSec : 0,

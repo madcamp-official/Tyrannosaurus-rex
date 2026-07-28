@@ -54,7 +54,9 @@ echo "==> 서버에서 origin/main으로 갱신"
 ssh_run "cd $REMOTE_DIR && git fetch origin && git reset --hard origin/main"
 
 echo "==> 의존성 설치 및 빌드"
-ssh_run "cd $REMOTE_DIR && npm ci && npm run build"
+# 운영 서버가 NODE_ENV=production이어도 빌드에 필요한 TypeScript/Vite는 devDependencies에
+# 있으므로 명시적으로 포함한다. 빌드 후 런타임은 생성된 dist만 사용한다.
+ssh_run "cd $REMOTE_DIR && npm ci --include=dev && npm run build"
 
 echo "==> 백엔드 서비스 재시작"
 ssh_run "sudo systemctl restart t-rex.service"
