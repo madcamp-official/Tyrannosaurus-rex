@@ -5,9 +5,9 @@ uniform sampler2D grass_tex : source_color;
 uniform sampler2D dirt_tex : source_color;
 uniform float uv_repeat = 3.0;
 uniform float dirt_uv_repeat = 0.95;
-uniform vec3 dirt_light : source_color = vec3(0.725, 0.514, 0.333);
-uniform vec3 dirt_mid : source_color = vec3(0.561, 0.365, 0.224);
-uniform vec3 dirt_deep : source_color = vec3(0.40, 0.27, 0.17);
+uniform vec3 dirt_light : source_color = vec3(0.82, 0.61, 0.39);
+uniform vec3 dirt_mid : source_color = vec3(0.64, 0.43, 0.25);
+uniform vec3 dirt_deep : source_color = vec3(0.38, 0.24, 0.14);
 
 varying vec3 v_normal_world;
 varying vec3 v_pos;
@@ -38,8 +38,11 @@ void fragment() {
 
 	vec3 dirt_tint = mix(dirt_light, dirt_mid, deep_mix);
 	dirt_tint = mix(dirt_tint, dirt_deep, deep_mix * 0.55 + wall_factor * 0.18);
-	vec3 dirt_color = mix(dirt_tint, dirt_tex_color, 0.64);
-	dirt_color *= mix(1.10, 0.86, deep_mix * 0.72 + wall_factor * 0.16);
+	vec3 dirt_color = mix(dirt_tint, dirt_tex_color, 0.60);
+	// 평평한 표면은 밝게 유지하되 깊은 바닥과 가파른 벽에만 감광을 집중한다.
+	// 환경광을 낮춰 생긴 실제 그림자와 합쳐져 구덩이 윤곽이 선명해진다.
+	float cavity = clamp(deep_mix * 0.68 + wall_factor * 0.30, 0.0, 1.0);
+	dirt_color *= mix(1.16, 0.72, cavity);
 
 	vec3 col = mix(grass_color, dirt_color, grass_to_dirt);
 	// 예전엔 unshaded라 씬 조명/그림자를 아예 안 받고 법선 방향으로 흉내만 낸 명암을 썼다.
@@ -48,7 +51,7 @@ void fragment() {
 	ALBEDO = col;
 	// 실시간 그림자는 유지하되, 오목한 구덩이 벽이 Web 렌더러에서 검게 뭉개지지 않도록
 	// 지면 색의 일부를 약한 간접광처럼 되돌려 준다.
-	EMISSION = col * 0.16;
+	EMISSION = col * 0.04;
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
 }

@@ -35,7 +35,10 @@ func _build_environment() -> void:
 	# 배경 사진은 유지하되 발굴 무대에는 따뜻한 중성광을 별도로 사용한다.
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color(1.0, 0.88, 0.70)
-	environment.ambient_light_energy = 1.05
+	# 주변광을 과하게 올리면 구덩이 그림자까지 떠서 파인 형태가 평평해 보인다.
+	# 전체 밝기는 노출과 주광으로 확보하고, 주변광은 그림자 디테일이 남는 수준으로 제한한다.
+	environment.ambient_light_energy = 0.70
+	environment.tonemap_exposure = 1.15
 	var world := WorldEnvironment.new()
 	world.environment = environment
 	add_child(world)
@@ -43,7 +46,7 @@ func _build_environment() -> void:
 	var light := DirectionalLight3D.new()
 	light.rotation_degrees = Vector3(-55, -30, 0)
 	light.light_color = Color(1.0, 0.92, 0.78)
-	light.light_energy = 2.0
+	light.light_energy = 2.2
 	# 기본값이 꺼져 있어서 지금까지 땅/뼈 모델 모두 그림자를 전혀 드리우지 않았다.
 	light.shadow_enabled = true
 	add_child(light)
