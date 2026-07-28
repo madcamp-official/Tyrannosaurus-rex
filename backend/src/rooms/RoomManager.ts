@@ -103,6 +103,12 @@ export type RoomRecord = {
   aimState: Map<PlayerId, AimState>;
   /** 플레이어별 최신 좌우 위치(운석 피하기, 0~1). */
   dinoPositionState: Map<PlayerId, { x: number; lastSeq: number; receivedAt: number }>;
+  /**
+   * 운석이 "공룡을 따라다니다 떨어지도록" — 운석이 스폰되는 순간(낙하 시작 시각) 플레이어가
+   * 있던 좌우 위치를 목표로 고정해둔다. 키는 `${playerId}:${objectId}`. 그 뒤로 플레이어가
+   * 움직이면 그 목표 지점에서 벗어나 피할 수 있다.
+   */
+  dinoMeteorLockState: Map<string, number>;
   /** 플레이어별 발사 쿨다운·shotId 중복 방지 상태 (§17.10). */
   shotTracking: Map<PlayerId, ShotTracking>;
   /** 결과 화면에서 박물관 저장까지의 대기 창. 투표 기능은 없고 시간 경과만 확인한다. */
@@ -277,6 +283,7 @@ export class RoomManager {
       sharedTrexStartedAt: null,
       aimState: new Map(),
       dinoPositionState: new Map(),
+      dinoMeteorLockState: new Map(),
       shotTracking: new Map(),
       ...makeVoteState(),
     };
@@ -392,6 +399,7 @@ export class RoomManager {
     room.sharedTrexStartedAt = null;
     room.aimState = new Map();
     room.dinoPositionState = new Map();
+    room.dinoMeteorLockState = new Map();
     room.shotTracking = new Map();
     Object.assign(room, makeVoteState());
     for (const teamId of TEAM_IDS) {
