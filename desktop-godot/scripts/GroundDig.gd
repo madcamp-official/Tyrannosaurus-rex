@@ -4,10 +4,16 @@ class_name GroundDig
 const GROUND_SIZE := 16.0
 const SEGS := 64
 const DIG_ZONE_RADIUS := 3.45
-const SCOOP_RADIUS_MIN := 1.32
-const SCOOP_RADIUS_MAX := 2.1
-const SCOOP_DEPTH_MIN := 0.5
-const SCOOP_DEPTH_MAX := 1.15
+const SCOOP_RADIUS_MIN := 1.15
+const SCOOP_RADIUS_MAX := 2.0
+const SCOOP_DEPTH_MIN := 0.45
+const SCOOP_DEPTH_MAX := 1.05
+# 같은 지점이 여러 번 겹쳐 파여도 이 이상 깊어지지 않게 막아, 한 곳만 뾰족하게
+# 깊어지는 대신 구덩이 전체가 고르게 울퉁불퉁한 깊이를 유지하게 한다.
+const MAX_DIG_DEPTH := 2.3
+# 매번 완전히 새 위치를 뽑는 대신, 이 확률로만 최근 삽질 근처에 이어 파서 뼈 하나짜리
+# 매끈한 원이 아니라 군데군데 붙어있는 불규칙한 구멍 뭉치처럼 보이게 한다.
+const SCOOP_CLUSTER_CHANCE := 0.22
 const DIRT_COLOR_DEPTH_SCALE := 7.5
 const MAX_SCOOP_HISTORY := 18
 
@@ -95,12 +101,16 @@ func _pick_recent_scoop() -> Vector2:
 	var idx_from_end := int(pow(_rng.randf(), 1.6) * recent_count)
 	return _scoop_history[_scoop_history.size() - 1 - idx_from_end]
 
-func apply_scoop(scoop_x: float, scoop_z: float, scoop_radius: float, scoop_depth: float, phase: float) -> void:
+func apply_scoop(scoop_x: float, scoop_z: float, scoop_radius: float, scoop_depth: float) -> void:
 	var seed_a := _rng.randf() * TAU
 	var seed_b := _rng.randf() * TAU
 	var seed_c := _rng.randf() * 10.0
-	var roughness := 0.08 + phase * 0.13
-	var micro_bump := 0.018 + phase * 0.055
+	# 예전엔 발굴이 진행될수록(phase) 거칠기가 커졌는데, 뼈 하나를 다 팔 때마다 phase가
+	# 0으로 리셋돼 "막바지엔 거칠게" 로직이 뼈 개수만큼 반복 적용되며 특정 구간만 계속
+	# 뾰족해지는 문제가 있었다. 이제 삽질마다 거칠기를 독립적으로 무작위로 뽑아서, 파낼수록
+	# 점점 날카로워지는 대신 매번 제각각 울퉁불퉁하게 — 전체적으로 고르게 불규칙해지게 한다.
+	var roughness := _rng.randf_range(0.08, 0.21)
+	var micro_bump := _rng.randf_range(0.018, 0.073)
 
 	for i in _vertex_count:
 		var x := _orig_x[i]
@@ -119,14 +129,16 @@ func apply_scoop(scoop_x: float, scoop_z: float, scoop_radius: float, scoop_dept
 		if r < effective_radius:
 			var t := r / effective_radius
 			var rounded := cos(t * PI * 0.5)
-			var profile := pow(maxf(rounded, 0.0), lerp(1.15, 1.35, phase))
+			var profile := pow(maxf(rounded, 0.0), 1.2)
 
 			var edge_noise := _wall_noise(x * 1.25, z * 1.25)
 			var ripple := sin((t * 9.0) + seed_a * 0.7 + edge_noise * 3.0) * micro_bump
 			var jagged := clampf(1.0 + edge_noise * (0.16 + roughness * 0.30) + ripple, 0.80, 1.26)
 			var shoulder_spread := 1.0 + smoothstep(0.42, 0.78, t) * (1.0 - smoothstep(0.88, 1.0, t)) * 0.10
 			var dig := scoop_depth * profile * jagged * shoulder_spread
-			_height_field[i] -= dig
+			# 겹쳐 파도 한 지점만 계속 깊어지지 않도록 최대 깊이에서 막는다 — 안 그러면
+			# 뼈 개수만큼 반복되는 삽질이 같은 자리에 계속 쌓여 뾰족한 깔때기가 됐다.
+			_height_field[i] = maxf(_height_field[i] - dig, -MAX_DIG_DEPTH)
 			if -_height_field[i] > _tracked_max_depth:
 				_tracked_max_depth = -_height_field[i]
 
@@ -156,18 +168,18 @@ func _rebuild_geometry() -> void:
 	st.index()
 	mesh = st.commit()
 
-func dig_random_scoop(progress: float) -> Vector2:
-	var phase := clampf(progress / 100.0, 0.0, 1.0)
-	var cluster_chance := 0.04 + phase * 0.58
-
+## progress(현재 뼈의 0~100% 진행도)는 뼈 하나를 다 팔 때마다 0으로 리셋된다 — 예전엔
+## 이 값으로 "막바지엔 중앙으로, 좁고 깊게" 파이도록 만들었는데, 그 로직이 뼈 개수만큼
+## 반복 적용되면서 매번 같은 원점 근처가 겹쳐 파여 뾰족하고 깊은 깔때기 모양이 됐다.
+## 이제 위치·반경·깊이 모두 progress와 무관하게 매번 새로 뽑아, 발굴 구역 전체에 걸쳐
+## 넓고 불규칙하게(울퉁불퉁하게) 파이도록 한다. 인자는 호출부와의 호환을 위해 남겨둔다.
+func dig_random_scoop(_progress: float) -> Vector2:
 	var scoop_x: float
 	var scoop_z: float
-	if _scoop_history.size() > 2 and _rng.randf() < cluster_chance:
+	if _scoop_history.size() > 2 and _rng.randf() < SCOOP_CLUSTER_CHANCE:
 		var anchor := _pick_recent_scoop()
 		var angle := _rng.randf() * TAU
-		var side_min: float = lerp(1.22, 1.08, phase)
-		var side_max: float = lerp(2.18, 1.88, phase)
-		var jitter_radius: float = lerp(side_min, side_max, _rng.randf())
+		var jitter_radius := _rng.randf_range(1.05, 2.0)
 		var point := _keep_inside_dig_zone(
 			anchor.x + cos(angle) * jitter_radius,
 			anchor.y + sin(angle) * jitter_radius
@@ -175,22 +187,17 @@ func dig_random_scoop(progress: float) -> Vector2:
 		scoop_x = point.x
 		scoop_z = point.y
 	else:
+		# 반지름을 그냥 균등분포로 뽑으면(randf() * RADIUS) 중심 쪽 면적이 더 좁아서 오히려
+		# 점이 중앙에 몰린다 — sqrt를 취해야 구역 "면적" 전체에 걸쳐 고르게 흩어진다.
 		var angle := _rng.randf() * TAU
-		var center_bias: float = lerp(0.55, 2.15, phase)
-		var r := DIG_ZONE_RADIUS * pow(_rng.randf(), center_bias)
+		var r := DIG_ZONE_RADIUS * sqrt(_rng.randf())
 		scoop_x = cos(angle) * r
 		scoop_z = sin(angle) * r
 
-	var scoop_radius := clampf(
-		lerp(SCOOP_RADIUS_MAX, 1.58, phase) + (_rng.randf() - 0.5) * 0.16,
-		SCOOP_RADIUS_MIN, SCOOP_RADIUS_MAX
-	)
-	var scoop_depth := clampf(
-		lerp(SCOOP_DEPTH_MIN, 1.0, phase) + (_rng.randf() - 0.5) * 0.08,
-		SCOOP_DEPTH_MIN, SCOOP_DEPTH_MAX
-	)
+	var scoop_radius := _rng.randf_range(SCOOP_RADIUS_MIN, SCOOP_RADIUS_MAX)
+	var scoop_depth := _rng.randf_range(SCOOP_DEPTH_MIN, SCOOP_DEPTH_MAX)
 
-	apply_scoop(scoop_x, scoop_z, scoop_radius, scoop_depth, phase)
+	apply_scoop(scoop_x, scoop_z, scoop_radius, scoop_depth)
 	_remember_scoop(scoop_x, scoop_z)
 	return Vector2(scoop_x, scoop_z)
 
