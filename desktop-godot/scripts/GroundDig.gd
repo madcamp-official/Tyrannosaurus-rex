@@ -10,11 +10,6 @@ const SCOOP_DEPTH_MIN := 0.5
 const SCOOP_DEPTH_MAX := 1.15
 const DIRT_COLOR_DEPTH_SCALE := 7.5
 const MAX_SCOOP_HISTORY := 18
-## 파낸 흙이 구덩이 바깥쪽에 둔덕으로 쌓이는 효과 — 파낸 양이 늘수록 둔덕도 점점 높아진다.
-const PILE_RING_INNER := 3.6
-const PILE_RING_OUTER := 5.2
-const PILE_HEIGHT_MAX := 0.62
-const PILE_VOLUME_SCALE := 9.0
 
 @export var grass_texture: Texture2D
 @export var dirt_texture: Texture2D
@@ -27,7 +22,6 @@ var _indices: PackedInt32Array = []
 var _vertex_count := 0
 var _scoop_history: Array[Vector2] = []
 var _tracked_max_depth := 0.0
-var _total_dig_volume := 0.0
 var _rng := RandomNumberGenerator.new()
 
 func _ready() -> void:
@@ -136,31 +130,7 @@ func apply_scoop(scoop_x: float, scoop_z: float, scoop_radius: float, scoop_dept
 			if -_height_field[i] > _tracked_max_depth:
 				_tracked_max_depth = -_height_field[i]
 
-	_total_dig_volume += scoop_radius * scoop_depth
-	_apply_dirt_pile()
 	_rebuild_geometry()
-
-## 파낸 만큼(누적 _total_dig_volume) 구덩이 바깥 고리(PILE_RING_INNER~OUTER)에 흙 둔덕을
-## 쌓는다. 이미 파낸(음수) 자리는 절대 덮어쓰지 않는다 — 스쿱이 고리 안쪽까지 파고든
-## 경우에도 구덩이가 항상 둔덕보다 우선한다.
-func _apply_dirt_pile() -> void:
-	var pile_ratio := 1.0 - exp(-_total_dig_volume / PILE_VOLUME_SCALE)
-	var pile_height := PILE_HEIGHT_MAX * pile_ratio
-	if pile_height <= 0.001:
-		return
-	for i in _vertex_count:
-		if _height_field[i] < -0.001:
-			continue
-		var x := _orig_x[i]
-		var z := _orig_z[i]
-		var r := sqrt(x * x + z * z)
-		if r < PILE_RING_INNER or r > PILE_RING_OUTER:
-			continue
-		var t := (r - PILE_RING_INNER) / (PILE_RING_OUTER - PILE_RING_INNER)
-		var shape := sin(t * PI)  # 안쪽·바깥쪽 모두 0으로 사라지고 가운데가 볼록한 둔덕 단면
-		var noise := _wall_noise(x * 1.4, z * 1.4)
-		var jagged := clampf(1.0 + noise * 0.35, 0.55, 1.35)
-		_height_field[i] = maxf(_height_field[i], pile_height * shape * jagged)
 
 func _rebuild_geometry() -> void:
 	var verts := PackedVector3Array()
@@ -170,9 +140,9 @@ func _rebuild_geometry() -> void:
 
 	for i in _vertex_count:
 		var dug := _height_field[i]
-		var y := dug if absf(dug) > 0.01 else 0.0
+		var y := dug if dug < -0.01 else 0.0
 		verts[i] = Vector3(_orig_x[i], y, _orig_z[i])
-		var depth := absf(dug)
+		var depth := maxf(0.0, -dug)
 		var depth_ratio := 1.0 - exp(-depth / DIRT_COLOR_DEPTH_SCALE) if depth > 0.01 else 0.0
 		colors[i] = Color(depth_ratio, 0.0, 0.0, 1.0)
 
@@ -226,7 +196,6 @@ func dig_random_scoop(progress: float) -> Vector2:
 
 func reset() -> void:
 	_tracked_max_depth = 0.0
-	_total_dig_volume = 0.0
 	_scoop_history.clear()
 	for i in _vertex_count:
 		_height_field[i] = 0.0

@@ -112,7 +112,20 @@ export function applyDinoStarted(
         phase: "ASSEMBLY" as const,
         phaseStartedAt: data.startedAt,
         phaseEndsAt: data.endsAt,
-        dinoRun: { ...team.dinoRun, skyObjects: data.skyObjects },
+        // 이 이벤트 자체가 "운석 피하기 시작"이니, 이전 라운드나 이전 room:state에 남아있을
+        // 수 있는 목숨·점수를 여기서 직접 0/풀로 되돌린다 — 최신 room:state 스냅샷이 이미
+        // 반영해뒀을 거라고 기대하고 team.dinoRun을 그대로 스프레드하면, 타이밍이 어긋났을 때
+        // 이전 값(다 깎인 목숨, 마이너스 점수 등)이 새 라운드로 새어 들어갈 수 있었다.
+        dinoRun: {
+          skyObjects: data.skyObjects,
+          livesByPlayer: {},
+          scoreByPlayer: {},
+          resolvedObjectIdsByPlayer: {},
+          deadPlayerIds: [],
+          performance: null,
+          grade: null,
+          result: null,
+        },
       },
     },
   };
