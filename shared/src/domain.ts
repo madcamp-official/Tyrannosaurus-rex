@@ -42,9 +42,27 @@ export const BONE_IDS: readonly BoneId[] = [
   "TAIL_TIP",
 ];
 
-/** 팀 발굴 목표 뼈 개수 = 팀 인원수 × BONES_PER_PLAYER (최대 BONE_IDS.length개까지). */
+/**
+ * 팀 발굴 "웨이브(포인트 임계값 통과 횟수)" 수 = 팀 인원수 × BONES_PER_PLAYER
+ * (최대 BONE_IDS.length번까지) — 발굴 난이도(필요한 총 포인트)를 인원수에 맞춘다.
+ * 실제로 발견되는 뼈 개수와는 다르다: 뼈는 항상 BONE_IDS.length(13)개 전부 나온다
+ * (boneWaveSizes 참고) — 인원이 적어 웨이브 수가 적으면 한 웨이브에 여러 개씩 몰아서 나온다.
+ */
 export function boneCountForTeam(playerCount: number): number {
   return Math.min(BONE_IDS.length, Math.max(1, playerCount) * BONES_PER_PLAYER);
+}
+
+/**
+ * BONE_IDS.length(13)개를 waveCount번의 발굴 웨이브에 최대한 고르게 나눈다 — 나머지는
+ * 뒤쪽 웨이브에 하나씩 더 붙인다 (예: waveCount=4 → [3,3,3,4]). 팀 인원이 적어 웨이브
+ * 수가 적어도, 모든 웨이브를 다 채우면 항상 뼈 13개 전부를 모으게 된다.
+ */
+export function boneWaveSizes(waveCount: number): number[] {
+  const total = BONE_IDS.length;
+  const count = Math.max(1, Math.min(total, waveCount));
+  const base = Math.floor(total / count);
+  const remainder = total % count;
+  return Array.from({ length: count }, (_, i) => base + (i >= count - remainder ? 1 : 0));
 }
 
 export type TeamId = "A" | "B";

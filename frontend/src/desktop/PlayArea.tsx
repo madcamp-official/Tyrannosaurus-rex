@@ -1,7 +1,7 @@
 /** Plan.md §5.1, §10.3 "Godot이 지연되더라도 서버·React 흐름을 완주 가능하게" — 2D 안전 화면 겸 기본 HUD.
  * 좌우 풀블리드 분할로 각 팀의 3D 무대(Godot, 배경) 위에 단계별 오버레이를 얹는다. */
 
-import { boneCountForTeam, type PlayerId, type PublicPlayer, type RoomState, type TeamId, type TeamState } from "@trex/shared";
+import { BONE_IDS, type PlayerId, type PublicPlayer, type RoomState, type TeamId, type TeamState } from "@trex/shared";
 import { ExcavationTeamPanel } from "./ExcavationView";
 import { DinoRunTeamPanel } from "./DinoRunView";
 import { ChargingSharedArena, ChargingTeamStats, type CrosshairDisplay, type TrexDisplay } from "./ChargingView";
@@ -76,7 +76,7 @@ function TeamHeader({
             <RingsIcon />
             <span className="play-area__team-count">
               {team.excavation.discoveredBoneIds.length}
-              <span>/{boneCountForTeam(players.length)}</span>
+              <span>/{BONE_IDS.length}</span>
             </span>
           </div>
         )}

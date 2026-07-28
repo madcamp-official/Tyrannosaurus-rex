@@ -20,20 +20,21 @@ import type { RoomRecord } from "../rooms/RoomManager.js";
 import { seededRandom01 } from "./seededRandom.js";
 
 /** 1보다 작을수록 뒤로 갈수록 장애물 간격이 좁아져 "점점 빨라지는" 느낌을 준다. */
-const DINO_SPEEDUP_CURVE = 0.62;
+const DINO_SPEEDUP_CURVE = 0.45;
 
 /**
  * 라운드 시드로 장애물 오프셋을 생성한다. 양 팀이 같은 스케줄을 공유한다(§4 공정성).
  * [MIN, MAX] 구간을 지수 곡선(<1승)으로 나눠 초반엔 널널하고 후반으로 갈수록 장애물이
  * 촘촘해지게 만든 뒤 시드 지터를 더하고, 최소 간격 미만이면 뒤로 밀어 보정한다.
+ * 지터 폭도 진행률에 비례해 커지게 해서, 후반부일수록 간격이 더 불규칙해지게 한다.
  */
 export function makeObstacleSchedule(seed: string): number[] {
   const span = DINO_OBSTACLE_MAX_OFFSET_MS - DINO_OBSTACLE_MIN_OFFSET_MS;
-  const jitterMax = DINO_OBSTACLE_MIN_GAP_MS * 0.4;
   const offsets: number[] = [];
   for (let i = 0; i < DINO_OBSTACLE_COUNT; i += 1) {
     const t = i / (DINO_OBSTACLE_COUNT - 1);
     const eased = Math.pow(t, DINO_SPEEDUP_CURVE);
+    const jitterMax = DINO_OBSTACLE_MIN_GAP_MS * (0.2 + 0.7 * t);
     const jitter = (seededRandom01(`${seed}:dino`, i) - 0.5) * jitterMax;
     offsets.push(Math.round(DINO_OBSTACLE_MIN_OFFSET_MS + span * eased + jitter));
   }
