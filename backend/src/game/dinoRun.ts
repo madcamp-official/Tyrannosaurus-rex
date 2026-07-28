@@ -19,6 +19,7 @@ import {
   SKY_OBJECT_COLLISION_RADIUS,
   SKY_OBJECT_COUNT,
   SKY_OBJECT_DENSITY_CURVE_EXPONENT,
+  SKY_OBJECT_FALL_MS,
   SKY_OBJECT_MAX_OFFSET_MS,
   SKY_OBJECT_MIN_GAP_MS,
   SKY_OBJECT_MIN_OFFSET_MS,
@@ -84,6 +85,11 @@ export type SkyCollisionEvent =
  * 깎고 점수를 감점, 목숨이 0이 되면 탈락시킨다(§METEOR_DODGE_LIVES). 보너스를 잡으면
  * 점수를 더한다. 판정은 플레이어의 가장 최근 위치(dino:position) 기준이며, 위치를 한
  * 번도 안 보낸 플레이어는 화면 중앙(0.5)에 있다고 본다.
+ *
+ * 운석은 "공룡을 따라다니다 떨어지는" 느낌을 주기 위해, 낙하가 시작되는 시각(스폰 시각 =
+ * hitAtMs - SKY_OBJECT_FALL_MS)에 플레이어가 있던 좌우 위치를 목표로 고정한다 — 그 뒤로
+ * 플레이어가 움직이면 고정된 지점에서 벗어나 피할 수 있다. 보너스는 기존처럼 셔플된
+ * 고정 좌표(obj.x)를 그대로 쓴다(잡으려면 그 자리로 이동해야 한다).
  */
 export function tickSkyCollisions(room: RoomRecord, teamId: TeamId, now: number): SkyCollisionEvent[] {
   const team = room.state.teams[teamId];
@@ -91,6 +97,17 @@ export function tickSkyCollisions(room: RoomRecord, teamId: TeamId, now: number)
 
   const elapsed = now - team.phaseStartedAt;
   const events: SkyCollisionEvent[] = [];
+
+  for (const obj of team.dinoRun.skyObjects) {
+    if (obj.kind !== "METEOR") continue;
+    if (elapsed < obj.hitAtMs - SKY_OBJECT_FALL_MS) continue;
+    for (const playerId of team.playerIds) {
+      if (team.dinoRun.deadPlayerIds.includes(playerId)) continue;
+      const key = `${playerId}:${obj.id}`;
+      if (room.dinoMeteorLockState.has(key)) continue;
+      room.dinoMeteorLockState.set(key, room.dinoPositionState.get(playerId)?.x ?? 0.5);
+    }
+  }
 
   for (const obj of team.dinoRun.skyObjects) {
     if (elapsed < obj.hitAtMs) continue;
@@ -102,7 +119,8 @@ export function tickSkyCollisions(room: RoomRecord, teamId: TeamId, now: number)
       resolved.push(obj.id);
 
       const playerX = room.dinoPositionState.get(playerId)?.x ?? 0.5;
-      const overlap = Math.abs(playerX - obj.x) <= SKY_OBJECT_COLLISION_RADIUS;
+      const targetX = obj.kind === "METEOR" ? (room.dinoMeteorLockState.get(`${playerId}:${obj.id}`) ?? obj.x) : obj.x;
+      const overlap = Math.abs(playerX - targetX) <= SKY_OBJECT_COLLISION_RADIUS;
       const player = room.state.players.find((p) => p.id === playerId);
 
       if (obj.kind === "METEOR") {
@@ -115,7 +133,7 @@ export function tickSkyCollisions(room: RoomRecord, teamId: TeamId, now: number)
         team.dinoRun.livesByPlayer[playerId] = livesLeft;
         const score = (team.dinoRun.scoreByPlayer[playerId] ?? 0) - METEOR_HIT_SCORE_PENALTY;
         team.dinoRun.scoreByPlayer[playerId] = score;
-        events.push({ kind: "HIT", playerId, objectId: obj.id, livesLeft, score, x: obj.x });
+        events.push({ kind: "HIT", playerId, objectId: obj.id, livesLeft, score, x: targetX });
         if (livesLeft <= 0) {
           team.dinoRun.deadPlayerIds.push(playerId);
           events.push({ kind: "DEATH", playerId });
@@ -125,7 +143,7 @@ export function tickSkyCollisions(room: RoomRecord, teamId: TeamId, now: number)
         if (player) player.stats.dinoCleared += 1;
         const score = (team.dinoRun.scoreByPlayer[playerId] ?? 0) + METEOR_BONUS_SCORE_REWARD;
         team.dinoRun.scoreByPlayer[playerId] = score;
-        events.push({ kind: "BONUS", playerId, objectId: obj.id, score, x: obj.x });
+        events.push({ kind: "BONUS", playerId, objectId: obj.id, score, x: targetX });
       }
     }
   }

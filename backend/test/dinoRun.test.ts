@@ -8,6 +8,7 @@ import {
   METEOR_HIT_SCORE_PENALTY,
   ROUND_TRANSITION_MS,
   SKY_OBJECT_COUNT,
+  SKY_OBJECT_FALL_MS,
 } from "@trex/shared";
 import { RoomManager } from "../src/rooms/RoomManager.js";
 import { makeSkyObjectSchedule } from "../src/game/dinoRun.js";
@@ -111,17 +112,43 @@ describe("dino run (meteor dodge)", () => {
     expect(again.filter((e) => e.teamId === "A" && e.event.kind === "HIT")).toEqual([]);
   });
 
-  it("dodging a meteor (standing away from it) costs no life and counts toward MVP stats", () => {
+  it("dodging a meteor (moving away after it locks onto your spawn-time position) costs no life and counts toward MVP stats", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
     const meteor = { id: 0, hitAtMs: 5000, x: 0.5, kind: "METEOR" as const };
     room.state.teams.A.dinoRun.skyObjects = [meteor];
-    rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: 0, clientTime: now }, now);
 
+    // 운석이 낙하를 시작하는 순간(스폰 시각) 있던 자리(0)로 목표가 고정된다.
+    rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: 0, clientTime: now }, now);
+    rooms.tickDinoCollisions(room, now + meteor.hitAtMs - SKY_OBJECT_FALL_MS + 1);
+    expect(room.dinoMeteorLockState.get(`${playerA}:0`)).toBe(0);
+
+    // 그 뒤 반대쪽으로 이동해 고정된 목표 지점을 벗어나면 피한 것으로 인정된다.
+    rooms.applyDinoPositionInput(room, "A", playerA, { seq: 2, x: 1, clientTime: now }, now);
     const events = rooms.tickDinoCollisions(room, now + meteor.hitAtMs + 1);
     expect(events.filter((e) => e.teamId === "A")).toEqual([]);
     expect(room.state.teams.A.dinoRun.livesByPlayer[playerA]).toBe(METEOR_DODGE_LIVES);
     const player = room.state.players.find((p) => p.id === playerA)!;
     expect(player.stats.dinoCleared).toBe(1);
+  });
+
+  it("locks a meteor's target to the player's position at spawn time, not at judgment time", () => {
+    const { rooms, room, playerA, now } = setupAssemblyRoom();
+    const meteor = { id: 0, hitAtMs: 5000, x: 0.5, kind: "METEOR" as const };
+    room.state.teams.A.dinoRun.skyObjects = [meteor];
+
+    // 스폰 전에는 아직 고정되지 않는다.
+    rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: 0.2, clientTime: now }, now);
+    rooms.tickDinoCollisions(room, now + meteor.hitAtMs - SKY_OBJECT_FALL_MS - 100);
+    expect(room.dinoMeteorLockState.has(`${playerA}:0`)).toBe(false);
+
+    // 스폰 시각이 지나면 그 순간의 위치로 고정되고, 그 뒤 위치를 옮겨도 고정값은 안 바뀐다.
+    rooms.applyDinoPositionInput(room, "A", playerA, { seq: 2, x: 0.7, clientTime: now }, now);
+    rooms.tickDinoCollisions(room, now + meteor.hitAtMs - SKY_OBJECT_FALL_MS + 50);
+    expect(room.dinoMeteorLockState.get(`${playerA}:0`)).toBe(0.7);
+
+    rooms.applyDinoPositionInput(room, "A", playerA, { seq: 3, x: 0.1, clientTime: now }, now);
+    rooms.tickDinoCollisions(room, now + meteor.hitAtMs - SKY_OBJECT_FALL_MS + 100);
+    expect(room.dinoMeteorLockState.get(`${playerA}:0`)).toBe(0.7);
   });
 
   it("catching a bonus item adds score without costing a life; missing one has no penalty", () => {

@@ -13,7 +13,7 @@ import {
 import type { AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
 
-const GYRO_SENSITIVITY_DEG = 65; // 이만큼 기울이면 화면 절반 끝까지 이동 — 값이 클수록 덜 민감하다
+const GYRO_SENSITIVITY_DEG = 160; // 이만큼 기울이면 화면 절반 끝까지 이동 — 값이 클수록 덜 민감하다
 const LOW_PASS_ALPHA = 0.25;
 const TOUCHPAD_SENSITIVITY = 1.4;
 
@@ -84,7 +84,9 @@ export function AimControls({ socket, team, practice = false }: { socket: AppSoc
       const dGamma = filteredRef.current.gamma - zeroRef.current.gamma;
       setPoint({
         x: clamp01(0.5 + dGamma / GYRO_SENSITIVITY_DEG / 2),
-        y: clamp01(0.5 + dBeta / GYRO_SENSITIVITY_DEG / 2),
+        // 폰 위쪽(윗변)을 몸에서 멀어지게 기울이면 아래로, 몸 쪽으로 기울이면 위로 — beta가
+        // 늘어날수록(몸 쪽으로 기울일수록) 위로 가야 하므로 부호를 뒤집는다.
+        y: clamp01(0.5 - dBeta / GYRO_SENSITIVITY_DEG / 2),
       });
     };
     window.addEventListener("deviceorientation", handleOrientation);
