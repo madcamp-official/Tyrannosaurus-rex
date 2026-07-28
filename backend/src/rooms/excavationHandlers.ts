@@ -85,7 +85,13 @@ export function tickExcavationHandoff(io: AppServer, rooms: RoomManager, roomCod
     const team = room.state.teams[teamId];
     io.to(channel).emit(
       "team:phaseChanged",
-      toServerEvent(roomCode, room.state.revision, { teamId, from: "EXCAVATION", to: "ASSEMBLY", endsAt: team.phaseEndsAt }),
+      toServerEvent(roomCode, room.state.revision, {
+        teamId,
+        from: "EXCAVATION",
+        to: "ASSEMBLY",
+        startedAt: team.phaseStartedAt,
+        endsAt: team.phaseEndsAt,
+      }),
     );
     io.to(channel).emit(
       "dino:started",

@@ -10,6 +10,7 @@ import {
   GAME_SCORE_MAX,
   METEOR_DODGE_LIVES,
   MIN_PLAYERS,
+  PHASE_START_GRACE_MS,
   NICKNAME_MAX_LENGTH,
   NICKNAME_MIN_LENGTH,
   ROOM_CODE_LENGTH,
@@ -444,16 +445,19 @@ export class RoomManager {
     input: ExcavateInput,
     now: number,
   ): ExcavationApplyResult & { teamResults: Array<{ teamId: TeamId; result: "WIN" | "LOSE" | "DRAW"; score: number }> } {
+    const team = room.state.teams[teamId];
+    if (now < team.phaseStartedAt + PHASE_START_GRACE_MS) {
+      return { accepted: false, pointsAdded: 0, boneAwards: [], event: null, phaseCompleted: false, teamResults: [] };
+    }
     const result = applyExcavateInput(room, teamId, playerId, input, now);
     if (!result.accepted) return { ...result, teamResults: [] };
 
     this.touch(room);
     const teamResults: Array<{ teamId: TeamId; result: "WIN" | "LOSE" | "DRAW"; score: number }> = [];
     if (result.phaseCompleted) {
-      const team = room.state.teams[teamId];
       const otherTeamId: TeamId = teamId === "A" ? "B" : "A";
       const otherTeam = room.state.teams[otherTeamId];
-      room.phaseDurations[teamId].excavationMs = now - team.phaseStartedAt;
+      room.phaseDurations[teamId].excavationMs = now - team.phaseStartedAt - PHASE_START_GRACE_MS;
       team.scores.excavation = this.computeExcavationScore(room, now);
 
       if (otherTeam.excavation.result === null) {
@@ -489,7 +493,7 @@ export class RoomManager {
       team.excavation.result = null;
       team.phase = "ASSEMBLY";
       team.phaseStartedAt = now;
-      team.phaseEndsAt = now + DINO_RUN_DURATION_MS;
+      team.phaseEndsAt = now + PHASE_START_GRACE_MS + DINO_RUN_DURATION_MS;
       // 낙하 오브젝트 스케줄은 라운드 시드에서 파생되어 양 팀이 항상 동일하다 (§4).
       team.dinoRun.skyObjects = makeSkyObjectSchedule(room.roundSeed ?? room.state.roomCode);
       // 목숨은 항상 풀로, 점수는 항상 0에서 시작해야 한다 — resetTeamGameplayState가 라운드
@@ -508,13 +512,14 @@ export class RoomManager {
 
   /** 경기 1 점수: 라운드 시작 이후 완료까지 걸린 시간이 짧을수록 높다 (§2.3 타임 보너스). */
   private computeExcavationScore(room: RoomRecord, now: number): number {
-    const startedAt = room.state.roundStartedAt ?? now;
+    const startedAt = (room.state.roundStartedAt ?? now) + PHASE_START_GRACE_MS;
     const elapsedRatio = Math.min(1, Math.max(0, (now - startedAt) / ROUND_DURATION_MS));
     return Math.round(GAME_SCORE_MAX * (1 - elapsedRatio));
   }
 
   /** §17.6 운석 피하기 좌우 위치. 고빈도라 revision은 올리지 않는다 (판정 결과는 델타 이벤트로 전파). */
   applyDinoPositionInput(room: RoomRecord, teamId: TeamId, playerId: PlayerId, input: DinoPositionInput, now: number): boolean {
+    if (now < room.state.teams[teamId].phaseStartedAt + PHASE_START_GRACE_MS) return false;
     const accepted = applyDinoPosition(room, teamId, playerId, input, now);
     if (accepted) this.touch(room);
     return accepted;
@@ -602,7 +607,7 @@ export class RoomManager {
       team.dinoRun.grade = null;
       team.phase = "CHARGING_PRACTICE";
       team.phaseStartedAt = now;
-      team.phaseEndsAt = now + CHARGING_PRACTICE_DURATION_MS;
+      team.phaseEndsAt = now + PHASE_START_GRACE_MS + CHARGING_PRACTICE_DURATION_MS;
       // chargingStartedAt/sharedTrexStartedAt은 실제 CHARGING 진입(연습 종료, tickChargingPractice)
       // 시점으로 미룬다.
     }
@@ -627,8 +632,10 @@ export class RoomManager {
 
   /** §17.9. CHARGING과 연습(CHARGING_PRACTICE) 중에만 조준을 인정한다. 고빈도 이벤트라 revision을 올리지 않는다. */
   applyAim(room: RoomRecord, teamId: TeamId, playerId: PlayerId, input: AimUpdateInput, now: number): boolean {
-    const phase = room.state.teams[teamId].phase;
+    const team = room.state.teams[teamId];
+    const phase = team.phase;
     if (phase !== "CHARGING" && phase !== "CHARGING_PRACTICE") return false;
+    if (now < team.phaseStartedAt + PHASE_START_GRACE_MS) return false;
     const accepted = applyAimUpdate(room, playerId, input, now);
     if (accepted) this.touch(room);
     return accepted;

@@ -408,7 +408,6 @@ export function DesktopLobby(): JSX.Element {
               <button type="button" className="lobby-start__button" onClick={handleStart}>
                 게임 시작
               </button>
-              <p className="lobby-start__hint">전원 준비 완료 후 이 버튼을 누르면 시작됩니다</p>
             </div>
           </>
         )}

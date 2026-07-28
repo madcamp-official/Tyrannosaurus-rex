@@ -86,14 +86,14 @@ export function applyExcavationTeamFinished(
 
 export function applyTeamPhaseChanged(
   state: RoomState,
-  data: { teamId: TeamId; to: RoomState["teams"][TeamId]["phase"]; endsAt: number | null },
+  data: { teamId: TeamId; to: RoomState["teams"][TeamId]["phase"]; startedAt: number; endsAt: number | null },
 ): RoomState {
   const team = state.teams[data.teamId];
   return {
     ...state,
     teams: {
       ...state.teams,
-      [data.teamId]: { ...team, phase: data.to, phaseStartedAt: Date.now(), phaseEndsAt: data.endsAt },
+      [data.teamId]: { ...team, phase: data.to, phaseStartedAt: data.startedAt, phaseEndsAt: data.endsAt },
     },
   };
 }

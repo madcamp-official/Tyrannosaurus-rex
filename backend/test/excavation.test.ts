@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BONE_IDS, EXCAVATION_MAX_INPUTS_PER_SECOND, EXCAVATION_POINTS_PER_BONE, ROUND_TRANSITION_MS } from "@trex/shared";
+import { BONE_IDS, EXCAVATION_MAX_INPUTS_PER_SECOND, EXCAVATION_POINTS_PER_BONE, PHASE_START_GRACE_MS, ROUND_TRANSITION_MS } from "@trex/shared";
 import { RoomManager } from "../src/rooms/RoomManager.js";
 import { makeBoneOrder } from "../src/game/excavation.js";
 
@@ -13,6 +13,8 @@ function setupStartedRoom() {
   rooms.setReady(roomCode, a.playerId, true);
   rooms.setReady(roomCode, b.playerId, true);
   rooms.startGame(created.room);
+  created.room.state.teams.A.phaseStartedAt -= PHASE_START_GRACE_MS;
+  created.room.state.teams.B.phaseStartedAt -= PHASE_START_GRACE_MS;
   return { rooms, room: created.room, playerA: a.playerId, playerB: b.playerId };
 }
 

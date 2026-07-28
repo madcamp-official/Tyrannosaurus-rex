@@ -5,6 +5,7 @@ import {
   BONE_IDS,
   CHARGING_PRACTICE_DURATION_MS,
   DINO_RUN_DURATION_MS,
+  PHASE_START_GRACE_MS,
   totalGameScore,
   type PlayerId,
   type PublicPlayer,
@@ -83,10 +84,12 @@ function PhaseTimer({ roomState }: { roomState: RoomState }): JSX.Element | null
   const isExcavation = primary.phase === "EXCAVATION";
   const fallbackDuration = primary.phase === "ASSEMBLY" ? DINO_RUN_DURATION_MS : CHARGING_PRACTICE_DURATION_MS;
   const clockMs = isExcavation
-    ? nowMs - primary.phaseStartedAt
+    ? Math.max(0, nowMs - primary.phaseStartedAt - PHASE_START_GRACE_MS)
     : Math.min(
         ...activeTeams.map((team) =>
-          team.phaseEndsAt !== null ? team.phaseEndsAt - nowMs : team.phaseStartedAt + fallbackDuration - nowMs,
+          team.phaseEndsAt !== null
+            ? team.phaseEndsAt - Math.max(nowMs, team.phaseStartedAt + PHASE_START_GRACE_MS)
+            : team.phaseStartedAt + PHASE_START_GRACE_MS + fallbackDuration - Math.max(nowMs, team.phaseStartedAt + PHASE_START_GRACE_MS),
         ),
       );
 
@@ -94,6 +97,28 @@ function PhaseTimer({ roomState }: { roomState: RoomState }): JSX.Element | null
     <div className="phase-timer">
       <span>{isExcavation ? "진행 시간" : "남은 시간"}</span>
       <strong>{formatClock(clockMs)}</strong>
+    </div>
+  );
+}
+
+function ServerPhaseCountdown({ roomState }: { roomState: RoomState }): JSX.Element | null {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const interval = window.setInterval(() => setNowMs(Date.now()), 100);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const teams = TEAM_IDS.map((teamId) => roomState.teams[teamId]).filter((team) => team.phase !== "REVIVED");
+  if (teams.length === 0 || teams.some((team) => team.phase === "ASSEMBLY")) return null;
+  const remainingSec = Math.max(
+    ...teams.map((team) => Math.max(0, Math.ceil((team.phaseStartedAt + PHASE_START_GRACE_MS - nowMs) / 1000))),
+  );
+  if (remainingSec <= 0) return null;
+
+  return (
+    <div className="server-phase-countdown">
+      <strong>{remainingSec}</strong>
+      <span>초 후 시작</span>
     </div>
   );
 }
@@ -237,7 +262,12 @@ export function PlayArea({ roomState, ephemeral }: { roomState: RoomState; ephem
         .filter(([, c]) => chargingTeamIds.includes(c.teamId))
         .map(([playerId, c]) => [playerId, [c.point.x, c.point.y] as [number, number]]),
     );
-    return <BattleScreen battle={battle} shotEvents={ephemeral.battleShotEvents} aimPoints={aimPoints} />;
+    return (
+      <>
+        <BattleScreen battle={battle} shotEvents={ephemeral.battleShotEvents} aimPoints={aimPoints} />
+        <ServerPhaseCountdown roomState={roomState} />
+      </>
+    );
   }
 
   // 배틀 데이터가 아직 준비되지 않은 첫 100ms 안팎의 과도기(또는 CHARGING이 아닌 단계)에는
@@ -279,6 +309,7 @@ export function PlayArea({ roomState, ephemeral }: { roomState: RoomState; ephem
       )}
       {teamPanel("B")}
       <PhaseTimer roomState={roomState} />
+      <ServerPhaseCountdown roomState={roomState} />
       {isDinoRunActive && <DinoRunOverlay roomState={roomState} />}
       {isPracticeActive && <PracticeAimOverlay roomState={roomState} crosshairs={practiceCrosshairs} />}
     </section>

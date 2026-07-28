@@ -29,7 +29,10 @@ export function DinoRunTeamPanel({ team, players }: { team: TeamState; players: 
     return () => window.clearInterval(interval);
   }, []);
 
-  const remainingSec = Math.max(0, Math.ceil((team.phaseStartedAt + DINO_RUN_DURATION_MS - nowMs) / 1000));
+  const remainingSec = Math.max(
+    0,
+    Math.ceil(((team.phaseEndsAt ?? team.phaseStartedAt + PHASE_START_GRACE_MS + DINO_RUN_DURATION_MS) - Math.max(nowMs, team.phaseStartedAt + PHASE_START_GRACE_MS)) / 1000),
+  );
 
   if (team.dinoRun.result) {
     const isWin = team.dinoRun.result === "WIN";

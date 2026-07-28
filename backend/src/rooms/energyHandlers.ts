@@ -165,7 +165,13 @@ function emitTransitionEvents(io: AppServer, rooms: RoomManager, roomCode: strin
 
   io.to(channel).emit(
     "team:phaseChanged",
-    toServerEvent(roomCode, room.state.revision, { teamId: update.teamId, from: "CHARGING", to: "REVIVED", endsAt: null }),
+    toServerEvent(roomCode, room.state.revision, {
+      teamId: update.teamId,
+      from: "CHARGING",
+      to: "REVIVED",
+      startedAt: team.phaseStartedAt,
+      endsAt: null,
+    }),
   );
   io.to(channel).emit(
     "revival:formChanged",

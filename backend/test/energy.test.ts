@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { ENERGY_TARGET, SHOT_COOLDOWN_MS } from "@trex/shared";
+import { ENERGY_TARGET, PHASE_START_GRACE_MS, SHOT_COOLDOWN_MS } from "@trex/shared";
 import { RoomManager, type RoomRecord } from "../src/rooms/RoomManager.js";
 import { computeActiveCore, computeTrexTransform, CORE_OFFSETS } from "../src/game/charging.js";
 
@@ -26,6 +26,7 @@ function setupChargingRoom() {
   const room = created.room;
   const now = Date.now();
   room.state.teams.A.phase = "CHARGING";
+  room.state.teams.A.phaseStartedAt = now - PHASE_START_GRACE_MS;
   room.chargingStartedAt.A = now;
   room.sharedTrexStartedAt = now;
   room.aimState.set(a.playerId, { point: aimAtCore(room, now), mode: "TOUCHPAD", calibrated: true, receivedAt: now, lastSeq: 1 });
@@ -53,6 +54,7 @@ describe("energy:fire", () => {
     rooms.setReady(roomCode, b.playerId, true);
     rooms.startGame(created.room);
     created.room.state.teams.A.phase = "CHARGING";
+    created.room.state.teams.A.phaseStartedAt = Date.now() - PHASE_START_GRACE_MS;
 
     const outcome = rooms.fireEnergy(created.room, "A", a.playerId, randomUUID(), Date.now());
     expect(outcome.accepted).toBe(false);

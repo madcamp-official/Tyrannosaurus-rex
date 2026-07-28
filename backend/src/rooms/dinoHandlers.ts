@@ -116,6 +116,7 @@ export function tickDinoRunHandoff(io: AppServer, rooms: RoomManager, roomCode: 
           teamId,
           from: "ASSEMBLY",
           to: "CHARGING_PRACTICE",
+          startedAt: room.state.teams[teamId].phaseStartedAt,
           endsAt: room.state.teams[teamId].phaseEndsAt,
         }),
       );
@@ -132,6 +133,7 @@ export function tickDinoRunHandoff(io: AppServer, rooms: RoomManager, roomCode: 
           teamId,
           from: "CHARGING_PRACTICE",
           to: "CHARGING",
+          startedAt: room.state.teams[teamId].phaseStartedAt,
           endsAt: room.state.teams[teamId].phaseEndsAt,
         }),
       );

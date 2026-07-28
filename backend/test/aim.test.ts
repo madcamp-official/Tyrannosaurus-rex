@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { PHASE_START_GRACE_MS } from "@trex/shared";
 import { RoomManager } from "../src/rooms/RoomManager.js";
 
 function setupChargingRoom() {
@@ -14,6 +15,7 @@ function setupChargingRoom() {
 
   const room = created.room;
   room.state.teams.A.phase = "CHARGING";
+  room.state.teams.A.phaseStartedAt = Date.now() - PHASE_START_GRACE_MS;
   return { rooms, room, playerA: a.playerId };
 }
 

@@ -17,6 +17,7 @@ import {
   METEOR_HEART_LIVES_RESTORED,
   METEOR_HEART_SCORE_REWARD,
   METEOR_HIT_SCORE_PENALTY,
+  PHASE_START_GRACE_MS,
   SKY_OBJECT_COLLISION_RADIUS,
   SKY_OBJECT_COUNT,
   SKY_OBJECT_DENSITY_CURVE_EXPONENT,
@@ -109,7 +110,8 @@ export function tickSkyCollisions(room: RoomRecord, teamId: TeamId, now: number)
   const team = room.state.teams[teamId];
   if (team.phase !== "ASSEMBLY") return [];
 
-  const elapsed = now - team.phaseStartedAt;
+  const elapsed = now - team.phaseStartedAt - PHASE_START_GRACE_MS;
+  if (elapsed < 0) return [];
   const events: SkyCollisionEvent[] = [];
 
   for (const obj of team.dinoRun.skyObjects) {
@@ -200,7 +202,7 @@ export function finishDinoRunIfNeeded(room: RoomRecord, teamId: TeamId, now: num
   team.dinoRun.performance = performance;
   team.dinoRun.grade = grade;
   team.charging.stability = startStability;
-  room.phaseDurations[teamId].assemblyMs = now - team.phaseStartedAt;
+  room.phaseDurations[teamId].assemblyMs = now - team.phaseStartedAt - PHASE_START_GRACE_MS;
 
   return { performance, grade, startStability };
 }
@@ -216,6 +218,7 @@ export function finishChargingPracticeIfNeeded(room: RoomRecord, teamId: TeamId,
   const team = room.state.teams[teamId];
   if (team.phase !== "CHARGING_PRACTICE") return false;
   if (team.phaseEndsAt === null) return false;
+  if (now < team.phaseStartedAt + PHASE_START_GRACE_MS) return false;
 
   const allCalibrated =
     team.playerIds.length > 0 && team.playerIds.every((playerId) => room.aimState.get(playerId)?.calibrated === true);
@@ -223,7 +226,7 @@ export function finishChargingPracticeIfNeeded(room: RoomRecord, teamId: TeamId,
 
   team.phase = "CHARGING";
   team.phaseStartedAt = now;
-  team.phaseEndsAt = now + CHARGING_DURATION_MS;
+  team.phaseEndsAt = now + PHASE_START_GRACE_MS + CHARGING_DURATION_MS;
   room.chargingStartedAt[teamId] = now;
   // 공유 스켈레톤은 방에서 먼저 CHARGING에 들어간 팀 기준으로 한 번만 시작된다 (§2.3).
   if (room.sharedTrexStartedAt === null) {

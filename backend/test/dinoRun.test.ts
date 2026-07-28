@@ -8,6 +8,7 @@ import {
   METEOR_HEART_LIVES_RESTORED,
   METEOR_HEART_SCORE_REWARD,
   METEOR_HIT_SCORE_PENALTY,
+  PHASE_START_GRACE_MS,
   ROUND_TRANSITION_MS,
   SKY_OBJECT_COUNT,
   SKY_OBJECT_FALL_MS,
@@ -31,7 +32,7 @@ function setupAssemblyRoom() {
   for (const teamId of ["A", "B"] as const) {
     const team = room.state.teams[teamId];
     team.phase = "ASSEMBLY";
-    team.phaseStartedAt = now;
+    team.phaseStartedAt = now - PHASE_START_GRACE_MS;
     team.phaseEndsAt = now + DINO_RUN_DURATION_MS;
     team.dinoRun.skyObjects = makeSkyObjectSchedule(room.roundSeed!);
     for (const playerId of team.playerIds) {
@@ -49,6 +50,11 @@ function setupChargingPracticeRoom() {
   rooms.tickDinoCollisions(room, evalNow);
   rooms.tickDinoRun(room, evalNow);
   rooms.tickDinoRunTransition(room, evalNow + ROUND_TRANSITION_MS + 1);
+  for (const teamId of ["A", "B"] as const) {
+    room.state.teams[teamId].phaseStartedAt = Date.now() - PHASE_START_GRACE_MS;
+    room.state.teams[teamId].phaseEndsAt =
+      room.state.teams[teamId].phaseStartedAt + PHASE_START_GRACE_MS + CHARGING_PRACTICE_DURATION_MS;
+  }
   return setup;
 }
 

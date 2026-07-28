@@ -9,6 +9,7 @@
 import { useEffect, useRef, useState, type PointerEvent } from "react";
 import {
   DINO_POSITION_UPDATE_MAX_HZ,
+  PHASE_START_GRACE_MS,
   DINO_RUN_DURATION_MS,
   METEOR_DODGE_LIVES,
   SKY_OBJECT_FALL_MS,
@@ -118,7 +119,7 @@ export function DinoRunControls({
 
   // 서버 phaseStartedAt(서버 시계)과 로컬 시계의 오차는 연출용으로만 쓴다 — 실제 판정은
   // 서버 수신 시각 기준이다 (§6.2).
-  const elapsed = nowMs - team.phaseStartedAt;
+  const elapsed = Math.max(0, nowMs - team.phaseStartedAt - PHASE_START_GRACE_MS);
   const remainingSec = Math.max(0, Math.ceil((DINO_RUN_DURATION_MS - elapsed) / 1000));
 
   if (result) {

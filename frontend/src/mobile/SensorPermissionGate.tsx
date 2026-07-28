@@ -16,15 +16,20 @@ export function SensorPermissionGate({ phaseStartedAt, children }: { phaseStarte
   }, []);
 
   const elapsed = nowMs - phaseStartedAt;
-  if (elapsed >= PHASE_START_GRACE_MS) return <>{children}</>;
-
   const remainingSec = Math.max(0, Math.ceil((PHASE_START_GRACE_MS - elapsed) / 1000));
 
   return (
-    <div className="sensor-gate">
-      <p className="mobile-game__title">🎮 준비 중…</p>
-      <p className="mobile-game__hint">잠시만 기다려주세요.</p>
-      <p className="sensor-gate__countdown">{remainingSec}초 후 시작</p>
+    <div className="sensor-gate-shell">
+      <div className={remainingSec > 0 ? "sensor-gate-shell__content sensor-gate-shell__content--waiting" : "sensor-gate-shell__content"}>
+        {children}
+      </div>
+      {remainingSec > 0 && (
+        <div className="sensor-gate">
+          <p className="mobile-game__title">🎮 준비 중…</p>
+          <p className="mobile-game__hint">서버 카운트다운 후 시작합니다.</p>
+          <p className="sensor-gate__countdown">{remainingSec}초 후 시작</p>
+        </div>
+      )}
     </div>
   );
 }

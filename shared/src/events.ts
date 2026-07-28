@@ -257,7 +257,7 @@ export interface ServerToClientEvents {
     evt: ServerEvent<{ from: RoomState["roomPhase"]; to: RoomState["roomPhase"]; endsAt: number | null }>,
   ) => void;
   "team:phaseChanged": (
-    evt: ServerEvent<{ teamId: TeamId; from: TeamPhase; to: TeamPhase; endsAt: number | null }>,
+    evt: ServerEvent<{ teamId: TeamId; from: TeamPhase; to: TeamPhase; startedAt: number; endsAt: number | null }>,
   ) => void;
   "excavation:progress": (
     evt: ServerEvent<{
