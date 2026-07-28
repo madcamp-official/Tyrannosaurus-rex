@@ -36,11 +36,13 @@ export const METEOR_HIT_SCORE_PENALTY = 15; // 운석에 맞을 때마다 깎이
 export const METEOR_BONUS_SCORE_REWARD = 20; // 보너스 아이템을 잡으면 얻는 점수
 // 좌우 위치(0~1) 기준 충돌 판정 반경 — 이 안에 있으면 맞은(또는 잡은) 것으로 인정한다.
 export const SKY_OBJECT_COLLISION_RADIUS = 0.09;
-export const SKY_OBJECT_COUNT = 34; // 1분 동안 떨어지는 운석+아이템 총 개수
+export const SKY_OBJECT_COUNT = 46; // 1분 동안 떨어지는 운석+아이템 총 개수
 export const SKY_OBJECT_BONUS_CHANCE = 0.1; // 이 중 보너스 아이템일 확률
 export const SKY_OBJECT_MIN_OFFSET_MS = 3_000; // 시작 3초는 아무것도 안 떨어지는 몸풀기 구간
 export const SKY_OBJECT_MAX_OFFSET_MS = 57_000;
-export const SKY_OBJECT_MIN_GAP_MS = 900;
+export const SKY_OBJECT_MIN_GAP_MS = 700;
+// 1보다 작을수록 초반엔 간격이 넓다가(뜸하게) 시간이 지날수록 간격이 좁아진다(점점 빽빽하게).
+export const SKY_OBJECT_DENSITY_CURVE_EXPONENT = 0.55;
 // 오브젝트가 화면 위에서 판정 지점까지 떨어지는 데 걸리는 시간(연출용) — 짧을수록 빠르게 떨어진다.
 export const SKY_OBJECT_FALL_MS = 1_150;
 // 좌우 위치 보고 빈도 상한(자이로 기울임 → 서버 전송).

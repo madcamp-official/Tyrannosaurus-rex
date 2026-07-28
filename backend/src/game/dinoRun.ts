@@ -18,6 +18,7 @@ import {
   SKY_OBJECT_BONUS_CHANCE,
   SKY_OBJECT_COLLISION_RADIUS,
   SKY_OBJECT_COUNT,
+  SKY_OBJECT_DENSITY_CURVE_EXPONENT,
   SKY_OBJECT_MAX_OFFSET_MS,
   SKY_OBJECT_MIN_GAP_MS,
   SKY_OBJECT_MIN_OFFSET_MS,
@@ -32,14 +33,15 @@ import { seededRandom01 } from "./seededRandom.js";
 
 /**
  * 라운드 시드로 낙하 오브젝트 스케줄을 생성한다. 양 팀이 같은 스케줄을 공유한다(§4 공정성).
- * [MIN, MAX] 구간에 균등 간격 + 지터로 뿌린 뒤 최소 간격 미만이면 뒤로 밀어 보정하고,
- * 각 오브젝트의 좌우 위치·종류(운석/보너스)를 시드 기반으로 정한다.
+ * [MIN, MAX] 구간에 지터를 섞어 뿌리되, 지수(SKY_OBJECT_DENSITY_CURVE_EXPONENT < 1)로
+ * 시간축을 휘어 초반엔 뜸하고 후반으로 갈수록 점점 빽빽해지게 만든 뒤, 최소 간격 미만이면
+ * 뒤로 밀어 보정하고, 각 오브젝트의 좌우 위치·종류(운석/보너스)를 시드 기반으로 정한다.
  */
 export function makeSkyObjectSchedule(seed: string): SkyObject[] {
   const span = SKY_OBJECT_MAX_OFFSET_MS - SKY_OBJECT_MIN_OFFSET_MS;
   const offsets: number[] = [];
   for (let i = 0; i < SKY_OBJECT_COUNT; i += 1) {
-    const t = i / (SKY_OBJECT_COUNT - 1);
+    const t = Math.pow(i / (SKY_OBJECT_COUNT - 1), SKY_OBJECT_DENSITY_CURVE_EXPONENT);
     const jitter = (seededRandom01(`${seed}:sky`, i) - 0.5) * SKY_OBJECT_MIN_GAP_MS * 0.6;
     offsets.push(Math.round(SKY_OBJECT_MIN_OFFSET_MS + span * t + jitter));
   }
