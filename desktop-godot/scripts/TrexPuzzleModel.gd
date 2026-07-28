@@ -91,13 +91,10 @@ func show_only_piece(piece_id: String) -> void:
 ## radius_meters 기본값(6.5)은 GroundDig.DIG_ZONE_RADIUS(3.45)보다 충분히 바깥이라, 발굴된
 ## 뼈가 구덩이의 들쭉날쭉한 가장자리를 벗어난 평평한 자리에 놓인다.
 ##
-## 카메라(Main._build_camera)는 항상 +Z 쪽 위에서 무대를 내려다보므로, 조각을 원 전체에
-## 흩뿌리면 -Z(카메라에서 먼) 쪽으로 간 조각들이 원근 때문에 화면상 구덩이 뒤로 겹쳐 보여
-## "구덩이 위에 떠 있는" 것처럼 보였다. 그래서 카메라를 향한 반원(대략 Z>=0)에만 흩어
-## 놓아 항상 구덩이 앞쪽·옆쪽에서 또렷이 보이게 한다.
-const SCATTER_ARC_CENTER := PI * 0.5  # +Z 방향(카메라 쪽)
-const SCATTER_ARC_HALF_SPAN := PI * 0.42  # 반원보다 살짝 좁게 잡아 양 끝이 옆면으로 새지 않게 한다
-
+## 예전엔 카메라(Main._build_camera)가 비스듬한 각도로 내려다봐서, 조각을 원 전체에
+## 흩뿌리면 카메라에서 먼 쪽으로 간 조각들이 원근 때문에 화면상 구덩이 뒤로 겹쳐 보이는
+## 문제가 있어 반원으로 제한했었다. 카메라가 수직 탑다운으로 바뀌면서 "먼 쪽"이 없어져
+## 더 이상 그럴 필요가 없으므로 다시 원 전체에 고르게 흩어 놓는다.
 func scatter(seed_value: int = 0, radius_meters: float = 6.5) -> void:
 	_displayed_piece_id = ""
 	var rng := RandomNumberGenerator.new()
@@ -110,8 +107,8 @@ func scatter(seed_value: int = 0, radius_meters: float = 6.5) -> void:
 		if not piece:
 			continue
 		piece.visible = true
-		var t := float(i) / float(maxi(1, count - 1))
-		var angle := SCATTER_ARC_CENTER - SCATTER_ARC_HALF_SPAN + t * (SCATTER_ARC_HALF_SPAN * 2.0)
+		var t := float(i) / float(maxi(1, count))
+		var angle := t * TAU
 		angle += rng.randf_range(-0.06, 0.06) * PI
 		piece.position = Vector3(
 			cos(angle) * radius_units,
