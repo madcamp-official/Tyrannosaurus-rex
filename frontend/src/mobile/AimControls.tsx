@@ -22,6 +22,28 @@ function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
+function getScreenOrientationAngle(): number {
+  const screenAngle = window.screen.orientation?.angle;
+  if (typeof screenAngle === "number") return screenAngle;
+  return (window as Window & { orientation?: number }).orientation ?? 0;
+}
+
+/**
+ * beta/gamma는 기기의 자연 방향을 기준으로 고정되므로 가로 화면에서는 물리적인 화면 축과
+ * 어긋난다. 현재 화면 회전각만큼 두 축을 회전해, horizontal은 언제나 "화면의 세로축을
+ * 중심으로 좌우로 비트는 회전", vertical은 "화면의 가로축을 중심으로 앞뒤로 기울이는
+ * 회전"이 되게 한다.
+ */
+function toScreenAxes(dBeta: number, dGamma: number): { horizontal: number; vertical: number } {
+  const radians = (getScreenOrientationAngle() * Math.PI) / 180;
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  return {
+    horizontal: dGamma * cos + dBeta * sin,
+    vertical: dBeta * cos - dGamma * sin,
+  };
+}
+
 export function AimControls({ socket, practice = false }: { socket: AppSocket; practice?: boolean }): JSX.Element {
   const [orientationPermission, setOrientationPermission] = useState<SensorPermission>("UNKNOWN");
   const [calibrated, setCalibrated] = useState(false);
@@ -88,11 +110,11 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
       if (!zeroRef.current) return;
       const dBeta = filteredRef.current.beta - zeroRef.current.beta;
       const dGamma = filteredRef.current.gamma - zeroRef.current.gamma;
+      const screenAxes = toScreenAxes(dBeta, dGamma);
       setPoint({
-        x: clamp01(0.5 + dGamma / GYRO_SENSITIVITY_X_DEG / 2),
-        // 폰 위쪽(윗변)을 몸에서 멀어지게 기울이면 아래로, 몸 쪽으로 기울이면 위로 — beta가
-        // 늘어날수록(몸 쪽으로 기울일수록) 위로 가야 하므로 부호를 뒤집는다.
-        y: clamp01(0.5 - dBeta / GYRO_SENSITIVITY_Y_DEG / 2),
+        x: clamp01(0.5 + screenAxes.horizontal / GYRO_SENSITIVITY_X_DEG / 2),
+        // 화면 윗변을 몸에서 멀어지게 기울이면 아래로, 몸 쪽으로 기울이면 위로 이동한다.
+        y: clamp01(0.5 - screenAxes.vertical / GYRO_SENSITIVITY_Y_DEG / 2),
       });
     };
     window.addEventListener("deviceorientation", handleOrientation);
