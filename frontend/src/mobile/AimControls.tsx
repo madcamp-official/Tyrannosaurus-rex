@@ -61,7 +61,21 @@ export function AimControls({ socket, team, practice = false }: { socket: AppSoc
   const practiceRemainingSec = usePracticeCountdown(practice, team?.phaseStartedAt ?? Date.now());
 
   useEffect(() => {
-    if (typeof window.DeviceOrientationEvent === "undefined") setOrientationPermission("UNSUPPORTED");
+    if (typeof window.DeviceOrientationEvent === "undefined") {
+      setOrientationPermission("UNSUPPORTED");
+      return;
+    }
+    // 버튼 없이 바로 요청한다 — 입장 폼 제출 시 이미 한 번 요청해둬서(§sensorPermissions),
+    // 대부분 여기서는 팝업 없이 캐시된 결과가 즉시 돌아온다.
+    const api = window.DeviceOrientationEvent as unknown as OrientationPermissionApi;
+    if (typeof api.requestPermission !== "function") {
+      setOrientationPermission("GRANTED");
+      return;
+    }
+    api
+      .requestPermission()
+      .then((result) => setOrientationPermission(result === "granted" ? "GRANTED" : "DENIED"))
+      .catch(() => setOrientationPermission("DENIED"));
   }, []);
 
   useEffect(() => {
@@ -107,24 +121,9 @@ export function AimControls({ socket, team, practice = false }: { socket: AppSoc
     return () => window.clearInterval(interval);
   }, [socket, aimMode, calibrated]);
 
-  const requestOrientationPermission = async () => {
-    const api = window.DeviceOrientationEvent as unknown as OrientationPermissionApi;
-    if (typeof api.requestPermission === "function") {
-      try {
-        const result = await api.requestPermission();
-        setOrientationPermission(result === "granted" ? "GRANTED" : "DENIED");
-      } catch {
-        setOrientationPermission("DENIED");
-      }
-    } else {
-      setOrientationPermission("GRANTED");
-    }
-  };
-
   const switchMode = (mode: AimMode) => {
     setAimMode(mode);
     setPoint({ x: 0.5, y: 0.5 });
-    if (mode === "GYRO" && orientationPermission === "UNKNOWN") void requestOrientationPermission();
   };
 
   const calibrate = () => {
