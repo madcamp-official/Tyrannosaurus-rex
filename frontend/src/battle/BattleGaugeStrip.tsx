@@ -2,8 +2,9 @@
 
 import type { BattleState, TeamId } from "./battleTypes";
 
-function TeamEnergyCard({ teamId, energy, target, totalHits, coreHits }: {
+function TeamEnergyCard({ teamId, teamName, energy, target, totalHits, coreHits }: {
   teamId: TeamId;
+  teamName: string;
   energy: number;
   target: number;
   totalHits: number;
@@ -19,11 +20,11 @@ function TeamEnergyCard({ teamId, energy, target, totalHits, coreHits }: {
         {mirrored ? (
           <>
             <span className="battle-gauge__caption">부활 에너지</span>
-            <span className="battle-gauge__team">{teamId}팀</span>
+            <span className="battle-gauge__team">{teamName}</span>
           </>
         ) : (
           <>
-            <span className="battle-gauge__team">{teamId}팀</span>
+            <span className="battle-gauge__team">{teamName}</span>
             <span className="battle-gauge__caption">부활 에너지</span>
           </>
         )}
@@ -47,6 +48,7 @@ export function BattleGaugeStrip({ battle }: { battle: BattleState }): JSX.Eleme
     <div className="battle-gauge-strip">
       <TeamEnergyCard
         teamId="A"
+        teamName={battle.teamA.name}
         energy={battle.teamA.energy}
         target={battle.energyTarget}
         totalHits={battle.teamA.totalHits}
@@ -59,6 +61,7 @@ export function BattleGaugeStrip({ battle }: { battle: BattleState }): JSX.Eleme
       </div>
       <TeamEnergyCard
         teamId="B"
+        teamName={battle.teamB.name}
         energy={battle.teamB.energy}
         target={battle.energyTarget}
         totalHits={battle.teamB.totalHits}
