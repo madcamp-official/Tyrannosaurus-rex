@@ -80,3 +80,14 @@
 - API/Socket.IO/Shared 계약 변경: 없음.
 - 환경 변수 변경: 없음.
 - 검증 결과: `npm run typecheck -w frontend`, `npm run test -w frontend`, `npm run build -w frontend` 통과.
+
+## 2026-07-28 - 모바일 대기/입장 화면 확대 (`frontend/mobile-waiting-screen-scale` 브랜치)
+
+- 구현 목적: 실기기 스크린샷으로 확인해보니 "준비하기" 대기 화면과 닉네임 입력 화면이 지난 확대 작업(발굴/조준/발사/다이노런 게임 화면) 범위에서 빠져 있어 여전히 작게 보였다.
+- 주요 변경 사항:
+  - `.mobile-join__content`의 요소 간 간격을 16px → 28px로 넓혔다.
+  - 대기 화면: 로고(`--small`), 팀 이름(`YeogiOttaeJalnan` 폰트로 통일), 입장 안내 문구, "준비하기" 버튼, "다른 팀원 N명" 문구를 전부 `clamp()` 기반으로 화면 폭에 비례해 크게 키웠다.
+  - 닉네임 입력 화면: 카드 최대 폭 340px → 420px, 입력창·버튼 글자 크기와 패딩을 확대했다.
+- API/Socket.IO/Shared 계약 변경: 없음.
+- 환경 변수 변경: 없음.
+- 검증 결과: `npm run build -w shared`(stale artifact 재빌드 필요했음) 후 `npm run typecheck -w frontend`, `npm run test -w frontend`, `npm run build -w frontend` 통과.
