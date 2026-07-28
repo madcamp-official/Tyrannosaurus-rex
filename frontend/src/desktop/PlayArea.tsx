@@ -1,9 +1,20 @@
 /** Plan.md §5.1, §10.3 "Godot이 지연되더라도 서버·React 흐름을 완주 가능하게" — 2D 안전 화면 겸 기본 HUD.
  * 좌우 풀블리드 분할로 각 팀의 3D 무대(Godot, 배경) 위에 단계별 오버레이를 얹는다. */
 
-import { BONE_IDS, type PlayerId, type PublicPlayer, type RoomState, type TeamId, type TeamState } from "@trex/shared";
+import {
+  BONE_IDS,
+  CHARGING_PRACTICE_DURATION_MS,
+  DINO_RUN_DURATION_MS,
+  totalGameScore,
+  type PlayerId,
+  type PublicPlayer,
+  type RoomState,
+  type TeamId,
+  type TeamState,
+} from "@trex/shared";
+import { useEffect, useState } from "react";
 import { ExcavationTeamPanel } from "./ExcavationView";
-import { DinoRunTeamPanel } from "./DinoRunView";
+import { DinoRunOverlay, DinoRunTeamPanel } from "./DinoRunView";
 import { ChargingSharedArena, ChargingTeamStats, type CrosshairDisplay, type TrexDisplay } from "./ChargingView";
 import { BattleScreen } from "../battle/BattleScreen";
 import { battleStateFromRoom } from "../battle/fromRoomState";
@@ -43,6 +54,94 @@ function RingsIcon(): JSX.Element {
   );
 }
 
+function ShakeIcon(): JSX.Element {
+  return (
+    <svg className="play-area__shake-icon" viewBox="0 0 24 24" aria-hidden="true">
+      <path d="M9 6.5v-2a1.5 1.5 0 0 1 3 0v2-1a1.5 1.5 0 0 1 3 0v1a1.5 1.5 0 0 1 3 0v5.2c0 4.2-2.7 7.3-6.8 7.3H10c-2.2 0-3.7-1-5.2-2.7L3 14.2a1.6 1.6 0 0 1 2.3-2.1L7 13.5v-7a1.5 1.5 0 0 1 3 0" />
+      <path d="M3.5 5.5 2 4m18.5 1.5L22 4M4 9H2m20 0h-2" />
+    </svg>
+  );
+}
+
+function formatClock(ms: number): string {
+  const totalSec = Math.max(0, Math.ceil(ms / 1000));
+  const minutes = Math.floor(totalSec / 60).toString().padStart(2, "0");
+  const seconds = (totalSec % 60).toString().padStart(2, "0");
+  return `${minutes}:${seconds}`;
+}
+
+function PhaseTimer({ roomState }: { roomState: RoomState }): JSX.Element | null {
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    const interval = window.setInterval(() => setNowMs(Date.now()), 200);
+    return () => window.clearInterval(interval);
+  }, []);
+
+  const activeTeams = TEAM_IDS.map((teamId) => roomState.teams[teamId]).filter((team) => team.phase !== "REVIVED");
+  if (activeTeams.length === 0) return null;
+  const primary = activeTeams[0]!;
+  const isExcavation = primary.phase === "EXCAVATION";
+  const fallbackDuration = primary.phase === "ASSEMBLY" ? DINO_RUN_DURATION_MS : CHARGING_PRACTICE_DURATION_MS;
+  const clockMs = isExcavation
+    ? nowMs - primary.phaseStartedAt
+    : Math.min(
+        ...activeTeams.map((team) =>
+          team.phaseEndsAt !== null ? team.phaseEndsAt - nowMs : team.phaseStartedAt + fallbackDuration - nowMs,
+        ),
+      );
+
+  return (
+    <div className="phase-timer">
+      <span>{isExcavation ? "진행 시간" : "남은 시간"}</span>
+      <strong>{formatClock(clockMs)}</strong>
+    </div>
+  );
+}
+
+function PracticeAimOverlay({
+  roomState,
+  crosshairs,
+}: {
+  roomState: RoomState;
+  crosshairs: Array<CrosshairDisplay & { teamId: TeamId }>;
+}): JSX.Element {
+  const playersById = new Map(roomState.players.map((player) => [player.id, player]));
+  return (
+    <div className="practice-aim">
+      <div className="practice-aim__heading">
+        <h2>영점 조정 연습 중</h2>
+        <p>휴대폰을 움직여 조준점이 과녁 중앙을 따라오는지 확인하세요</p>
+      </div>
+      <div className="practice-aim__target">
+        <span className="practice-aim__ring practice-aim__ring--outer" />
+        <span className="practice-aim__ring practice-aim__ring--middle" />
+        <span className="practice-aim__ring practice-aim__ring--inner" />
+        <span className="practice-aim__bullseye" />
+        {crosshairs.map((crosshair) => {
+          const player = playersById.get(crosshair.playerId);
+          return (
+            <span
+              key={crosshair.playerId}
+              className="practice-aim__crosshair"
+              style={{ left: `${crosshair.point.x * 100}%`, top: `${crosshair.point.y * 100}%`, color: crosshair.color }}
+            >
+              <span />
+              <small>{player?.nickname ?? crosshair.playerId}</small>
+            </span>
+          );
+        })}
+      </div>
+      <div className="practice-aim__legend">
+        {TEAM_IDS.map((teamId) => (
+          <span key={teamId} className={`practice-aim__team practice-aim__team--${teamId.toLowerCase()}`}>
+            {roomState.teamNames[teamId]}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TeamHeader({
   teamId,
   teamName,
@@ -55,6 +154,13 @@ function TeamHeader({
   team: TeamState;
 }): JSX.Element {
   const connected = players.filter((p) => p.connected).length;
+  const totalExcavationInputs = players.reduce((sum, player) => sum + player.stats.excavationInputs, 0);
+  const score =
+    team.phase === "EXCAVATION"
+      ? Math.round(team.excavation.points)
+      : team.phase === "ASSEMBLY"
+        ? Object.values(team.dinoRun.scoreByPlayer).reduce((sum, value) => sum + value, 0)
+        : Math.round(totalGameScore(team.scores));
   return (
     <div className={`play-area__team-header play-area__team-header--${teamId.toLowerCase()}`}>
       <div className="play-area__team-name">
@@ -72,12 +178,24 @@ function TeamHeader({
           </span>
         </div>
         {team.phase === "EXCAVATION" && (
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }} title="발견한 뼈">
-            <RingsIcon />
-            <span className="play-area__team-count">
-              {team.excavation.discoveredBoneIds.length}
-              <span>/{BONE_IDS.length}</span>
-            </span>
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }} title="팀 전체 휴대폰 흔들기 횟수">
+              <ShakeIcon />
+              <span className="play-area__team-count">{totalExcavationInputs}회</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }} title="발견한 뼈">
+              <RingsIcon />
+              <span className="play-area__team-count">
+                {team.excavation.discoveredBoneIds.length}
+                <span>/{BONE_IDS.length}</span>
+              </span>
+            </div>
+          </>
+        )}
+        {team.phase !== "CHARGING_PRACTICE" && (
+          <div className="play-area__team-score">
+            <span>점수</span>
+            <strong>{score}</strong>
           </div>
         )}
       </div>
@@ -127,6 +245,13 @@ export function PlayArea({ roomState, ephemeral }: { roomState: RoomState; ephem
   const sharedTrex = hasSharedArena ? ephemeral.trexByTeam[chargingTeamIds[0]!] : undefined;
   const sharedCrosshairs = Object.values(ephemeral.crosshairsByPlayer).filter((c) => chargingTeamIds.includes(c.teamId));
   const sharedHitFlash = chargingTeamIds.map((teamId) => ephemeral.hitFlashByTeam[teamId]).find((flash) => flash) ?? null;
+  const isDinoRunActive = TEAM_IDS.some(
+    (teamId) => roomState.teams[teamId].phase === "ASSEMBLY" && roomState.teams[teamId].dinoRun.result === null,
+  );
+  const isPracticeActive = TEAM_IDS.some((teamId) => roomState.teams[teamId].phase === "CHARGING_PRACTICE");
+  const practiceCrosshairs = Object.values(ephemeral.crosshairsByPlayer).filter((crosshair) =>
+    TEAM_IDS.some((teamId) => roomState.teams[teamId].phase === "CHARGING_PRACTICE" && crosshair.teamId === teamId),
+  );
 
   const teamPanel = (teamId: TeamId): JSX.Element => {
     const team = roomState.teams[teamId];
@@ -153,6 +278,9 @@ export function PlayArea({ roomState, ephemeral }: { roomState: RoomState; ephem
         </div>
       )}
       {teamPanel("B")}
+      <PhaseTimer roomState={roomState} />
+      {isDinoRunActive && <DinoRunOverlay roomState={roomState} />}
+      {isPracticeActive && <PracticeAimOverlay roomState={roomState} crosshairs={practiceCrosshairs} />}
     </section>
   );
 }

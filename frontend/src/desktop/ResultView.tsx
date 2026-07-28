@@ -69,26 +69,38 @@ function TeamPanel({
   const excavationSec = formatSec(teamResult?.excavationMs);
   const assemblySec = formatSec(teamResult?.assemblyMs);
   const totalSec = (Number(excavationSec) + Number(assemblySec)).toFixed(1);
+  const score = formatScore(teamResult?.totalScore);
 
   return (
     <div className={`result-view__team-panel result-view__team-panel--${teamId.toLowerCase()}`}>
-      <h3 className="result-view__team-name">
-        {TEAM_EMBLEM[teamId]} {roomState.teamNames[teamId]}
-      </h3>
-      <p className="result-view__form">{teamResult?.form === "YRANNO" ? "🦖 와이라노..." : "🦖 정상 부활"}</p>
+      <div className="result-view__team-summary">
+        <div className="result-view__team-identity">
+          <h3 className="result-view__team-name">
+            {TEAM_EMBLEM[teamId]} {roomState.teamNames[teamId]}
+          </h3>
+          <p className="result-view__form">{teamResult?.form === "YRANNO" ? "🦖 와이라노..." : "🦖 정상 부활"}</p>
+        </div>
+        <div className="result-view__team-score">
+          <strong>{score}</strong>
+          <span>점</span>
+        </div>
+      </div>
       <ul className="result-view__stat-list">
         <li>
-          발굴 시 땅을 판 횟수 : {summary.digs}회{topDigger && ` (MVP: ${topDigger.nickname})`}
+          <span>발굴 시 땅을 판 횟수</span>
+          <strong>{summary.digs}회{topDigger && ` · MVP ${topDigger.nickname}`}</strong>
         </li>
         <li>
-          운석을 피한 수 : {summary.dodged}/{dodgeMax}
+          <span>운석을 피한 수</span>
+          <strong>{summary.dodged}/{dodgeMax}</strong>
         </li>
         <li>
-          티라노에게 적중한 에너지 사격 수 : {summary.hits}/{summary.shots}
-          {topShooter && ` (MVP: ${topShooter.nickname})`}
+          <span>에너지 사격 적중 수</span>
+          <strong>{summary.hits}/{summary.shots}{topShooter && ` · MVP ${topShooter.nickname}`}</strong>
         </li>
         <li>
-          시간 보너스 : {excavationSec} + {assemblySec} = {totalSec}초!
+          <span>시간 보너스</span>
+          <strong>{excavationSec} + {assemblySec} = {totalSec}초</strong>
         </li>
       </ul>
       {roomState.roomPhase === "DECORATION" && <p className="result-view__voting">박물관에 기록 중…</p>}
@@ -130,14 +142,6 @@ export function ResultView({
       <div className="result-view__header-row">
         <TeamPanel teamId="A" roomState={roomState} gameResult={gameResult} />
         <TeamPanel teamId="B" roomState={roomState} gameResult={gameResult} />
-      </div>
-
-      <div className="result-view__score-header">
-        <span className="result-view__score-header-value">{formatScore(gameResult?.teams.find((t) => t.teamId === "A")?.totalScore)}</span>
-        <span className="result-view__score-header-team">{roomState.teamNames.A}</span>
-        <span className="result-view__score-header-sep">|</span>
-        <span className="result-view__score-header-team">{roomState.teamNames.B}</span>
-        <span className="result-view__score-header-value">{formatScore(gameResult?.teams.find((t) => t.teamId === "B")?.totalScore)}</span>
       </div>
 
       {gameResult && gameResult.mvp.length > 0 && (

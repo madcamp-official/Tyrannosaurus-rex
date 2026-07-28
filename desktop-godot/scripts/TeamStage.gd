@@ -9,8 +9,6 @@ const ARENA_WIDTH := 6.0
 const ARENA_DEPTH := 4.0
 const REVEAL_POP_DURATION := 0.6
 const SNAP_DURATION := 0.3
-## 뼈가 발굴될 때 이만큼(월드 미터) 아래 파묻힌 자리에서 시작해 제자리로 솟아오른다.
-const REVEAL_RISE_METERS := 1.1
 ## excavation:progress는 입력마다(초당 최대 12회) 오지만, 매번 파면 뼈 하나 찾는 사이에도
 ## 땅이 다 파여서 후반부에 시각적 변화가 없어진다. 진행도가 이만큼 움직일 때마다 한 번만 판다
 ## (뼈 하나당 0~100%를 대략 10번에 나눠 파는 셈).
@@ -152,18 +150,18 @@ func _reveal_piece(bone_id: String, animate: bool) -> void:
 	piece.visible = true
 	if not animate:
 		return
-	# 뼈가 흙 속에 파묻혀 있다가 솟아오르는 느낌을 주려고, 최종 자리(scatter가 정해 둔
-	# 위치) 그대로 두고 그보다 아래(땅속)에서 시작해 위로 떠오르며 동시에 스케일도 키운다.
-	var rest_position := piece.position
 	var original_scale := piece.scale
-	var buried_position := rest_position - Vector3(0, REVEAL_RISE_METERS / TrexPuzzleModel.MODEL_SCALE, 0)
-	piece.position = buried_position
-	piece.scale = Vector3.ZERO
+	var original_rotation := piece.rotation
+	# 땅속에서 뽑혀 올라오는 대신, 발견 위치에서 먼지를 털어내듯 짧게 회전하며
+	# 선명해지는 연출로 바꾼다. 위치는 움직이지 않아 발굴물이 튀어나와 보이지 않는다.
+	piece.scale = original_scale * 0.92
+	piece.rotation.y = original_rotation.y - 0.22
 	var tween := create_tween()
-	tween.set_parallel(true)
-	tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.tween_property(piece, "position", rest_position, REVEAL_POP_DURATION)
-	tween.tween_property(piece, "scale", original_scale, REVEAL_POP_DURATION)
+	tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(piece, "rotation:y", original_rotation.y + 0.12, REVEAL_POP_DURATION * 0.55)
+	tween.parallel().tween_property(piece, "scale", original_scale * 1.04, REVEAL_POP_DURATION * 0.55)
+	tween.tween_property(piece, "rotation:y", original_rotation.y, REVEAL_POP_DURATION * 0.45)
+	tween.parallel().tween_property(piece, "scale", original_scale, REVEAL_POP_DURATION * 0.45)
 
 func on_puzzle_piece_moved(bone_id: String, _transform_2d: Dictionary) -> void:
 	# 서버의 0~1 정규화 좌표는 별도 2D 퍼즐 판정용이라 3D 모델 좌표와 직접 대응하지 않는다.
