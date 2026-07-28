@@ -52,7 +52,7 @@ export const SKY_OBJECT_MIN_GAP_MS = 650;
 // 1보다 작을수록 초반엔 간격이 넓다가(뜸하게) 시간이 지날수록 간격이 좁아진다(점점 빽빽하게).
 export const SKY_OBJECT_DENSITY_CURVE_EXPONENT = 0.55;
 // 오브젝트가 화면 위에서 판정 지점까지 떨어지는 데 걸리는 시간(연출용) — 짧을수록 빠르게 떨어진다.
-export const SKY_OBJECT_FALL_MS = 1_150;
+export const SKY_OBJECT_FALL_MS = 800;
 // 좌우 위치 보고 빈도 상한(자이로 기울임 → 서버 전송).
 export const DINO_POSITION_UPDATE_MAX_HZ = 20;
 // 팀 성능(0~1) 정규화 기준 — 팀원 1인이 이 점수를 내면 만점으로 친다. 과일·하트를 거의 다
