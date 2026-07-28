@@ -196,3 +196,14 @@
 - API/Socket.IO/Shared 계약 변경: 없음.
 - 환경 변수 변경: 없음.
 - 검증 결과: `npm run typecheck`, `npm test`(72개), `npm run build`, GLTF 선언·실제 바이너리 크기 일치 및 production `dist` 자산 포함 확인. 연결된 브라우저가 없어 시각 스크린샷 검증은 수행하지 못했다.
+
+## 2026-07-29 - 사격 무대 실시간 일몰 전환
+
+- 구현 목적: 사격 라운드가 진행되는 동안 KAIST 정문 배경이 낮에서 노을로 자연스럽게 변하도록 만든다.
+- 주요 변경 사항:
+  - `images/kaist_front_sunset.png`를 사격용 정적 자산으로 제공한다.
+  - 낮·노을 이미지를 같은 좌표에 겹치고 서버의 사격 남은 시간 비율을 노을 레이어 불투명도에 연결한다.
+  - 사격 시작 시 낮 100%, 종료 시 노을 100%가 되며 중간 입장·새로고침 시에도 서버 시간에 맞는 상태로 복원된다.
+- API/Socket.IO/Shared 계약 변경: 없음. 기존 `CHARGING_DURATION_MS`와 `remainingSec`를 사용한다.
+- 환경 변수 변경: 없음.
+- 검증 결과: `npm run typecheck`, `npm test`(72개), `npm run build`, production `dist`의 노을 이미지 포함 및 `git diff --check` 통과.

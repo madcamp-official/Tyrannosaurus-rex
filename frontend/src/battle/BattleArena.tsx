@@ -1,6 +1,7 @@
 /** 풀블리드 3D 무대 근사: 황혼 배경, 배회하는 스켈레톤 트리라노, 코어 마커, 크로스헤어, 레이저. */
 
 import { useMemo } from "react";
+import { CHARGING_DURATION_MS } from "@trex/shared";
 import type { BattleShotEvent, BattleState, TeamId } from "./battleTypes";
 import { GUN_MUZZLE, STAGE_H, STAGE_W } from "./battleLayout";
 import { BattleTrexModel } from "./BattleTrexModel";
@@ -28,6 +29,8 @@ export function BattleArena({
   aimPoints: Record<string, [number, number]>;
 }): JSX.Element {
   const { trex, coreName } = battle;
+  const roundDurationSec = CHARGING_DURATION_MS / 1000;
+  const sunsetProgress = Math.min(1, Math.max(0, 1 - battle.remainingSec / roundDurationSec));
 
   const allPlayers: AllPlayer[] = useMemo(
     () => [
@@ -40,6 +43,7 @@ export function BattleArena({
   return (
     <div className="battle-arena">
       <div className="battle-arena__sky" />
+      <div className="battle-arena__sunset" style={{ opacity: sunsetProgress }} />
       <div className="battle-arena__vignette" />
 
       <div

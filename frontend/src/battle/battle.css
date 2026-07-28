@@ -50,6 +50,14 @@
   background: #9bc4e9 url("/images/kaist_front.png") center center / cover no-repeat;
 }
 
+.battle-arena__sunset {
+  position: absolute;
+  inset: 0;
+  background: #dc7c57 url("/images/kaist_front_sunset.png") center center / cover no-repeat;
+  transition: opacity 1s linear;
+  will-change: opacity;
+}
+
 .battle-arena__silhouettes {
   position: absolute;
   left: 0;
