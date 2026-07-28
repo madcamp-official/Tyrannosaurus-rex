@@ -118,9 +118,12 @@ func set_phase(phase: String) -> void:
 	if phase == "ASSEMBLY" and previous == "EXCAVATION" and _model_ready:
 		_model.scatter(team_id.hash())
 
+## 발굴 지형은 항상 보여야 한다 — Main._build_ground_backdrop()이 이 패치 영역을 일부러
+## 피해서 잔디를 깔아 두므로(발굴 중 파는 모습을 가리지 않기 위해), EXCAVATION이 아닐 때
+## 이 지형을 숨기면 그 자리만 배경(하늘색)이 그대로 비치는 구멍이 생긴다.
 func _apply_ground_visibility() -> void:
 	if _ground:
-		_ground.visible = _phase == "EXCAVATION"
+		_ground.visible = true
 
 ## React가 excavation:progress마다 보내는 이번 뼈 구간 진행도(0~100)를 받아 땅을 파낸다.
 ## 진행도가 EXCAVATION_DIG_STEP만큼 움직였을 때만 실제로 파서, 뼈 하나 얻는 동안 땅이
