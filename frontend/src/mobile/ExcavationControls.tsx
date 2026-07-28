@@ -88,7 +88,13 @@ export function ExcavationControls({
     // teamId로 걸러야 상대 팀이 찾았을 때까지 울리지 않는다.
     const onBoneFound = (evt: ServerEvent<{ teamId: TeamId; boneId: BoneId; index: number }>) => {
       if (evt.data.teamId !== teamId) return;
-      navigator.vibrate?.([70, 40, 120]);
+      // 배열(패턴) 대신 단일 지속시간이 기기별 구현체 차이에 덜 민감해서 더 안정적으로 동작한다.
+      // iOS Safari는 Vibration API 자체가 없어(navigator.vibrate가 undefined) 조용히 무시된다.
+      try {
+        navigator.vibrate?.(200);
+      } catch {
+        // 정책상 막힌 기기 등 — 무시.
+      }
     };
     socket.on("excavation:boneFound", onBoneFound);
     return () => {

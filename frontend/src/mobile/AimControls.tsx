@@ -7,9 +7,14 @@ import { newRequestId } from "../util/requestId";
 
 // 이만큼 기울이면 화면 절반 끝까지 이동 — 값이 클수록 덜 민감하다. 좌우(자이로 gamma)가
 // 위아래(beta)보다 훨씬 민감하게 느껴져서 축마다 따로 둔다.
-const GYRO_SENSITIVITY_X_DEG = 140;
-const GYRO_SENSITIVITY_Y_DEG = 45;
+const GYRO_SENSITIVITY_X_DEG = 100;
+const GYRO_SENSITIVITY_Y_DEG = 40;
 const LOW_PASS_ALPHA = 0.5;
+// DeviceOrientationEvent의 beta/gamma는 오일러 각이라 기기를 크게(특히 ±90도 근처까지)
+// 기울이면 한 프레임 만에 값이 반대 부호로 튈 수 있다(짐벌락류 불연속) — 조준점이 순간적으로
+// 반대 방향으로 튀는 버그의 원인. 한 프레임에 물리적으로 있을 수 없는 큰 변화(사람이 손으로
+// 그렇게 빨리 못 돌림)가 감지되면 그 프레임은 필터에 반영하지 않고 그냥 버린다.
+const MAX_FRAME_DELTA_DEG = 60;
 
 type OrientationPermissionApi = { requestPermission?: () => Promise<"granted" | "denied"> };
 
@@ -79,6 +84,9 @@ export function AimControls({ socket, team, practice = false }: { socket: AppSoc
         filteredRef.current = { beta: event.beta, gamma: event.gamma };
         hasReadingRef.current = true;
       } else {
+        const rawDeltaBeta = Math.abs(event.beta - filteredRef.current.beta);
+        const rawDeltaGamma = Math.abs(event.gamma - filteredRef.current.gamma);
+        if (rawDeltaBeta > MAX_FRAME_DELTA_DEG || rawDeltaGamma > MAX_FRAME_DELTA_DEG) return;
         filteredRef.current = {
           beta: filteredRef.current.beta + (event.beta - filteredRef.current.beta) * LOW_PASS_ALPHA,
           gamma: filteredRef.current.gamma + (event.gamma - filteredRef.current.gamma) * LOW_PASS_ALPHA,
