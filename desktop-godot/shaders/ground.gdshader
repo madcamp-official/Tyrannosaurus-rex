@@ -35,14 +35,20 @@ void fragment() {
 	float grass_to_dirt = smoothstep(0.006, 0.035, v_dirt);
 	float deep_mix = smoothstep(0.28, 0.92, v_dirt);
 	float wall_factor = smoothstep(0.18, 0.78, 1.0 - abs(n.y));
+	// 큰 얼룩과 작은 흙결을 섞어 같은 깊이도 단색 면처럼 보이지 않게 한다.
+	float broad_variation = sin(v_pos.x * 0.72 + v_pos.z * 0.31)
+		* sin(v_pos.z * 0.83 - v_pos.x * 0.27);
+	float fine_variation = sin((v_pos.x + v_pos.z) * 2.35) * 0.35;
+	float soil_variation = clamp(0.5 + broad_variation * 0.32 + fine_variation * 0.18, 0.0, 1.0);
 
 	vec3 dirt_tint = mix(dirt_light, dirt_mid, deep_mix);
 	dirt_tint = mix(dirt_tint, dirt_deep, deep_mix * 0.55 + wall_factor * 0.18);
+	dirt_tint *= mix(0.86, 1.12, soil_variation);
 	vec3 dirt_color = mix(dirt_tint, dirt_tex_color, 0.60);
 	// 평평한 표면은 밝게 유지하되 깊은 바닥과 가파른 벽에만 감광을 집중한다.
 	// 환경광을 낮춰 생긴 실제 그림자와 합쳐져 구덩이 윤곽이 선명해진다.
 	float cavity = clamp(deep_mix * 0.68 + wall_factor * 0.30, 0.0, 1.0);
-	dirt_color *= mix(1.16, 0.72, cavity);
+	dirt_color *= mix(1.18, 0.64, cavity);
 
 	vec3 col = mix(grass_color, dirt_color, grass_to_dirt);
 	// 예전엔 unshaded라 씬 조명/그림자를 아예 안 받고 법선 방향으로 흉내만 낸 명암을 썼다.
@@ -51,7 +57,7 @@ void fragment() {
 	ALBEDO = col;
 	// 실시간 그림자는 유지하되, 오목한 구덩이 벽이 Web 렌더러에서 검게 뭉개지지 않도록
 	// 지면 색의 일부를 약한 간접광처럼 되돌려 준다.
-	EMISSION = col * 0.04;
+	EMISSION = col * 0.01;
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
 }

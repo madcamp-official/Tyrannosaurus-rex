@@ -37,14 +37,16 @@ func _build_environment() -> void:
 	environment.ambient_light_color = Color(1.0, 0.88, 0.70)
 	# 주변광을 과하게 올리면 구덩이 그림자까지 떠서 파인 형태가 평평해 보인다.
 	# 전체 밝기는 노출과 주광으로 확보하고, 주변광은 그림자 디테일이 남는 수준으로 제한한다.
-	environment.ambient_light_energy = 0.70
-	environment.tonemap_exposure = 1.15
+	environment.ambient_light_energy = 0.58
+	environment.tonemap_exposure = 1.20
 	var world := WorldEnvironment.new()
 	world.environment = environment
 	add_child(world)
 
 	var light := DirectionalLight3D.new()
-	light.rotation_degrees = Vector3(-55, -30, 0)
+	# 광원을 낮은 대각선 방향으로 기울여 구덩이 안쪽 벽에 길고 방향성 있는 그림자를 만든다.
+	# DirectionalLight3D는 위치가 아니라 회전이 빛의 방향을 결정한다.
+	light.rotation_degrees = Vector3(-40, -35, 0)
 	light.light_color = Color(1.0, 0.92, 0.78)
 	light.light_energy = 2.2
 	# 기본값이 꺼져 있어서 지금까지 땅/뼈 모델 모두 그림자를 전혀 드리우지 않았다.
