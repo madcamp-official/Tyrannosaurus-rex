@@ -180,11 +180,7 @@ export function MobileJoin(): JSX.Element {
       <main className={`mobile-join mobile-join--team-${teamId.toLowerCase()}`}>
         <div className="mobile-join__bg" />
         <div className="mobile-join__scrim" />
-        {roomState.roundStartedAt !== null ? (
-          <SensorPermissionGate roundStartedAt={roomState.roundStartedAt}>{content}</SensorPermissionGate>
-        ) : (
-          content
-        )}
+        <SensorPermissionGate phaseStartedAt={team.phaseStartedAt}>{content}</SensorPermissionGate>
       </main>
     );
   }

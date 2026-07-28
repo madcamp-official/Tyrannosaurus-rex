@@ -1450,6 +1450,9 @@ body {
   justify-content: center;
   gap: 16px;
   padding: 20px;
+  /* 연습 배너 등으로 콘텐츠가 화면보다 길어져도 조준점(aim-pad)이 화면 밖으로 잘려
+     안 보이는 일이 없도록 스크롤을 허용한다. */
+  overflow-y: auto;
 }
 
 .aim-controls__practice-banner {
@@ -1463,30 +1466,6 @@ body {
   border-radius: 999px;
   text-align: center;
   margin: 0;
-}
-
-.aim-controls__mode {
-  display: flex;
-  gap: 10px;
-}
-
-.aim-controls__mode button {
-  background: rgba(255, 250, 240, 0.16);
-  backdrop-filter: blur(14px) saturate(140%);
-  border: 1px solid rgba(255, 240, 220, 0.35);
-  color: #fff8ec;
-  font-family: "Baloo 2", sans-serif;
-  font-weight: 700;
-  font-size: 18px;
-  padding: 14px 28px;
-  border-radius: 999px;
-  cursor: pointer;
-}
-
-.aim-controls__mode button.active {
-  background: #e8c34a;
-  color: #3d2a12;
-  border-color: rgba(184, 147, 58, 0.6);
 }
 
 .aim-pad {
