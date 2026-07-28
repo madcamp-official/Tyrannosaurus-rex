@@ -9,7 +9,7 @@ import { newRequestId } from "../util/requestId";
 // 위아래(beta)보다 훨씬 민감하게 느껴져서 축마다 따로 둔다.
 const GYRO_SENSITIVITY_X_DEG = 140;
 const GYRO_SENSITIVITY_Y_DEG = 45;
-const LOW_PASS_ALPHA = 0.25;
+const LOW_PASS_ALPHA = 0.5;
 
 type OrientationPermissionApi = { requestPermission?: () => Promise<"granted" | "denied"> };
 
@@ -48,6 +48,7 @@ export function AimControls({ socket, team, practice = false }: { socket: AppSoc
   pointRef.current = point;
   const zeroRef = useRef<{ beta: number; gamma: number } | null>(null);
   const filteredRef = useRef({ beta: 0, gamma: 0 });
+  const hasReadingRef = useRef(false);
   const seqRef = useRef(0);
 
   const practiceRemainingSec = usePracticeCountdown(practice, team?.phaseStartedAt ?? Date.now());
@@ -74,18 +75,20 @@ export function AimControls({ socket, team, practice = false }: { socket: AppSoc
     if (orientationPermission !== "GRANTED") return undefined;
     const handleOrientation = (event: DeviceOrientationEvent) => {
       if (event.beta === null || event.gamma === null) return;
-      if (!zeroRef.current) {
-        // "영점 잡기" 버튼을 안 눌러도 자이로가 바로 동작하도록, 첫 값을 필터 시작점 겸
-        // 영점으로 삼는다 — 0에서부터 필터를 수렴시키면 첫 프레임에 조준점이 튄다.
+      if (!hasReadingRef.current) {
         filteredRef.current = { beta: event.beta, gamma: event.gamma };
-        zeroRef.current = { ...filteredRef.current };
-        setCalibrated(true);
+        hasReadingRef.current = true;
       } else {
         filteredRef.current = {
           beta: filteredRef.current.beta + (event.beta - filteredRef.current.beta) * LOW_PASS_ALPHA,
           gamma: filteredRef.current.gamma + (event.gamma - filteredRef.current.gamma) * LOW_PASS_ALPHA,
         };
       }
+      // "영점 잡기"를 실제로 누르기 전엔 임의의 초기 자세가 영점이 되어버려 조준이 엉뚱한
+      // 방향으로 틀어지는 문제가 있었다 — 그래서 명시적으로 누르기 전까진 조준점을 화면
+      // 중앙에 고정해두고 움직이지 않는다(필터 값 자체는 계속 갱신해 버튼을 누르는 순간
+      // 이미 안정된 값을 영점으로 잡는다).
+      if (!zeroRef.current) return;
       const dBeta = filteredRef.current.beta - zeroRef.current.beta;
       const dGamma = filteredRef.current.gamma - zeroRef.current.gamma;
       setPoint({
