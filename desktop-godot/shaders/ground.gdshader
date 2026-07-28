@@ -39,7 +39,8 @@ void fragment() {
 	vec3 dirt_tint = mix(dirt_light, dirt_mid, deep_mix);
 	dirt_tint = mix(dirt_tint, dirt_deep, deep_mix * 0.55 + wall_factor * 0.18);
 	vec3 dirt_color = mix(dirt_tint, dirt_tex_color, 0.60);
-	// bb4a86b와 동일하게 평평한 면은 밝게, 깊고 가파른 면만 선택적으로 감광한다.
+	// 평평한 표면은 밝게 유지하되 깊은 바닥과 가파른 벽에만 감광을 집중한다.
+	// 환경광을 낮춰 생긴 실제 그림자와 합쳐져 구덩이 윤곽이 선명해진다.
 	float cavity = clamp(deep_mix * 0.68 + wall_factor * 0.30, 0.0, 1.0);
 	dirt_color *= mix(1.16, 0.72, cavity);
 
@@ -48,6 +49,8 @@ void fragment() {
 	// 이제 실제 DirectionalLight3D(그림자 포함)가 셰이딩을 맡으므로, 여기서는 흙/잔디처럼
 	// 광택 없는 재질로 보이게 거칠기·반사만 잡아주고 명암 계산 자체는 엔진에 맡긴다.
 	ALBEDO = col;
+	// 실시간 그림자는 유지하되, 오목한 구덩이 벽이 Web 렌더러에서 검게 뭉개지지 않도록
+	// 지면 색의 일부를 약한 간접광처럼 되돌려 준다.
 	EMISSION = col * 0.04;
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;

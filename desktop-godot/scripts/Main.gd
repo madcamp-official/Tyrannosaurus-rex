@@ -15,7 +15,6 @@ func _ready() -> void:
 	_build_ground_backdrop()
 	_build_camera()
 	_build_stages()
-	_build_bottom_gradient_overlay()
 	_build_crosshair_overlay()
 	RenderRouter.snapshot_updated.connect(_on_snapshot_updated)
 	RenderRouter.message_routed.connect(_on_message_routed)
@@ -25,22 +24,19 @@ func _ready() -> void:
 
 func _build_environment() -> void:
 	var environment := Environment.new()
-	# 밤하늘 사진(어두워서 색감이 칙칙했다)과 그 다음 시도한 단색 배경(색감이 어색했다)을
-	# 모두 걷어내고, 맑은 낮하늘처럼 보이는 절차적 그라디언트 하늘로 바꿨다. 차갑고 새파란
-	# 색 대신 노을 지평선처럼 살짝 금빛이 도는 따뜻한 톤으로 잡아 아늑한 분위기를 낸다.
-	var sky_material := ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = Color(0.45, 0.65, 0.85)
-	sky_material.sky_horizon_color = Color(0.98, 0.86, 0.68)
-	sky_material.ground_bottom_color = Color(0.52, 0.42, 0.30)
-	sky_material.ground_horizon_color = Color(0.98, 0.86, 0.68)
+	# 절차적 그라디언트 대신 실제 하늘 사진을 파노라마 텍스처로 씌운다.
+	var sky_material := PanoramaSkyMaterial.new()
+	sky_material.panorama = load("res://assets/textures/night_sky.jpg")
 	var sky := Sky.new()
 	sky.sky_material = sky_material
 	environment.background_mode = Environment.BG_SKY
 	environment.sky = sky
-	# bb4a86b의 발굴 화면 색감: 밝기는 노출과 따뜻한 중성광으로 확보하면서
-	# 과도한 주변광이 구덩이 그림자를 지우지 않게 한다.
+	# 밤하늘 텍스처를 환경광 원본으로 쓰면 지면까지 청회색으로 어둡게 물든다.
+	# 배경 사진은 유지하되 발굴 무대에는 따뜻한 중성광을 별도로 사용한다.
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
 	environment.ambient_light_color = Color(1.0, 0.88, 0.70)
+	# 주변광을 과하게 올리면 구덩이 그림자까지 떠서 파인 형태가 평평해 보인다.
+	# 전체 밝기는 노출과 주광으로 확보하고, 주변광은 그림자 디테일이 남는 수준으로 제한한다.
 	environment.ambient_light_energy = 0.70
 	environment.tonemap_exposure = 1.15
 	var world := WorldEnvironment.new()
@@ -48,59 +44,43 @@ func _build_environment() -> void:
 	add_child(world)
 
 	var light := DirectionalLight3D.new()
-	# bb4a86b 값에서 방향만 조금 더 대각선으로 조정한다.
-	light.rotation_degrees = Vector3(-50, -35, 0)
-	light.light_energy = 2.2
+	light.rotation_degrees = Vector3(-55, -30, 0)
 	light.light_color = Color(1.0, 0.92, 0.78)
+	light.light_energy = 2.2
 	# 기본값이 꺼져 있어서 지금까지 땅/뼈 모델 모두 그림자를 전혀 드리우지 않았다.
 	light.shadow_enabled = true
 	add_child(light)
 
 ## 각 팀의 발굴 지형(GroundDig)은 16×16짜리 독립된 패치라, 그 바깥은 원래 아무것도 없어
-## 카메라가 조금만 벗어나도 배경이 부자연스럽게 옆쪽까지 뻗어 보였다. 두 패치 "바깥"만
-## 정확히 피해서 잔디로 채운다.
+## 카메라가 조금만 벗어나도 하늘 배경이 부자연스럽게 옆쪽까지 뻗어 보였다. 두 패치
+## "바깥"만 정확히 피해서 잔디 타일로 채운다.
 ##
-## 예전엔 큰 사각형 5개(양옆/가운데/앞뒤)를 각 구역 크기에 딱 맞춰 짜깁기했는데, 조각마다
-## 크기가 달라 인위적인 헝겊 조각처럼 보였다. 대신 같은 크기의 정사각 타일을 격자로
-## 반복해서 깔아 자연스러운 바닥처럼 보이게 한다 — 타일 자체는 패치 가장자리를 살짝
-## 겹치게(overlap) 배치해 틈이 안 생기고, 그 겹치는 폭은 발굴 구역(반경 MAX_DIG_REACH≈5.8,
-## 패치 절반=8)에 전혀 닿지 않을 만큼 작아서 파낸 구덩이를 가릴 일은 없다. z-fighting은
-## 배경 타일을 아주 살짝만 아래로 내려서(그림자가 눈에 띄는 턱으로 보이지 않을 만큼 작게) 피한다.
+## 예전엔 패치 가장자리와 배경 타일 사이에 z-fighting 방지용으로 아주 작은 빈 틈(gap)을
+## 뒀는데, 카메라가 비스듬한 각도일 땐 원근 때문에 안 보였지만 탑다운으로 바뀌면서 그
+## 틈이 똑바로 갈라진 직선처럼 뚜렷하게 보였다. 이제 틈 대신 살짝 겹치게(overlap) 배치해
+## 그 자리를 메운다 — 겹치는 폭은 발굴 구역(반경 MAX_DIG_REACH≈5.8, 패치 절반=8)에 전혀
+## 닿지 않을 만큼 패치 바깥쪽 가장자리에서만 아주 조금이라 파낸 구덩이를 가릴 일은 없다.
+## z-fighting은 배경 타일을 아주 살짝만 아래로 내려서(그림자가 눈에 띄는 턱으로 보이지
+## 않을 만큼 작게) 피한다.
 func _build_ground_backdrop() -> void:
 	var mat := GroundDig.build_flat_material()
 	var patch_half := GroundDig.GROUND_SIZE * 0.5  # 8.0
 	var team_b_x: float = TEAM_OFFSET["B"].x  # 9.0
 	var overlap := 0.05
-	var side_start_x := team_b_x + patch_half - overlap
-	var far_z_start := patch_half - overlap
-	var gap_half := (team_b_x - patch_half) + overlap  # 두 팀 패치 사이를 살짝 겹치게 채우는 절반 폭
+	var side_center_x := team_b_x + patch_half * 2.0 - overlap
+	var far_z := patch_half * 2.0 - overlap
 
-	# 좌우 바깥
-	_fill_grid(mat, -side_start_x - 16.0, -side_start_x, -24.0, 24.0)
-	_fill_grid(mat, side_start_x, side_start_x + 16.0, -24.0, 24.0)
-	# 두 팀 패치 사이
-	_fill_grid(mat, -gap_half, gap_half, -24.0, 24.0)
-	# 앞뒤 바깥
-	_fill_grid(mat, -40.0, 40.0, far_z_start, far_z_start + 16.0)
-	_fill_grid(mat, -40.0, 40.0, -far_z_start - 16.0, -far_z_start)
+	var middle_gap_width := (team_b_x - patch_half) * 2.0 + overlap * 2.0  # 두 팀 패치 사이를 겹치게 채우는 폭
 
-## [x_min, x_max) × [z_min, z_max) 영역을 BACKDROP_TILE_SIZE 크기의 정사각 타일로 채운다.
-## 영역 폭이 타일 크기의 배수가 아니면 마지막 타일이 살짝 바깥으로 넘치는데, 어차피 그
-## 바깥은 다른 배경 타일이 없는 빈 공간이라 더 채워지는 것뿐이라 문제되지 않는다.
-const BACKDROP_TILE_SIZE := 4.0
+	_add_backdrop_tile(mat, GroundDig.GROUND_SIZE, 24.0, -side_center_x, 0.0)
+	_add_backdrop_tile(mat, GroundDig.GROUND_SIZE, 24.0, side_center_x, 0.0)
+	_add_backdrop_tile(mat, middle_gap_width, 24.0, 0.0, 0.0)
+	_add_backdrop_tile(mat, 80.0, 16.0, 0.0, far_z)
+	_add_backdrop_tile(mat, 80.0, 16.0, 0.0, -far_z)
 
-func _fill_grid(material: ShaderMaterial, x_min: float, x_max: float, z_min: float, z_max: float) -> void:
-	var cols := int(ceil((x_max - x_min) / BACKDROP_TILE_SIZE))
-	var rows := int(ceil((z_max - z_min) / BACKDROP_TILE_SIZE))
-	for row in rows:
-		for col in cols:
-			var cx := x_min + BACKDROP_TILE_SIZE * (col + 0.5)
-			var cz := z_min + BACKDROP_TILE_SIZE * (row + 0.5)
-			_add_backdrop_tile(material, cx, cz)
-
-func _add_backdrop_tile(material: ShaderMaterial, x: float, z: float) -> void:
+func _add_backdrop_tile(material: ShaderMaterial, width: float, depth: float, x: float, z: float) -> void:
 	var tile := MeshInstance3D.new()
-	tile.mesh = GroundDig.build_flat_tile_mesh(BACKDROP_TILE_SIZE, BACKDROP_TILE_SIZE)
+	tile.mesh = GroundDig.build_flat_tile_mesh(width, depth)
 	tile.material_override = material
 	tile.position = Vector3(x, -0.01, z)
 	add_child(tile)
@@ -127,31 +107,6 @@ func _build_stages() -> void:
 		add_child(stage)
 		stage.setup(team_id)
 		_stages[team_id] = stage
-
-## 화면 위쪽은 그대로 두고 아래쪽으로 갈수록 점점 어두워지는 화면 공간 그라데이션.
-## 탑다운 카메라라 3D 배경색은 거의 안 보이므로, 3D 씬 위에 얹는 2D 오버레이로 구현한다.
-func _build_bottom_gradient_overlay() -> void:
-	var layer := CanvasLayer.new()
-	layer.layer = 0  # 크로스헤어(기본 layer=1)보다 아래에 그려지게 한다.
-	add_child(layer)
-
-	var gradient := Gradient.new()
-	gradient.colors = PackedColorArray([Color(0, 0, 0, 0.0), Color(0, 0, 0, 0.5)])
-
-	var gradient_tex := GradientTexture2D.new()
-	gradient_tex.gradient = gradient
-	gradient_tex.fill = GradientTexture2D.FILL_LINEAR
-	gradient_tex.fill_from = Vector2(0.5, 0.0)
-	gradient_tex.fill_to = Vector2(0.5, 1.0)
-	gradient_tex.width = 4
-	gradient_tex.height = 256
-
-	var rect := TextureRect.new()
-	rect.texture = gradient_tex
-	rect.stretch_mode = TextureRect.STRETCH_SCALE
-	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	layer.add_child(rect)
 
 func _build_crosshair_overlay() -> void:
 	var layer := CanvasLayer.new()
