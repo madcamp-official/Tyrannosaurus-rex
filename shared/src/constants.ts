@@ -29,7 +29,7 @@ export const EXCAVATION_EVENT_GOLD_BONE_CHANCE = 0.05;
 
 // Plan.md §6.2 골격 조립 다이노런.
 export const DINO_RUN_DURATION_MS = 30_000;
-export const DINO_OBSTACLE_COUNT = 12;
+export const DINO_OBSTACLE_COUNT = 18;
 export const DINO_JUMP_WINDOW_MS = 450; // 장애물 시각 ±이 값 안의 점프만 클리어
 // 탈락 판정은 클리어 판정 창이 닫힌 뒤에도 이 시간만큼 더 기다린다 — 네트워크 지연으로
 // 창 끝자락에 보낸 점프가 늦게 도착해도 억울하게 죽지 않도록 하는 유예 시간.
