@@ -3,21 +3,7 @@
 import { useMemo } from "react";
 import type { BattleShotEvent, BattleState, TeamId } from "./battleTypes";
 import { GUN_MUZZLE, STAGE_H, STAGE_W } from "./battleLayout";
-
-type Dust = { left: number; size: number; duration: number; delay: number };
-
-function useDustParticles(count: number): Dust[] {
-  return useMemo(
-    () =>
-      Array.from({ length: count }, () => ({
-        left: Math.random() * 100,
-        size: 2 + Math.random() * 4,
-        duration: 8 + Math.random() * 10,
-        delay: -Math.random() * 18,
-      })),
-    [count],
-  );
-}
+import { BattleTrexModel } from "./BattleTrexModel";
 
 function pct(n: number): string {
   return `${(n * 100).toFixed(2)}%`;
@@ -41,7 +27,6 @@ export function BattleArena({
   /** 플레이어별 실제 조준 좌표(폰의 자이로/터치패드 입력 그대로). 아직 안 온 플레이어는 표시 안 함. */
   aimPoints: Record<string, [number, number]>;
 }): JSX.Element {
-  const dust = useDustParticles(22);
   const { trex, coreName } = battle;
 
   const allPlayers: AllPlayer[] = useMemo(
@@ -55,23 +40,7 @@ export function BattleArena({
   return (
     <div className="battle-arena">
       <div className="battle-arena__sky" />
-      <div className="battle-arena__silhouettes" />
-      <div className="battle-arena__ground" />
       <div className="battle-arena__vignette" />
-
-      {dust.map((d, i) => (
-        <span
-          key={i}
-          className="battle-dust"
-          style={{
-            left: `${d.left}%`,
-            width: d.size,
-            height: d.size,
-            animationDuration: `${d.duration}s`,
-            animationDelay: `${d.delay}s`,
-          }}
-        />
-      ))}
 
       <div
         className="battle-trex"
@@ -81,9 +50,7 @@ export function BattleArena({
           transform: `translate(-50%, -50%) scaleX(${trex.facing})`,
         }}
       >
-        <span className="battle-trex__body" aria-hidden>
-          🦖
-        </span>
+        <BattleTrexModel />
       </div>
 
       <div className="battle-core" style={{ left: pct(trex.corePos[0]), top: pct(trex.corePos[1]) }}>

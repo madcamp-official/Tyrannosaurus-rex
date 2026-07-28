@@ -47,7 +47,7 @@
 .battle-arena__sky {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 50% 22%, #ffd9a0 0%, #f2994a 22%, #7a4a3a 52%, #2a1f1c 78%, #0f0a09 100%);
+  background: #9bc4e9 url("/images/kaist_front.png") center center / cover no-repeat;
 }
 
 .battle-arena__silhouettes {
@@ -77,7 +77,9 @@
 .battle-arena__vignette {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at 50% 46%, transparent 42%, rgba(0, 0, 0, 0.55) 100%);
+  background:
+    linear-gradient(180deg, rgba(7, 14, 20, 0.2) 0%, transparent 28%, transparent 68%, rgba(7, 10, 12, 0.36) 100%),
+    radial-gradient(ellipse at 50% 46%, transparent 48%, rgba(0, 0, 0, 0.26) 100%);
   pointer-events: none;
 }
 
@@ -112,21 +114,17 @@
 .battle-trex {
   position: absolute;
   z-index: 1;
-  animation: battle-trex-bob 3.6s ease-in-out infinite;
-  transition: left 0.25s linear;
+  width: 460px;
+  height: 300px;
+  transition: left 0.25s linear, top 0.25s linear;
   filter: drop-shadow(0 18px 22px rgba(0, 0, 0, 0.55));
 }
 
-.battle-trex__body {
+.battle-trex__model {
   display: block;
-  font-size: 200px;
-  line-height: 1;
-  filter: grayscale(1) brightness(1.1) sepia(0.15) contrast(1.05) drop-shadow(0 0 10px rgba(245, 197, 66, 0.2));
-}
-
-@keyframes battle-trex-bob {
-  0%, 100% { margin-top: 0; }
-  50% { margin-top: -14px; }
+  width: 460px;
+  height: 300px;
+  filter: drop-shadow(0 0 12px rgba(255, 246, 222, 0.18));
 }
 
 .battle-core {

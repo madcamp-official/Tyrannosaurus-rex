@@ -1,0 +1,11 @@
+Model Information:
+* title:	Tyrannosaurus rex Stan skeleton
+* source:	https://sketchfab.com/3d-models/tyrannosaurus-rex-stan-skeleton-cce153b1ac164550b3acbc96495cce64
+* author:	Pomona Pictures (https://sketchfab.com/PomonaPictures)
+
+Model License:
+* license type:	CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)
+* requirements:	Author must be credited. No commercial use.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Tyrannosaurus rex Stan skeleton" (https://sketchfab.com/3d-models/tyrannosaurus-rex-stan-skeleton-cce153b1ac164550b3acbc96495cce64) by Pomona Pictures (https://sketchfab.com/PomonaPictures) licensed under CC-BY-NC-4.0 (http://creativecommons.org/licenses/by-nc/4.0/)
