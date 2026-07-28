@@ -881,6 +881,8 @@ body {
 }
 
 .exca-sidebar__name {
+  flex: 1 1 auto;
+  min-width: 0;
   color: #fff;
   font-size: 12px;
   font-weight: 700;
@@ -888,6 +890,13 @@ body {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.exca-sidebar__count {
+  flex-shrink: 0;
+  color: rgba(255, 255, 255, 0.65);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .exca-sidebar__bar {
