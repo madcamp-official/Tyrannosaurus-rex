@@ -10,6 +10,7 @@ import { describeAckError } from "../util/errorMessages";
 import { ExcavationControls } from "./ExcavationControls";
 import { DinoRunControls } from "./DinoRunControls";
 import { AimControls } from "./AimControls";
+import { SensorPermissionGate } from "./SensorPermissionGate";
 import {
   applyDinoBonus,
   applyDinoFinished,
@@ -154,10 +155,8 @@ export function MobileJoin(): JSX.Element {
   if (roomState && roomState.roomPhase !== "LOBBY" && teamId) {
     const team = roomState.teams[teamId];
     const socket = socketRef.current;
-    return (
-      <main className={`mobile-join mobile-join--team-${teamId.toLowerCase()}`}>
-        <div className="mobile-join__bg" />
-        <div className="mobile-join__scrim" />
+    const content = (
+      <>
         {team.phase === "EXCAVATION" && socket && <ExcavationControls socket={socket} result={team.excavation.result} />}
         {team.phase === "ASSEMBLY" && socket && playerId && (
           <DinoRunControls socket={socket} team={team} playerId={playerId} result={team.dinoRun.result} />
@@ -170,6 +169,17 @@ export function MobileJoin(): JSX.Element {
               {team.charging.form === "NORMAL" ? "🦖 부활 완료!" : "🦖 와이라노가 되어버렸어요."} 데스크탑 화면을 확인하세요.
             </p>
           </div>
+        )}
+      </>
+    );
+    return (
+      <main className={`mobile-join mobile-join--team-${teamId.toLowerCase()}`}>
+        <div className="mobile-join__bg" />
+        <div className="mobile-join__scrim" />
+        {roomState.roundStartedAt !== null ? (
+          <SensorPermissionGate roundStartedAt={roomState.roundStartedAt}>{content}</SensorPermissionGate>
+        ) : (
+          content
         )}
       </main>
     );
