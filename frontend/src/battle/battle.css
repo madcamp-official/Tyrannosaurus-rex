@@ -17,7 +17,7 @@
   justify-content: center;
   background: #000;
   overflow: hidden;
-  font-family: "Gothic A1", system-ui, sans-serif;
+  font-family: "YeogiOttaeJalnan", "Gothic A1", system-ui, sans-serif;
   color: var(--text);
 }
 
@@ -492,7 +492,7 @@
 }
 
 .battle-board__table th {
-  font-family: "Gothic A1", sans-serif;
+  font-family: "YeogiOttaeJalnan", "Gothic A1", sans-serif;
   font-size: 13px;
   font-weight: 700;
   opacity: 0.6;
@@ -515,7 +515,7 @@
 
 .battle-board__name-cell {
   text-align: left;
-  font-family: "Gothic A1", sans-serif;
+  font-family: "YeogiOttaeJalnan", "Gothic A1", sans-serif;
   white-space: nowrap;
   max-width: 140px;
   overflow: hidden;
@@ -550,7 +550,7 @@
   bottom: 208px;
   z-index: 3;
   width: 150px;
-  height: 150px;
+  height: 190px;
   pointer-events: none;
 }
 
@@ -579,17 +579,15 @@
   transform: rotate(-7deg);
 }
 
-.battle-gun__barrel {
+.battle-gun__model {
   display: block;
-  width: 44px;
-  height: 120px;
-  border-radius: 16px 16px 8px 8px;
-  background: linear-gradient(180deg, #9a938a 0%, #57524c 55%, #2c2925 100%);
-  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.25), 0 8px 16px rgba(0, 0, 0, 0.5);
-  transition: box-shadow 0.15s ease-out;
+  width: 150px;
+  height: 190px;
+  filter: drop-shadow(0 10px 12px rgba(0, 0, 0, 0.58));
+  transition: filter 0.15s ease-out;
 }
 
-.battle-gun__body--recoil .battle-gun__barrel {
+.battle-gun__body--recoil .battle-gun__model {
   animation: battle-gun-recoil 0.18s ease-out;
 }
 
@@ -599,21 +597,21 @@
   100% { transform: translateY(0); }
 }
 
-.battle-gun--a .battle-gun__body--hit .battle-gun__barrel {
-  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.35), 0 0 26px 6px rgba(242, 153, 74, 0.85);
+.battle-gun--a .battle-gun__body--hit .battle-gun__model {
+  filter: drop-shadow(0 0 16px rgba(242, 153, 74, 0.95));
 }
 
-.battle-gun--b .battle-gun__body--hit .battle-gun__barrel {
-  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.35), 0 0 26px 6px rgba(111, 195, 232, 0.85);
+.battle-gun--b .battle-gun__body--hit .battle-gun__model {
+  filter: drop-shadow(0 0 16px rgba(111, 195, 232, 0.95));
 }
 
-.battle-gun__body--core .battle-gun__barrel {
-  box-shadow: inset 0 2px 4px rgba(255, 255, 255, 0.4), 0 0 32px 10px rgba(245, 197, 66, 0.95);
+.battle-gun__body--core .battle-gun__model {
+  filter: drop-shadow(0 0 20px rgba(245, 197, 66, 0.95));
 }
 
 .battle-gun__flash {
   position: absolute;
-  top: -14px;
+  top: 2px;
   left: 50%;
   width: 46px;
   height: 46px;

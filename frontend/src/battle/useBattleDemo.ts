@@ -33,12 +33,14 @@ function initialBattle(): BattleState {
     siteName: "노을 협곡 발굴지",
     energyTarget: ENERGY_TARGET,
     teamA: {
+      name: "화염 랩터",
       energy: 0,
       totalHits: 0,
       coreHits: 0,
       players: [makePlayer("a1", "화염랩터"), makePlayer("a2", "골드팽"), makePlayer("a3", "선라이더"), makePlayer("a4", "엠버울프")],
     },
     teamB: {
+      name: "빙결 팽",
       energy: 0,
       totalHits: 0,
       coreHits: 0,

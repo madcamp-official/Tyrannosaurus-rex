@@ -3,13 +3,12 @@
 import type { BattleTeam, TeamId } from "./battleTypes";
 import { hitRate } from "./battleTypes";
 
-const TEAM_META: Record<TeamId, { label: string; emblem: string; name: string }> = {
-  A: { label: "A팀", emblem: "🔥", name: "A팀" },
-  B: { label: "B팀", emblem: "❄", name: "B팀" },
+const TEAM_EMBLEM: Record<TeamId, string> = {
+  A: "🔥",
+  B: "❄",
 };
 
 export function BattleScoreboard({ team, teamId }: { team: BattleTeam; teamId: TeamId }): JSX.Element {
-  const meta = TEAM_META[teamId];
   const mirrored = teamId === "B";
   const ranked = [...team.players].sort((a, b) => b.energy - a.energy);
 
@@ -20,8 +19,8 @@ export function BattleScoreboard({ team, teamId }: { team: BattleTeam; teamId: T
   return (
     <div className={`battle-board battle-board--${teamId.toLowerCase()}${mirrored ? " battle-board--mirrored" : ""}`}>
       <div className="battle-board__header">
-        <span className="battle-board__emblem">{meta.emblem}</span>
-        <span className="battle-board__name">{meta.name}</span>
+        <span className="battle-board__emblem">{TEAM_EMBLEM[teamId]}</span>
+        <span className="battle-board__name">{team.name}</span>
         <span className="battle-board__sub">
           {team.players.length}명 · 명중률 {hitRate(team)}%
         </span>
