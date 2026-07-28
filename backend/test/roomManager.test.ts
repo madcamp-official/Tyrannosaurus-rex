@@ -57,9 +57,10 @@ describe("RoomManager", () => {
     expect(rooms.canStart(created.room)).toBeNull();
   });
 
-  it("transitions LOBBY to PLAYING once every player is ready, matching the socket layer's auto-start check", () => {
-    // Plan.md §2.2: 전원 준비 완료 시 자동 시작. registerRoomHandlers의 maybeAutoStart는
-    // canStart(room) === null일 때 그대로 startGame(room)을 호출한다 — 여기서 그 계약을 검증한다.
+  it("transitions LOBBY to PLAYING via startGame() once every player is ready (host must still call game:start)", () => {
+    // 게임은 전원 준비만으로 자동 시작되지 않는다 — 호스트가 game:start를 눌러야
+    // registerRoomHandlers가 startGame(room)을 호출한다. 여기서는 그 전제조건(canStart)과
+    // startGame 자체의 계약만 검증한다.
     const rooms = makeManager();
     const created = rooms.createRoom("host-socket-6", "테스트 방", 5)!;
     const roomCode = created.room.state.roomCode;

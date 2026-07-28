@@ -271,9 +271,10 @@ async function main(): Promise<void> {
     finished: false,
   };
   const log = (msg: string) => console.log(`[autoplay] ${msg}`);
-  // 처음 입장할 때는 전원이 다 모이기 전에 섣불리 준비 상태가 되면 안 된다(모이기 전에
-  // 자동 시작돼버림) — 그래서 최초 1회 명시적으로 다 같이 준비시키기 전까지는 이 플래그를
-  // 꺼 둔다. 재경기로 로비에 돌아왔을 때만(아래 room:state 핸들러) 자동으로 다시 켠다.
+  // 처음 입장할 때 봇이 하나씩 들어오는 대로 바로 준비 상태가 되면 아직 안 들어온 팀원을
+  // 기다리는 모습이 어색하니, 최초 1회는 전원을 한 번에 준비시킨다 — 그래서 그 전까지는
+  // 이 플래그를 꺼 둔다. 재경기로 로비에 돌아왔을 때만(아래 room:state 핸들러) 자동으로
+  // 다시 켠다(게임 시작 자체는 별도로 호스트가 game:start를 불러야 한다).
   let autoReadyArmed = false;
 
   let host: AppSocket | null = null;
@@ -355,7 +356,8 @@ async function main(): Promise<void> {
     socket.on("room:state", (evt) => {
       board.state = evt.data;
       // 재경기(game:rematch)는 전원의 ready를 false로 되돌린다. 봇은 사람 손을 타지 않으니
-      // 로비로 돌아올 때마다 스스로 다시 준비 상태로 만들어야 "재경기 → 자동 시작"이 반복된다.
+      // 로비로 돌아올 때마다 스스로 다시 준비 상태로 만들어야, 사람이 "게임 시작"만 눌러도
+      // 바로 다음 라운드가 시작된다(준비까지 기다리게 하지 않으려고).
       const me = evt.data.players.find((p) => p.id === bot.playerId);
       if (autoReadyArmed && evt.data.roomPhase === "LOBBY" && me && !me.ready) {
         bot.socket.emit("player:setReady", { requestId: randomUUID(), ready: true }, () => {});
@@ -369,8 +371,9 @@ async function main(): Promise<void> {
     });
   }
 
-  // Plan.md §2.2: 전원 준비 완료 시 자동 시작되므로, 마지막 봇이 준비를 마치기 전에는 방이
-  // 아직 열려 있어야 한다 — 그래서 전원을 먼저 입장시킨 뒤 마지막에 한 번에 준비시킨다.
+  // 마지막 봇이 준비를 마치기 전에는 방이 아직 열려 있어야 한다 — 그래서 전원을 먼저
+  // 입장시킨 뒤 마지막에 한 번에 준비시킨다. 게임 시작은 이 뒤에 별도로 호출한다(호스트만
+  // 가능 — self-host면 직접 game:start를 부르고, 아니면 사람이 데스크탑에서 눌러야 한다).
   // (이후 재경기로 로비에 돌아오면 위 room:state 핸들러가 알아서 다시 준비시킨다.)
   for (const bot of bots) {
     const ready = await ackEmit((ack) => bot.socket.emit("player:setReady", { requestId: randomUUID(), ready: true }, ack));
@@ -401,13 +404,15 @@ async function main(): Promise<void> {
     log(`[${nickname}] 목숨 소진 — 탈락`);
   });
 
-  // Plan.md §2.2: 전원 준비 완료 시 서버가 자동으로 게임을 시작한다 — 별도의 game:start 호출이 필요 없다.
+  // 게임은 더 이상 전원 준비만으로 자동 시작되지 않는다 — 호스트가 "게임 시작"을 눌러야 한다.
   if (host) {
-    log("게임 자동 시작 (self-host, 전원 준비 완료)");
+    const started = await ackEmit((ack) => host!.emit("game:start", { requestId: randomUUID() }, ack));
+    if (!started.ok) throw new Error(`game:start 실패: ${started.error.code}`);
+    log("게임 시작 (self-host, 전원 준비 완료 → game:start 호출)");
   } else if (idle) {
-    log(`대기 봇 ${playerCount}명 준비 완료 — 다른 팀원이 아직 준비 전이면 대기 중, 전원 준비되면 자동으로 시작됩니다.`);
+    log(`대기 봇 ${playerCount}명 준비 완료 — 다른 팀원이 아직 준비 전이면 대기 중, 전원 준비되면 데스크탑에서 "게임 시작"을 눌러주세요.`);
   } else {
-    log(`봇 ${playerCount}명 준비 완료 — 전원 준비되면 자동으로 게임이 시작됩니다.`);
+    log(`봇 ${playerCount}명 준비 완료 — 전원 준비되면 데스크탑에서 "게임 시작"을 눌러주세요.`);
   }
 
   if (idle) {
@@ -429,8 +434,9 @@ async function main(): Promise<void> {
     // self-host 스모크 테스트: 사람이 재경기를 누를 일이 없으니 한 판만 플레이하고 종료한다.
     await playOneRound(bots, board, log);
   } else {
-    // 실제 방에 붙은 경우: 봇은 로비로 돌아올 때마다 스스로 다시 준비하므로, 사람이 "재경기"만
-    // 누르면 자동 시작되는 다음 라운드도 이어서 계속 플레이한다.
+    // 실제 방에 붙은 경우: 봇은 로비로 돌아올 때마다 스스로 다시 준비하므로, 사람이 "재경기"를
+    // 누른 뒤 "게임 시작"만 다시 눌러주면 다음 라운드도 이어서 계속 플레이한다(게임 시작은
+    // 더 이상 자동으로 되지 않으니 매 라운드 호스트가 눌러야 한다).
     let roundNumber = 1;
     for (;;) {
       log(`=== ${roundNumber}라운드 시작 ===`);
