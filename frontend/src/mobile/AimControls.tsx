@@ -13,7 +13,7 @@ import {
 import type { AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
 
-const GYRO_SENSITIVITY_DEG = 45; // 이만큼 기울이면 화면 절반 끝까지 이동
+const GYRO_SENSITIVITY_DEG = 65; // 이만큼 기울이면 화면 절반 끝까지 이동 — 값이 클수록 덜 민감하다
 const LOW_PASS_ALPHA = 0.25;
 const TOUCHPAD_SENSITIVITY = 1.4;
 

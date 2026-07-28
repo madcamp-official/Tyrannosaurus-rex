@@ -22,7 +22,7 @@ import type { RoomRecord } from "../rooms/RoomManager.js";
 import { seededRandom01 } from "./seededRandom.js";
 
 /** 1보다 작을수록 뒤로 갈수록 장애물 간격이 좁아져 "점점 빨라지는" 느낌을 준다. */
-const DINO_SPEEDUP_CURVE = 0.45;
+const DINO_SPEEDUP_CURVE = 0.35;
 
 /**
  * 라운드 시드로 장애물 오프셋을 생성한다. 양 팀이 같은 스케줄을 공유한다(§4 공정성).

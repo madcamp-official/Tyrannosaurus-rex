@@ -36,9 +36,9 @@ export const DINO_JUMP_WINDOW_MS = 450; // 장애물 시각 ±이 값 안의 점
 export const DINO_DEATH_GRACE_MS = 500;
 export const DINO_JUMP_MAX_PER_SECOND = 3;
 export const DINO_OBSTACLE_MIN_OFFSET_MS = 5_000; // 시작 5초는 장애물 없이 몸풀기 구간
-// 12개 장애물을 더 좁은 구간에 더 촘촘한 간격으로 몰아넣어 전체 페이스를 빠르게 한다.
-export const DINO_OBSTACLE_MAX_OFFSET_MS = 24_000;
-export const DINO_OBSTACLE_MIN_GAP_MS = 1_100;
+// 18개 장애물을 더 좁은 구간에 더 촘촘한 간격으로 몰아넣어 전체 페이스를 빠르게 한다.
+export const DINO_OBSTACLE_MAX_OFFSET_MS = 21_000;
+export const DINO_OBSTACLE_MIN_GAP_MS = 900;
 // 조립 평가 등급 경계 (클리어율)
 export const DINO_GRADE_PERFECT = 0.85;
 export const DINO_GRADE_GOOD = 0.6;
