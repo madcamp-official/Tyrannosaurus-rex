@@ -104,3 +104,13 @@
 - API/Socket.IO/Shared 계약 변경: 없음.
 - 환경 변수 변경: 없음.
 - 검증 결과: `npm run build -w shared`(stale artifact) 후 `npm run typecheck -w frontend`, `npm run test -w frontend`, `npm run build -w frontend` 통과. 폰트 CDN URL은 curl로 200 확인.
+
+## 2026-07-28 - 로비 헤더 로고 여백 미세 조정 (`frontend/lobby-header-spacing-tune` 브랜치)
+
+- 구현 목적: 로고와 서브타이틀이 너무 붙어 있고, 로고와 화면 최상단 사이는 더 좁혀도 된다는 피드백.
+- 주요 변경 사항:
+  - `.lobby-header` padding-top을 `clamp(16px, 2.4vh, 27px)` → `clamp(10px, 1.6vh, 18px)`로 줄여 로고가 상단에 더 가깝게.
+  - `.lobby-header__logo--big`의 `margin-bottom`을 `-45px` → `-25px`로 완화해 로고와 서브타이틀 사이에 살짝 여백을 줌.
+- API/Socket.IO/Shared 계약 변경: 없음.
+- 환경 변수 변경: 없음.
+- 검증 결과: `npm run typecheck -w frontend`, `npm run build -w frontend` 통과.

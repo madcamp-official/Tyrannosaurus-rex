@@ -263,8 +263,7 @@ body {
   display: flex;
   align-items: center;
   gap: 14px;
-  /* 상단까지의 거리를 기존값의 80%로(20% 단축). */
-  padding-top: clamp(16px, 2.4vh, 27px);
+  padding-top: clamp(10px, 1.6vh, 18px);
   text-align: left;
 }
 
@@ -282,11 +281,10 @@ body {
 }
 
 .lobby-header__logo--big {
-  /* 기존 280px의 80%로(20% 추가 축소). */
   height: 224px;
-  /* 로고 PNG 하단에 여백이 baked-in 되어 있어(전체 높이의 약 20%),
-     그만큼을 상쇄해 서브타이틀과의 시각적 간격을 좁힌다. */
-  margin-bottom: -45px;
+  /* 로고 PNG 하단에 여백이 baked-in 되어 있어(전체 높이의 약 20%) 그만큼을 상쇄하되,
+     서브타이틀과 살짝 떨어져 보이도록 상쇄분보다 조금 덜 당긴다. */
+  margin-bottom: -25px;
 }
 
 .lobby-header__subtitle {
