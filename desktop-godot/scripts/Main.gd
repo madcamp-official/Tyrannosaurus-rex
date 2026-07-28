@@ -25,55 +25,79 @@ func _ready() -> void:
 
 func _build_environment() -> void:
 	var environment := Environment.new()
-	# 밤하늘 사진 배경을 없애고 단색 배경으로 바꿨다 — 그 사진 자체가 어두워서 하늘광
-	# (AMBIENT_SOURCE_SKY) 기반 주변광을 아무리 올려도 충분히 밝아지지 않았다. 단색
-	# 배경은 밝기를 직접 정할 수 있어 훨씬 다루기 쉽다.
-	environment.background_mode = Environment.BG_COLOR
-	environment.background_color = Color(0.55, 0.72, 0.88)
-	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.ambient_light_color = Color(0.65, 0.75, 0.85)
-	environment.ambient_light_energy = 1.1
+	# 밤하늘 사진(어두워서 색감이 칙칙했다)과 그 다음 시도한 단색 배경(색감이 어색했다)을
+	# 모두 걷어내고, 맑은 낮하늘처럼 보이는 절차적 그라디언트 하늘로 바꿨다. 차갑고 새파란
+	# 색 대신 노을 지평선처럼 살짝 금빛이 도는 따뜻한 톤으로 잡아 아늑한 분위기를 낸다.
+	var sky_material := ProceduralSkyMaterial.new()
+	sky_material.sky_top_color = Color(0.35, 0.55, 0.78)
+	sky_material.sky_horizon_color = Color(0.96, 0.80, 0.58)
+	sky_material.ground_bottom_color = Color(0.42, 0.33, 0.24)
+	sky_material.ground_horizon_color = Color(0.96, 0.80, 0.58)
+	var sky := Sky.new()
+	sky.sky_material = sky_material
+	environment.background_mode = Environment.BG_SKY
+	environment.sky = sky
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	environment.ambient_light_energy = 1.0
 	var world := WorldEnvironment.new()
 	world.environment = environment
 	add_child(world)
 
 	var light := DirectionalLight3D.new()
 	light.rotation_degrees = Vector3(-55, -30, 0)
-	light.light_energy = 2.2
+	light.light_energy = 1.8
+	# 방향광도 순백색 대신 살짝 노란빛이 도는 따뜻한 색으로 — 하늘 톤과 어우러져 전체
+	# 분위기가 따뜻하게 느껴지게 한다.
+	light.light_color = Color(1.0, 0.93, 0.80)
 	# 기본값이 꺼져 있어서 지금까지 땅/뼈 모델 모두 그림자를 전혀 드리우지 않았다.
 	light.shadow_enabled = true
 	add_child(light)
 
 ## 각 팀의 발굴 지형(GroundDig)은 16×16짜리 독립된 패치라, 그 바깥은 원래 아무것도 없어
-## 카메라가 조금만 벗어나도 하늘 배경이 부자연스럽게 옆쪽까지 뻗어 보였다. 두 패치
-## "바깥"만 정확히 피해서 잔디 타일로 채운다.
+## 카메라가 조금만 벗어나도 배경이 부자연스럽게 옆쪽까지 뻗어 보였다. 두 패치 "바깥"만
+## 정확히 피해서 잔디로 채운다.
 ##
-## 예전엔 패치 가장자리와 배경 타일 사이에 z-fighting 방지용으로 아주 작은 빈 틈(gap)을
-## 뒀는데, 카메라가 비스듬한 각도일 땐 원근 때문에 안 보였지만 탑다운으로 바뀌면서 그
-## 틈이 똑바로 갈라진 직선처럼 뚜렷하게 보였다. 이제 틈 대신 살짝 겹치게(overlap) 배치해
-## 그 자리를 메운다 — 겹치는 폭은 발굴 구역(반경 MAX_DIG_REACH≈5.8, 패치 절반=8)에 전혀
-## 닿지 않을 만큼 패치 바깥쪽 가장자리에서만 아주 조금이라 파낸 구덩이를 가릴 일은 없다.
-## z-fighting은 배경 타일을 아주 살짝만 아래로 내려서(그림자가 눈에 띄는 턱으로 보이지
-## 않을 만큼 작게) 피한다.
+## 예전엔 큰 사각형 5개(양옆/가운데/앞뒤)를 각 구역 크기에 딱 맞춰 짜깁기했는데, 조각마다
+## 크기가 달라 인위적인 헝겊 조각처럼 보였다. 대신 같은 크기의 정사각 타일을 격자로
+## 반복해서 깔아 자연스러운 바닥처럼 보이게 한다 — 타일 자체는 패치 가장자리를 살짝
+## 겹치게(overlap) 배치해 틈이 안 생기고, 그 겹치는 폭은 발굴 구역(반경 MAX_DIG_REACH≈5.8,
+## 패치 절반=8)에 전혀 닿지 않을 만큼 작아서 파낸 구덩이를 가릴 일은 없다. z-fighting은
+## 배경 타일을 아주 살짝만 아래로 내려서(그림자가 눈에 띄는 턱으로 보이지 않을 만큼 작게) 피한다.
 func _build_ground_backdrop() -> void:
 	var mat := GroundDig.build_flat_material()
 	var patch_half := GroundDig.GROUND_SIZE * 0.5  # 8.0
 	var team_b_x: float = TEAM_OFFSET["B"].x  # 9.0
 	var overlap := 0.05
-	var side_center_x := team_b_x + patch_half * 2.0 - overlap
-	var far_z := patch_half * 2.0 - overlap
+	var side_start_x := team_b_x + patch_half - overlap
+	var far_z_start := patch_half - overlap
+	var gap_half := (team_b_x - patch_half) + overlap  # 두 팀 패치 사이를 살짝 겹치게 채우는 절반 폭
 
-	var middle_gap_width := (team_b_x - patch_half) * 2.0 + overlap * 2.0  # 두 팀 패치 사이를 겹치게 채우는 폭
+	# 좌우 바깥
+	_fill_grid(mat, -side_start_x - 16.0, -side_start_x, -24.0, 24.0)
+	_fill_grid(mat, side_start_x, side_start_x + 16.0, -24.0, 24.0)
+	# 두 팀 패치 사이
+	_fill_grid(mat, -gap_half, gap_half, -24.0, 24.0)
+	# 앞뒤 바깥
+	_fill_grid(mat, -40.0, 40.0, far_z_start, far_z_start + 16.0)
+	_fill_grid(mat, -40.0, 40.0, -far_z_start - 16.0, -far_z_start)
 
-	_add_backdrop_tile(mat, GroundDig.GROUND_SIZE, 24.0, -side_center_x, 0.0)
-	_add_backdrop_tile(mat, GroundDig.GROUND_SIZE, 24.0, side_center_x, 0.0)
-	_add_backdrop_tile(mat, middle_gap_width, 24.0, 0.0, 0.0)
-	_add_backdrop_tile(mat, 80.0, 16.0, 0.0, far_z)
-	_add_backdrop_tile(mat, 80.0, 16.0, 0.0, -far_z)
+## [x_min, x_max) × [z_min, z_max) 영역을 BACKDROP_TILE_SIZE 크기의 정사각 타일로 채운다.
+## 영역 폭이 타일 크기의 배수가 아니면 마지막 타일이 살짝 바깥으로 넘치는데, 어차피 그
+## 바깥은 다른 배경 타일이 없는 빈 공간이라 더 채워지는 것뿐이라 문제되지 않는다.
+const BACKDROP_TILE_SIZE := 4.0
 
-func _add_backdrop_tile(material: ShaderMaterial, width: float, depth: float, x: float, z: float) -> void:
+func _fill_grid(material: ShaderMaterial, x_min: float, x_max: float, z_min: float, z_max: float) -> void:
+	var cols := int(ceil((x_max - x_min) / BACKDROP_TILE_SIZE))
+	var rows := int(ceil((z_max - z_min) / BACKDROP_TILE_SIZE))
+	for row in rows:
+		for col in cols:
+			var cx := x_min + BACKDROP_TILE_SIZE * (col + 0.5)
+			var cz := z_min + BACKDROP_TILE_SIZE * (row + 0.5)
+			_add_backdrop_tile(material, cx, cz)
+
+func _add_backdrop_tile(material: ShaderMaterial, x: float, z: float) -> void:
 	var tile := MeshInstance3D.new()
-	tile.mesh = GroundDig.build_flat_tile_mesh(width, depth)
+	tile.mesh = GroundDig.build_flat_tile_mesh(BACKDROP_TILE_SIZE, BACKDROP_TILE_SIZE)
 	tile.material_override = material
 	tile.position = Vector3(x, -0.01, z)
 	add_child(tile)
