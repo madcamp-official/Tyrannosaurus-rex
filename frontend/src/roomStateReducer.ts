@@ -139,7 +139,10 @@ export function applyDinoHit(
   };
 }
 
-export function applyDinoBonus(state: RoomState, data: { teamId: TeamId; playerId: PlayerId; score: number }): RoomState {
+export function applyDinoBonus(
+  state: RoomState,
+  data: { teamId: TeamId; playerId: PlayerId; livesLeft: number; score: number },
+): RoomState {
   const team = state.teams[data.teamId];
   return {
     ...state,
@@ -147,7 +150,11 @@ export function applyDinoBonus(state: RoomState, data: { teamId: TeamId; playerI
       ...state.teams,
       [data.teamId]: {
         ...team,
-        dinoRun: { ...team.dinoRun, scoreByPlayer: { ...team.dinoRun.scoreByPlayer, [data.playerId]: data.score } },
+        dinoRun: {
+          ...team.dinoRun,
+          livesByPlayer: { ...team.dinoRun.livesByPlayer, [data.playerId]: data.livesLeft },
+          scoreByPlayer: { ...team.dinoRun.scoreByPlayer, [data.playerId]: data.score },
+        },
       },
     },
   };

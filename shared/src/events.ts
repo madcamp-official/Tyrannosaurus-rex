@@ -282,7 +282,15 @@ export interface ServerToClientEvents {
     evt: ServerEvent<{ teamId: TeamId; playerId: PlayerId; objectId: number; livesLeft: number; score: number; x: number }>,
   ) => void;
   "dino:bonus": (
-    evt: ServerEvent<{ teamId: TeamId; playerId: PlayerId; objectId: number; score: number; x: number }>,
+    evt: ServerEvent<{
+      teamId: TeamId;
+      playerId: PlayerId;
+      objectId: number;
+      kind: "FRUIT" | "HEART";
+      livesLeft: number;
+      score: number;
+      x: number;
+    }>,
   ) => void;
   "dino:playerDied": (evt: ServerEvent<{ teamId: TeamId; playerId: PlayerId }>) => void;
   "dino:finished": (

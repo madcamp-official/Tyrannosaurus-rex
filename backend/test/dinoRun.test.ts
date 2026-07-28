@@ -3,8 +3,10 @@ import {
   CHARGING_PRACTICE_DURATION_MS,
   CHARGING_START_STABILITY_BASE,
   DINO_RUN_DURATION_MS,
-  METEOR_BONUS_SCORE_REWARD,
   METEOR_DODGE_LIVES,
+  METEOR_FRUIT_SCORE_REWARD,
+  METEOR_HEART_LIVES_RESTORED,
+  METEOR_HEART_SCORE_REWARD,
   METEOR_HIT_SCORE_PENALTY,
   ROUND_TRANSITION_MS,
   SKY_OBJECT_COUNT,
@@ -64,7 +66,7 @@ describe("dino run (meteor dodge)", () => {
     for (const obj of schedule1) {
       expect(obj.x).toBeGreaterThanOrEqual(0);
       expect(obj.x).toBeLessThanOrEqual(1);
-      expect(["METEOR", "BONUS"]).toContain(obj.kind);
+      expect(["METEOR", "FRUIT", "HEART"]).toContain(obj.kind);
     }
   });
 
@@ -151,20 +153,50 @@ describe("dino run (meteor dodge)", () => {
     expect(room.dinoMeteorLockState.get(`${playerA}:0`)).toBe(0.7);
   });
 
-  it("catching a bonus item adds score without costing a life; missing one has no penalty", () => {
+  it("catching a fruit adds score without costing a life; missing one has no penalty", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
-    const bonus = { id: 0, hitAtMs: 5000, x: 0.5, kind: "BONUS" as const };
-    room.state.teams.A.dinoRun.skyObjects = [bonus];
-    rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: bonus.x, clientTime: now }, now);
+    const fruit = { id: 0, hitAtMs: 5000, x: 0.5, kind: "FRUIT" as const };
+    room.state.teams.A.dinoRun.skyObjects = [fruit];
+    rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: fruit.x, clientTime: now }, now);
 
-    const events = rooms.tickDinoCollisions(room, now + bonus.hitAtMs + 1);
+    const events = rooms.tickDinoCollisions(room, now + fruit.hitAtMs + 1);
     const caught = events.find((e) => e.teamId === "A" && e.event.kind === "BONUS");
     expect(caught).toBeDefined();
     if (caught && caught.event.kind === "BONUS") {
-      expect(caught.event.score).toBe(METEOR_BONUS_SCORE_REWARD);
+      expect(caught.event.pickupKind).toBe("FRUIT");
+      expect(caught.event.score).toBe(METEOR_FRUIT_SCORE_REWARD);
+      expect(caught.event.livesLeft).toBe(METEOR_DODGE_LIVES);
     }
     expect(room.state.teams.A.dinoRun.livesByPlayer[playerA]).toBe(METEOR_DODGE_LIVES);
-    expect(room.state.teams.A.dinoRun.scoreByPlayer[playerA]).toBe(METEOR_BONUS_SCORE_REWARD);
+    expect(room.state.teams.A.dinoRun.scoreByPlayer[playerA]).toBe(METEOR_FRUIT_SCORE_REWARD);
+  });
+
+  it("catching a heart restores a life (capped at the max) and adds score", () => {
+    const { rooms, room, playerA, now } = setupAssemblyRoom();
+    room.state.teams.A.dinoRun.livesByPlayer[playerA] = METEOR_DODGE_LIVES - 1;
+    const heart = { id: 0, hitAtMs: 5000, x: 0.5, kind: "HEART" as const };
+    room.state.teams.A.dinoRun.skyObjects = [heart];
+    rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: heart.x, clientTime: now }, now);
+
+    const events = rooms.tickDinoCollisions(room, now + heart.hitAtMs + 1);
+    const caught = events.find((e) => e.teamId === "A" && e.event.kind === "BONUS");
+    expect(caught).toBeDefined();
+    if (caught && caught.event.kind === "BONUS") {
+      expect(caught.event.pickupKind).toBe("HEART");
+      expect(caught.event.score).toBe(METEOR_HEART_SCORE_REWARD);
+      expect(caught.event.livesLeft).toBe(METEOR_DODGE_LIVES - 1 + METEOR_HEART_LIVES_RESTORED);
+    }
+    expect(room.state.teams.A.dinoRun.livesByPlayer[playerA]).toBe(METEOR_DODGE_LIVES);
+  });
+
+  it("catching a heart at full lives does not exceed the max life cap", () => {
+    const { rooms, room, playerA, now } = setupAssemblyRoom();
+    const heart = { id: 0, hitAtMs: 5000, x: 0.5, kind: "HEART" as const };
+    room.state.teams.A.dinoRun.skyObjects = [heart];
+    rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: heart.x, clientTime: now }, now);
+
+    rooms.tickDinoCollisions(room, now + heart.hitAtMs + 1);
+    expect(room.state.teams.A.dinoRun.livesByPlayer[playerA]).toBe(METEOR_DODGE_LIVES);
   });
 
   it("eliminates a player after losing all lives, and no longer judges collisions for them", () => {
@@ -197,17 +229,17 @@ describe("dino run (meteor dodge)", () => {
       "CHARGING_PRACTICE only after the wait",
     () => {
       const { rooms, room, playerA, now } = setupAssemblyRoom();
-      // A팀은 보너스를 전부 잡고, B팀은 아무 것도 하지 않는다.
-      const bonuses = Array.from({ length: 3 }, (_, i) => ({
+      // A팀은 과일을 전부 잡고, B팀은 아무 것도 하지 않는다.
+      const fruits = Array.from({ length: 3 }, (_, i) => ({
         id: i,
         hitAtMs: 5000 + i * 1000,
         x: 0.5,
-        kind: "BONUS" as const,
+        kind: "FRUIT" as const,
       }));
-      room.state.teams.A.dinoRun.skyObjects = bonuses;
-      for (const bonus of bonuses) {
-        rooms.applyDinoPositionInput(room, "A", playerA, { seq: bonus.id + 1, x: bonus.x, clientTime: now }, now);
-        rooms.tickDinoCollisions(room, now + bonus.hitAtMs + 1);
+      room.state.teams.A.dinoRun.skyObjects = fruits;
+      for (const fruit of fruits) {
+        rooms.applyDinoPositionInput(room, "A", playerA, { seq: fruit.id + 1, x: fruit.x, clientTime: now }, now);
+        rooms.tickDinoCollisions(room, now + fruit.hitAtMs + 1);
       }
 
       const evalNow = now + DINO_RUN_DURATION_MS + 1;
