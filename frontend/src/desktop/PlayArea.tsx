@@ -186,44 +186,49 @@ function TeamHeader({
       : team.phase === "ASSEMBLY"
         ? Object.values(team.dinoRun.scoreByPlayer).reduce((sum, value) => sum + value, 0)
         : Math.round(totalGameScore(team.scores));
+  const teamIdentity = (
+    <div className="play-area__team-name">
+      <span className="play-area__team-icon">
+        <span className="play-area__team-icon-dot" />
+      </span>
+      {teamName}
+    </div>
+  );
+  const teamStats = (
+    <div className="play-area__team-stats">
+      <div className="play-area__team-stat">
+        <GamepadIcon />
+        <span className="play-area__team-count">
+          {connected}
+          <span>/{players.length}</span>
+        </span>
+      </div>
+      {team.phase === "EXCAVATION" && (
+        <>
+          <div className="play-area__team-stat" title="팀 전체 휴대폰 흔들기 횟수">
+            <ShakeIcon />
+            <span className="play-area__team-count">{totalExcavationInputs}회</span>
+          </div>
+          <div className="play-area__team-stat" title="발견한 뼈">
+            <RingsIcon />
+            <span className="play-area__team-count">
+              {team.excavation.discoveredBoneIds.length}
+              <span>/{BONE_IDS.length}</span>
+            </span>
+          </div>
+        </>
+      )}
+      {team.phase !== "CHARGING_PRACTICE" && (
+        <div className="play-area__team-score">
+          <span>점수</span>
+          <strong>{score}</strong>
+        </div>
+      )}
+    </div>
+  );
   return (
     <div className={`play-area__team-header play-area__team-header--${teamId.toLowerCase()}`}>
-      <div className="play-area__team-name">
-        <span className="play-area__team-icon">
-          <span className="play-area__team-icon-dot" />
-        </span>
-        {teamName}
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 22 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <GamepadIcon />
-          <span className="play-area__team-count">
-            {connected}
-            <span>/{players.length}</span>
-          </span>
-        </div>
-        {team.phase === "EXCAVATION" && (
-          <>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }} title="팀 전체 휴대폰 흔들기 횟수">
-              <ShakeIcon />
-              <span className="play-area__team-count">{totalExcavationInputs}회</span>
-            </div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8 }} title="발견한 뼈">
-              <RingsIcon />
-              <span className="play-area__team-count">
-                {team.excavation.discoveredBoneIds.length}
-                <span>/{BONE_IDS.length}</span>
-              </span>
-            </div>
-          </>
-        )}
-        {team.phase !== "CHARGING_PRACTICE" && (
-          <div className="play-area__team-score">
-            <span>점수</span>
-            <strong>{score}</strong>
-          </div>
-        )}
-      </div>
+      {teamId === "A" ? <>{teamIdentity}{teamStats}</> : <>{teamStats}{teamIdentity}</>}
     </div>
   );
 }

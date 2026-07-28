@@ -273,7 +273,7 @@ body {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding-top: clamp(7px, 1.12vh, 13px);
+  padding-top: clamp(13px, 1.8vh, 20px);
   text-align: left;
 }
 
@@ -284,7 +284,7 @@ body {
 }
 
 .lobby-header--centered .lobby-header__logo--big {
-  margin-top: -12px;
+  margin-top: -6px;
 }
 
 .lobby-header__logo {
@@ -874,6 +874,29 @@ body {
   border-bottom: 1px solid oklch(50% 0.08 235 / 0.4);
 }
 
+.play-area__team-stats,
+.play-area__team-stat {
+  display: flex;
+  align-items: center;
+}
+
+.play-area__team-stats {
+  gap: 22px;
+}
+
+.play-area__team-stat {
+  gap: 8px;
+}
+
+.play-area__team-header--b .play-area__team-stats {
+  flex-direction: row-reverse;
+}
+
+.play-area__team-header--b .play-area__team-name {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
 .play-area__team-icon {
   width: 34px;
   height: 34px;
@@ -963,30 +986,43 @@ body {
 
 .exca-sidebar {
   position: absolute;
-  top: 38%;
-  transform: translateY(-50%);
-  width: clamp(205px, 20vw, 300px);
+  top: 82px;
+  width: clamp(300px, 37vw, 430px);
   box-sizing: border-box;
-  background: rgba(82, 88, 71, 0.72);
-  backdrop-filter: blur(14px) saturate(130%);
-  padding: 19px 18px;
+  background: rgba(15, 20, 18, 0.46);
+  backdrop-filter: blur(16px) saturate(120%);
+  padding: 18px 20px 16px;
   display: flex;
   flex-direction: column;
-  gap: 15px;
+  gap: 13px;
   font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.32);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 22px;
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
 }
 
 .play-area__team--A .exca-sidebar {
-  left: 0;
-  border-right: 1px solid oklch(55% 0.1 40 / 0.35);
-  border-radius: 0 14px 14px 0;
+  left: 32px;
+  border-top: 3px solid oklch(62% 0.17 42);
 }
 
 .play-area__team--B .exca-sidebar {
-  right: 0;
-  border-left: 1px solid oklch(50% 0.08 235 / 0.35);
-  border-radius: 14px 0 0 14px;
+  right: 32px;
+  border-top: 3px solid oklch(58% 0.12 235);
+  text-align: right;
+}
+
+.exca-sidebar--mirrored .exca-sidebar__row-head {
+  flex-direction: row-reverse;
+}
+
+.exca-sidebar--mirrored .exca-sidebar__name {
+  text-align: right;
+}
+
+.exca-sidebar--mirrored .exca-sidebar__bar {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .exca-sidebar__title {

@@ -68,6 +68,7 @@ func _build_label() -> void:
 	_label.position = Vector3(0, 3.4, 0)
 	_label.font_size = 48
 	_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	_label.visible = _phase != "EXCAVATION"
 	add_child(_label)
 
 func _on_pieces_ready(_ids: Array[String]) -> void:
@@ -108,6 +109,8 @@ func set_phase(phase: String) -> void:
 		return
 	var previous := _phase
 	_phase = phase
+	if _label:
+		_label.visible = phase != "EXCAVATION"
 	_apply_ground_visibility()
 	if phase == "EXCAVATION" and previous != "EXCAVATION":
 		# 재경기 등으로 발굴 페이즈에 다시 들어올 때, 이전 라운드에 파낸 땅이 그대로 남아있지

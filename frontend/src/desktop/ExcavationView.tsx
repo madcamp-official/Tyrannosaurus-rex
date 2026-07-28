@@ -36,7 +36,7 @@ export function ExcavationTeamPanel({ team, players }: { team: TeamState; player
 
   return (
     <div className="exca-view">
-      <div className="exca-sidebar">
+      <div className={`exca-sidebar${team.id === "B" ? " exca-sidebar--mirrored" : ""}`}>
         <span className="exca-sidebar__title">기여도</span>
         {contributors.map((p) => (
           <div key={p.id}>
