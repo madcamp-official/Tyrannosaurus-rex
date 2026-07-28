@@ -10,6 +10,7 @@ export function ExcavationTeamPanel({ team, players }: { team: TeamState; player
       id: p.id,
       name: p.nickname,
       color: p.color,
+      count: p.stats.excavationInputs,
       pct: totalInputs > 0 ? Math.round((p.stats.excavationInputs / totalInputs) * 100) : 0,
     }));
 
@@ -42,6 +43,7 @@ export function ExcavationTeamPanel({ team, players }: { team: TeamState; player
             <div className="exca-sidebar__row-head">
               <span className="exca-sidebar__dot" style={{ background: p.color }} />
               <span className="exca-sidebar__name">{p.name}</span>
+              <span className="exca-sidebar__count">{p.count}회</span>
             </div>
             <div className="exca-sidebar__bar">
               <div className="exca-sidebar__bar-fill" style={{ width: `${p.pct}%`, background: p.color }} />
