@@ -29,23 +29,24 @@ func _build_environment() -> void:
 	# 모두 걷어내고, 맑은 낮하늘처럼 보이는 절차적 그라디언트 하늘로 바꿨다. 차갑고 새파란
 	# 색 대신 노을 지평선처럼 살짝 금빛이 도는 따뜻한 톤으로 잡아 아늑한 분위기를 낸다.
 	var sky_material := ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = Color(0.35, 0.55, 0.78)
-	sky_material.sky_horizon_color = Color(0.96, 0.80, 0.58)
-	sky_material.ground_bottom_color = Color(0.42, 0.33, 0.24)
-	sky_material.ground_horizon_color = Color(0.96, 0.80, 0.58)
+	sky_material.sky_top_color = Color(0.45, 0.65, 0.85)
+	sky_material.sky_horizon_color = Color(0.98, 0.86, 0.68)
+	sky_material.ground_bottom_color = Color(0.52, 0.42, 0.30)
+	sky_material.ground_horizon_color = Color(0.98, 0.86, 0.68)
 	var sky := Sky.new()
 	sky.sky_material = sky_material
 	environment.background_mode = Environment.BG_SKY
 	environment.sky = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	environment.ambient_light_energy = 1.0
+	# "여전히 어둡다"는 피드백이 계속돼 대폭 올렸다.
+	environment.ambient_light_energy = 1.9
 	var world := WorldEnvironment.new()
 	world.environment = environment
 	add_child(world)
 
 	var light := DirectionalLight3D.new()
 	light.rotation_degrees = Vector3(-55, -30, 0)
-	light.light_energy = 1.8
+	light.light_energy = 2.7
 	# 방향광도 순백색 대신 살짝 노란빛이 도는 따뜻한 색으로 — 하늘 톤과 어우러져 전체
 	# 분위기가 따뜻하게 느껴지게 한다.
 	light.light_color = Color(1.0, 0.93, 0.80)
