@@ -70,3 +70,13 @@
 - API/Socket.IO/Shared 계약 변경: 없음 — `GameResultEvent.players[].stats` 등 기존 계약 필드만 사용했다.
 - 환경 변수 변경: 없음.
 - 검증 결과: `npm run typecheck -w frontend`, `npm run test -w frontend`, `npm run build -w frontend` 통과. `npm run autoplay`로 로컬 서버에서 4인 봇 게임을 끝까지 돌려 `game:result` 수신과 결과 화면 렌더링 경로에 런타임 예외가 없는지 확인했다. 실제 화면 스크린샷 검증은 이 세션에 브라우저 자동화 도구가 없어 못 했다 — 남은 위험으로 남긴다.
+
+## 2026-07-28 - 로비 방 이름을 QR 카드 안으로 이동 (`frontend/lobby-room-name-in-qr-card` 브랜치)
+
+- 구현 목적: 방 이름이 QR 카드 바깥, 게임 시작 버튼 위쪽에 작게 떠 있어 눈에 잘 안 띄던 것을 QR 카드 안 QR 이미지 바로 위로 옮기고, 팀 이름과 같은 스타일로 통일했다.
+- 주요 변경 사항:
+  - `<h2 className="lobby-room-name">`를 `.lobby-code-card__qr` 안, QR 이미지 바로 앞으로 옮겼다(`DesktopLobby.tsx`).
+  - `.lobby-room-name` 폰트를 팀 이름(`.lobby-team-card__name`)과 동일하게 맞췄다 — "YeogiOttaeJalnan" 32px, font-weight 400.
+- API/Socket.IO/Shared 계약 변경: 없음.
+- 환경 변수 변경: 없음.
+- 검증 결과: `npm run typecheck -w frontend`, `npm run test -w frontend`, `npm run build -w frontend` 통과.
