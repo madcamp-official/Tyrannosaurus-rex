@@ -93,7 +93,7 @@ func _build_grid() -> void:
 func _setup_material() -> void:
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://shaders/ground.gdshader")
-	mat.set_shader_parameter("grass_tex", grass_texture if grass_texture else _load_texture("res://assets/textures/grass.jpg", ProceduralTextures.make_grass))
+	mat.set_shader_parameter("grass_tex", grass_texture if grass_texture else _load_texture("res://assets/textures/grass_2.jpg", ProceduralTextures.make_grass))
 	mat.set_shader_parameter("dirt_tex", dirt_texture if dirt_texture else _load_texture("res://assets/textures/dirt.png", ProceduralTextures.make_dirt))
 	material_override = mat
 
@@ -301,7 +301,7 @@ static func build_flat_tile_mesh(width: float, depth: float = -1.0) -> ArrayMesh
 static func build_flat_material() -> ShaderMaterial:
 	var mat := ShaderMaterial.new()
 	mat.shader = preload("res://shaders/ground.gdshader")
-	var grass_tex: Texture2D = load("res://assets/textures/grass.jpg") if ResourceLoader.exists("res://assets/textures/grass.jpg") else ProceduralTextures.make_grass()
+	var grass_tex: Texture2D = load("res://assets/textures/grass_2.jpg") if ResourceLoader.exists("res://assets/textures/grass_2.jpg") else ProceduralTextures.make_grass()
 	var dirt_tex: Texture2D = load("res://assets/textures/dirt.png") if ResourceLoader.exists("res://assets/textures/dirt.png") else ProceduralTextures.make_dirt()
 	mat.set_shader_parameter("grass_tex", grass_tex)
 	mat.set_shader_parameter("dirt_tex", dirt_tex)
