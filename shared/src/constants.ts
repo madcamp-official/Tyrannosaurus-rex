@@ -46,7 +46,11 @@ export const SKY_OBJECT_COLLISION_RADIUS = 0.09;
 export const SKY_OBJECT_COUNT = 60; // 1분 동안 떨어지는 운석+아이템 총 개수
 export const SKY_OBJECT_FRUIT_CHANCE = 0.15; // 이 중 과일일 확률
 export const SKY_OBJECT_HEART_CHANCE = 0.05; // 이 중 하트일 확률(나머지는 운석)
-export const SKY_OBJECT_MIN_OFFSET_MS = 3_000; // 시작 3초는 아무것도 안 떨어지는 몸풀기 구간
+// PHASE_START_GRACE_MS(5초) 동안은 모바일 화면이 "준비 중"이라 플레이어가 아직 좌우 위치를
+// 한 번도 보고하지 못한 상태다 — 그보다 먼저 운석이 떨어지면 플레이어 위치가 항상 기본값
+// (화면 중앙)이라 스폰 고정과 판정이 똑같은 자리를 가리켜 무조건 맞는 사고가 났다. 그래서
+// 준비 시간 + 여유를 두고 그 뒤부터 떨어지기 시작한다.
+export const SKY_OBJECT_MIN_OFFSET_MS = 6_000;
 export const SKY_OBJECT_MAX_OFFSET_MS = 54_000;
 export const SKY_OBJECT_MIN_GAP_MS = 650;
 // 1보다 작을수록 초반엔 간격이 넓다가(뜸하게) 시간이 지날수록 간격이 좁아진다(점점 빽빽하게).

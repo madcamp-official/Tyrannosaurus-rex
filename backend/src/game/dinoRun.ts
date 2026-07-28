@@ -111,6 +111,8 @@ export function tickSkyCollisions(room: RoomRecord, teamId: TeamId, now: number)
   if (team.phase !== "ASSEMBLY") return [];
 
   const elapsed = now - team.phaseStartedAt - PHASE_START_GRACE_MS;
+  // 준비 카운트다운 동안에는 모바일 조작값이 아직 없으므로 충돌을 판정하지 않는다.
+  // 이후의 오브젝트 스케줄도 실제 게임 시작 시점을 기준으로 계산한다.
   if (elapsed < 0) return [];
   const events: SkyCollisionEvent[] = [];
 
