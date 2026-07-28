@@ -75,10 +75,10 @@ func _add_backdrop_tile(material: ShaderMaterial, width: float, depth: float, x:
 
 func _build_camera() -> void:
 	var camera := Camera3D.new()
-	# 시선을 땅에 더 가깝게, 더 당겨서 옆쪽 여백이 덜 보이게 했다 (배경 잔디 평면도 함께 깔아
-	# 혹시 남는 여백도 검은색 대신 잔디로 보이게 함).
-	camera.position = Vector3(0, 6, 8)
-	camera.fov = 66.0
+	# 옆쪽 여백은 이제 배경 잔디 평면(_build_ground_backdrop)이 책임지므로, 카메라를 굳이
+	# 바짝 붙일 필요가 없다 — 그래서 구덩이/티라노가 잘리지 않도록 다시 뒤로 뺐다.
+	camera.position = Vector3(0, 9, 13)
+	camera.fov = 68.0
 	camera.near = 0.1
 	camera.far = 100.0
 	add_child(camera)
