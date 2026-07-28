@@ -151,10 +151,17 @@ func _reveal_piece(bone_id: String, animate: bool) -> void:
 	if not animate:
 		return
 	var original_scale := piece.scale
-	piece.scale = Vector3.ZERO
+	var original_rotation := piece.rotation
+	# 땅속에서 뽑혀 올라오는 대신, 발견 위치에서 먼지를 털어내듯 짧게 회전하며
+	# 선명해지는 연출로 바꾼다. 위치는 움직이지 않아 발굴물이 튀어나와 보이지 않는다.
+	piece.scale = original_scale * 0.92
+	piece.rotation.y = original_rotation.y - 0.22
 	var tween := create_tween()
-	tween.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	tween.tween_property(piece, "scale", original_scale, REVEAL_POP_DURATION)
+	tween.set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	tween.tween_property(piece, "rotation:y", original_rotation.y + 0.12, REVEAL_POP_DURATION * 0.55)
+	tween.parallel().tween_property(piece, "scale", original_scale * 1.04, REVEAL_POP_DURATION * 0.55)
+	tween.tween_property(piece, "rotation:y", original_rotation.y, REVEAL_POP_DURATION * 0.45)
+	tween.parallel().tween_property(piece, "scale", original_scale, REVEAL_POP_DURATION * 0.45)
 
 func on_puzzle_piece_moved(bone_id: String, _transform_2d: Dictionary) -> void:
 	# 서버의 0~1 정규화 좌표는 별도 2D 퍼즐 판정용이라 3D 모델 좌표와 직접 대응하지 않는다.

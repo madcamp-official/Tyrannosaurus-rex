@@ -48,6 +48,15 @@ import {
 const CROSSHAIR_STALE_MS = 700;
 const TEAM_EMBLEM: Record<TeamId, string> = { A: "🔥", B: "❄️" };
 
+function ReadyCheckIcon(): JSX.Element {
+  return (
+    <svg className="lobby-team-card__ready-check" viewBox="0 0 24 24" role="img" aria-label="준비 완료">
+      <circle cx="12" cy="12" r="10" />
+      <path d="m7.2 12.1 3.1 3.1 6.7-7" />
+    </svg>
+  );
+}
+
 export function DesktopLobby(): JSX.Element {
   const socketRef = useRef<AppSocket | null>(null);
   const [roomState, setRoomState] = useState<RoomState | null>(null);
@@ -437,7 +446,7 @@ function CreateRoomForm({
   };
 
   return (
-    <section className="lobby-connecting">
+    <section className="lobby-connecting lobby-connecting--create">
       <div className="lobby-main__center">
         <img className="lobby-header__logo lobby-header__logo--big" src="/images/logo.png" alt="내 티라노를 살려내!" />
         <p className="lobby-header__subtitle">죽은 티라노, 정말 살려드립니다</p>
@@ -518,7 +527,7 @@ function TeamCard({ roomState, teamId }: { roomState: RoomState; teamId: TeamId 
             <span className="lobby-team-card__dot" style={{ background: p.connected ? p.color : "#b8b0a6" }} />
             <span className="lobby-team-card__name-text">{p.nickname}</span>
             {!p.connected && <span className="lobby-team-card__status-text">연결 끊김</span>}
-            <span className="lobby-team-card__status-icon">{p.connected ? (p.ready ? "✅" : "⏳") : ""}</span>
+            <span className="lobby-team-card__status-icon">{p.connected && p.ready ? <ReadyCheckIcon /> : ""}</span>
           </li>
         ))}
         {Array.from({ length: emptySlots }).map((_, i) => (
