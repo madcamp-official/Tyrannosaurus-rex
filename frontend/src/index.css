@@ -1616,25 +1616,70 @@ body {
   box-sizing: border-box;
 }
 
+.result-view__top-logo {
+  height: clamp(72px, 8vw, 110px);
+  width: auto;
+  margin: 0 auto 4px;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.45));
+}
+
 .result-view__title {
   font-family: "Baloo 2", sans-serif;
   font-size: clamp(1.6rem, 3vw, 2.4rem);
-  margin: 0 0 12px;
+  margin: 0 0 16px;
+}
+
+/* 팀별 부활 티라노(빨강 박스)와 티꾸 완료 티라노(파랑 박스) 자리 — 아직 미구현, 자리만 예약해둔다. */
+.result-view__stage-row {
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  gap: clamp(16px, 3vw, 40px);
+  margin: 0 0 16px;
+}
+
+.result-view__stage-slot,
+.result-view__museum-slot {
+  flex: 1 1 360px;
+  max-width: 480px;
+  min-height: 140px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 16px;
+  border: 2px dashed;
+  padding: 12px;
+}
+
+.result-view__stage-slot--a {
+  border-color: rgba(255, 120, 60, 0.5);
+  background: rgba(255, 120, 60, 0.06);
+}
+
+.result-view__stage-slot--b {
+  border-color: rgba(90, 170, 230, 0.5);
+  background: rgba(90, 170, 230, 0.06);
+}
+
+.result-view__museum-slot {
+  flex: 0 1 220px;
+  border-color: rgba(120, 150, 230, 0.5);
+  background: rgba(120, 150, 230, 0.08);
+}
+
+.result-view__stage-slot-label {
+  font-size: 0.85rem;
+  opacity: 0.65;
+  text-align: center;
 }
 
 .result-view__header-row {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
   gap: clamp(16px, 3vw, 40px);
   margin: 0 0 20px;
-}
-
-.result-view__logo {
-  height: clamp(96px, 11vw, 150px);
-  width: auto;
-  flex-shrink: 0;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.45));
 }
 
 .result-view__team-panel {
@@ -1644,18 +1689,19 @@ body {
   box-sizing: border-box;
   padding: 18px 24px;
   border-radius: 16px;
-  text-align: left;
   backdrop-filter: blur(14px) saturate(140%);
 }
 
 .result-view__team-panel--a {
   background: rgba(255, 245, 235, 0.16);
   border: 1px solid rgba(255, 178, 122, 0.45);
+  text-align: right;
 }
 
 .result-view__team-panel--b {
   background: rgba(225, 240, 250, 0.14);
   border: 1px solid rgba(142, 205, 240, 0.45);
+  text-align: left;
 }
 
 .result-view__team-name {
@@ -1678,10 +1724,15 @@ body {
   opacity: 0.85;
 }
 
-.result-view__action-summary {
+.result-view__stat-list {
+  list-style: none;
   margin: 0;
-  font-size: 0.95rem;
-  opacity: 0.85;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.92rem;
+  opacity: 0.9;
 }
 
 .result-view__score-header {
@@ -1717,9 +1768,10 @@ body {
   box-sizing: border-box;
   margin: 24px 0;
   padding: 16px 20px;
-  border: 1px solid #2a323d;
-  border-radius: 8px;
-  background: rgba(16, 21, 28, 0.85);
+  border: 1px solid rgba(255, 240, 220, 0.25);
+  border-radius: 16px;
+  background: rgba(255, 250, 240, 0.08);
+  backdrop-filter: blur(14px) saturate(140%);
 }
 
 .result-view__mvp-grid {
@@ -1746,6 +1798,8 @@ body {
 .result-view__mvp-name {
   flex: 1;
   text-align: left;
+  font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
+  font-weight: 400;
 }
 
 .result-view__mvp-score {
