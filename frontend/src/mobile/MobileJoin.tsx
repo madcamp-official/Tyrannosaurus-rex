@@ -174,7 +174,7 @@ export function MobileJoin(): JSX.Element {
     const socket = socketRef.current;
     const content = (
       <>
-        {team.phase === "EXCAVATION" && socket && <ExcavationControls socket={socket} result={team.excavation.result} />}
+        {team.phase === "EXCAVATION" && socket && <ExcavationControls socket={socket} teamId={teamId} result={team.excavation.result} />}
         {team.phase === "ASSEMBLY" && socket && playerId && (
           <DinoRunControls socket={socket} team={team} playerId={playerId} result={team.dinoRun.result} />
         )}

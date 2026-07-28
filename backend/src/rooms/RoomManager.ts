@@ -492,8 +492,12 @@ export class RoomManager {
       team.phaseEndsAt = now + DINO_RUN_DURATION_MS;
       // 낙하 오브젝트 스케줄은 라운드 시드에서 파생되어 양 팀이 항상 동일하다 (§4).
       team.dinoRun.skyObjects = makeSkyObjectSchedule(room.roundSeed ?? room.state.roomCode);
+      // 목숨은 항상 풀로, 점수는 항상 0에서 시작해야 한다 — resetTeamGameplayState가 라운드
+      // 시작 시 이미 비워두지만, 여기서도 명시적으로 초기화해 두어 어떤 경로로 ASSEMBLY에
+      // 들어오든 항상 같은 시작 상태를 보장한다.
       for (const playerId of team.playerIds) {
         team.dinoRun.livesByPlayer[playerId] = METEOR_DODGE_LIVES;
+        team.dinoRun.scoreByPlayer[playerId] = 0;
       }
     }
     room.excavationTransitionAt = null;
