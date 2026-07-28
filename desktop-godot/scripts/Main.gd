@@ -31,17 +31,19 @@ func _build_environment() -> void:
 	sky.sky_material = sky_material
 	environment.background_mode = Environment.BG_SKY
 	environment.sky = sky
-	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	# 그림자를 뚜렷하게 보이게 하려면 그림자 진 곳을 채우는 주변광을 좀 줄여야 한다 —
-	# 너무 밝으면 그림자와 안 그림자 부분의 명암 차이가 흐릿해진다.
-	environment.ambient_light_energy = 0.55
+	# 밤하늘 텍스처를 환경광 원본으로 쓰면 지면까지 청회색으로 어둡게 물든다.
+	# 배경 사진은 유지하되 발굴 무대에는 따뜻한 중성광을 별도로 사용한다.
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	environment.ambient_light_color = Color(1.0, 0.88, 0.70)
+	environment.ambient_light_energy = 1.05
 	var world := WorldEnvironment.new()
 	world.environment = environment
 	add_child(world)
 
 	var light := DirectionalLight3D.new()
 	light.rotation_degrees = Vector3(-55, -30, 0)
-	light.light_energy = 1.8
+	light.light_color = Color(1.0, 0.92, 0.78)
+	light.light_energy = 2.0
 	# 기본값이 꺼져 있어서 지금까지 땅/뼈 모델 모두 그림자를 전혀 드리우지 않았다.
 	light.shadow_enabled = true
 	add_child(light)

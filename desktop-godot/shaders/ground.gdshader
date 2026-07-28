@@ -7,7 +7,7 @@ uniform float uv_repeat = 3.0;
 uniform float dirt_uv_repeat = 0.95;
 uniform vec3 dirt_light : source_color = vec3(0.725, 0.514, 0.333);
 uniform vec3 dirt_mid : source_color = vec3(0.561, 0.365, 0.224);
-uniform vec3 dirt_deep : source_color = vec3(0.306, 0.192, 0.125);
+uniform vec3 dirt_deep : source_color = vec3(0.40, 0.27, 0.17);
 
 varying vec3 v_normal_world;
 varying vec3 v_pos;
@@ -38,14 +38,17 @@ void fragment() {
 
 	vec3 dirt_tint = mix(dirt_light, dirt_mid, deep_mix);
 	dirt_tint = mix(dirt_tint, dirt_deep, deep_mix * 0.55 + wall_factor * 0.18);
-	vec3 dirt_color = mix(dirt_tint, dirt_tex_color, 0.72);
-	dirt_color *= mix(1.08, 0.72, deep_mix * 0.80 + wall_factor * 0.22);
+	vec3 dirt_color = mix(dirt_tint, dirt_tex_color, 0.64);
+	dirt_color *= mix(1.10, 0.86, deep_mix * 0.72 + wall_factor * 0.16);
 
 	vec3 col = mix(grass_color, dirt_color, grass_to_dirt);
 	// 예전엔 unshaded라 씬 조명/그림자를 아예 안 받고 법선 방향으로 흉내만 낸 명암을 썼다.
 	// 이제 실제 DirectionalLight3D(그림자 포함)가 셰이딩을 맡으므로, 여기서는 흙/잔디처럼
 	// 광택 없는 재질로 보이게 거칠기·반사만 잡아주고 명암 계산 자체는 엔진에 맡긴다.
 	ALBEDO = col;
+	// 실시간 그림자는 유지하되, 오목한 구덩이 벽이 Web 렌더러에서 검게 뭉개지지 않도록
+	// 지면 색의 일부를 약한 간접광처럼 되돌려 준다.
+	EMISSION = col * 0.16;
 	ROUGHNESS = 1.0;
 	SPECULAR = 0.0;
 }
