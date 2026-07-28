@@ -5,8 +5,11 @@ import { AIM_UPDATE_MAX_HZ, CHARGING_PRACTICE_DURATION_MS, SHOT_COOLDOWN_MS, typ
 import type { AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
 
-const GYRO_SENSITIVITY_DEG = 87; // 이만큼 기울이면 화면 절반 끝까지 이동 — 값이 클수록 덜 민감하다 (130의 1/1.5)
-const LOW_PASS_ALPHA = 0.25;
+// 이만큼 기울이면 화면 절반 끝까지 이동 — 값이 클수록 덜 민감하다. 좌우(자이로 gamma)가
+// 위아래(beta)보다 훨씬 민감하게 느껴져서 축마다 따로 둔다.
+const GYRO_SENSITIVITY_X_DEG = 140;
+const GYRO_SENSITIVITY_Y_DEG = 45;
+const LOW_PASS_ALPHA = 0.5;
 
 type OrientationPermissionApi = { requestPermission?: () => Promise<"granted" | "denied"> };
 
@@ -45,6 +48,7 @@ export function AimControls({ socket, team, practice = false }: { socket: AppSoc
   pointRef.current = point;
   const zeroRef = useRef<{ beta: number; gamma: number } | null>(null);
   const filteredRef = useRef({ beta: 0, gamma: 0 });
+  const hasReadingRef = useRef(false);
   const seqRef = useRef(0);
 
   const practiceRemainingSec = usePracticeCountdown(practice, team?.phaseStartedAt ?? Date.now());
@@ -71,25 +75,27 @@ export function AimControls({ socket, team, practice = false }: { socket: AppSoc
     if (orientationPermission !== "GRANTED") return undefined;
     const handleOrientation = (event: DeviceOrientationEvent) => {
       if (event.beta === null || event.gamma === null) return;
-      if (!zeroRef.current) {
-        // "영점 잡기" 버튼을 안 눌러도 자이로가 바로 동작하도록, 첫 값을 필터 시작점 겸
-        // 영점으로 삼는다 — 0에서부터 필터를 수렴시키면 첫 프레임에 조준점이 튄다.
+      if (!hasReadingRef.current) {
         filteredRef.current = { beta: event.beta, gamma: event.gamma };
-        zeroRef.current = { ...filteredRef.current };
-        setCalibrated(true);
+        hasReadingRef.current = true;
       } else {
         filteredRef.current = {
           beta: filteredRef.current.beta + (event.beta - filteredRef.current.beta) * LOW_PASS_ALPHA,
           gamma: filteredRef.current.gamma + (event.gamma - filteredRef.current.gamma) * LOW_PASS_ALPHA,
         };
       }
+      // "영점 잡기"를 실제로 누르기 전엔 임의의 초기 자세가 영점이 되어버려 조준이 엉뚱한
+      // 방향으로 틀어지는 문제가 있었다 — 그래서 명시적으로 누르기 전까진 조준점을 화면
+      // 중앙에 고정해두고 움직이지 않는다(필터 값 자체는 계속 갱신해 버튼을 누르는 순간
+      // 이미 안정된 값을 영점으로 잡는다).
+      if (!zeroRef.current) return;
       const dBeta = filteredRef.current.beta - zeroRef.current.beta;
       const dGamma = filteredRef.current.gamma - zeroRef.current.gamma;
       setPoint({
-        x: clamp01(0.5 + dGamma / GYRO_SENSITIVITY_DEG / 2),
+        x: clamp01(0.5 + dGamma / GYRO_SENSITIVITY_X_DEG / 2),
         // 폰 위쪽(윗변)을 몸에서 멀어지게 기울이면 아래로, 몸 쪽으로 기울이면 위로 — beta가
         // 늘어날수록(몸 쪽으로 기울일수록) 위로 가야 하므로 부호를 뒤집는다.
-        y: clamp01(0.5 - dBeta / GYRO_SENSITIVITY_DEG / 2),
+        y: clamp01(0.5 - dBeta / GYRO_SENSITIVITY_Y_DEG / 2),
       });
     };
     window.addEventListener("deviceorientation", handleOrientation);

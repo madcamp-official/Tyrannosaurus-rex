@@ -336,6 +336,26 @@ describe("dino run (meteor dodge)", () => {
     expect(room.state.teams.A.phase).toBe("CHARGING_PRACTICE");
   });
 
+  it("moves a team to CHARGING early once every player on it has calibrated, even before the practice window ends", () => {
+    const { rooms, room, playerA } = setupChargingPracticeRoom();
+    const practiceStart = room.state.teams.A.phaseStartedAt;
+
+    rooms.applyAim(
+      room,
+      "A",
+      playerA,
+      { seq: 1, point: { x: 0.5, y: 0.5 }, mode: "GYRO", calibrated: true, clientTime: Date.now() },
+      Date.now(),
+    );
+
+    // 아직 CHARGING_PRACTICE_DURATION_MS가 다 지나지 않았지만, A팀은 전원(팀원 1명) 영점을
+    // 잡았으니 곧바로 CHARGING으로 넘어가고, 아무도 영점을 안 잡은 B팀은 계속 연습 중이다.
+    const finished = rooms.tickChargingPractice(room, practiceStart + CHARGING_PRACTICE_DURATION_MS - 1000);
+    expect(finished).toEqual(["A"]);
+    expect(room.state.teams.A.phase).toBe("CHARGING");
+    expect(room.state.teams.B.phase).toBe("CHARGING_PRACTICE");
+  });
+
   it("does not finish the run before the 1-minute deadline", () => {
     const { rooms, room, now } = setupAssemblyRoom();
     const { finished } = rooms.tickDinoRun(room, now + DINO_RUN_DURATION_MS - 1000);

@@ -24,13 +24,9 @@ func _ready() -> void:
 
 func _build_environment() -> void:
 	var environment := Environment.new()
-	# 하늘 사진 대신 절차적 하늘(그라디언트)을 쓴다 — 별도 텍스처 없이 바로 동작한다.
-	var sky_material := ProceduralSkyMaterial.new()
-	sky_material.sky_top_color = Color(0.30, 0.55, 0.85)
-	sky_material.sky_horizon_color = Color(0.75, 0.82, 0.88)
-	sky_material.ground_bottom_color = Color(0.3, 0.28, 0.24)
-	sky_material.ground_horizon_color = Color(0.75, 0.82, 0.88)
-	sky_material.sun_angle_max = 30.0
+	# 절차적 그라디언트 대신 실제 하늘 사진을 파노라마 텍스처로 씌운다.
+	var sky_material := PanoramaSkyMaterial.new()
+	sky_material.panorama = load("res://assets/textures/night_sky.jpg")
 	var sky := Sky.new()
 	sky.sky_material = sky_material
 	environment.background_mode = Environment.BG_SKY

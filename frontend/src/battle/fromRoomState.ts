@@ -64,6 +64,7 @@ export function battleStateFromRoom(
     teamB,
     trex: {
       x: trex.position.x,
+      y: trex.position.y,
       facing: trex.facing === "LEFT" ? -1 : 1,
       corePos: [trex.corePosition.x, trex.corePosition.y],
     },

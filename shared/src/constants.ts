@@ -73,9 +73,10 @@ export const CHARGING_TREX_TRANSFORM_HZ = 10;
 export const SHOT_COOLDOWN_MS = 350;
 export const AIM_UPDATE_MAX_HZ = 30;
 export const AIM_STALE_MS = 500;
-// 명중당 에너지를 줄여서 목표(ENERGY_TARGET)까지 더 많이 쏴야 하게 만들었다.
-export const ENERGY_HIT_BONE = 3;
-export const ENERGY_HIT_CORE = 5;
+// 명중당 부활 에너지를 더 낮췄다 — 목표(ENERGY_TARGET)까지 천천히, 훨씬 더 많이 쏴야
+// 채워지게 난이도를 올렸다.
+export const ENERGY_HIT_BONE = 1;
+export const ENERGY_HIT_CORE = 3;
 export const STABILITY_HIT_CORE = 2;
 export const ENERGY_TARGET = 100;
 export const STABILITY_TARGET = 100;
@@ -83,7 +84,7 @@ export const STABILITY_TARGET = 100;
 // MVP 기본값이며, 실제 3D 히트박스가 생기면 Godot 쪽과 맞춰 조정한다.
 export const CORE_HIT_RADIUS = 0.05;
 export const BONE_HIT_RADIUS = 0.18;
-export const TREX_MOVE_AMPLITUDE = 0.28; // 중심(0.5)에서 좌우로 흔들리는 폭
+export const TREX_MOVE_AMPLITUDE = 0.36; // 중심(0.5)에서 좌우로 흔들리는 폭 — 더 넓게 돌아다니도록 확대
 export const TREX_MOVE_PERIOD_MS = 12_000;
 
 // Plan.md §2.3, §3 3경기 누적 점수제. 구체적 계수가 문서에 없어 MVP 기본값으로 정한다.

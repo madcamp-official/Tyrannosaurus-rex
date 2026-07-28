@@ -48,8 +48,9 @@ async function main(): Promise<void> {
   });
 
   const players: AppSocket[] = [];
-  // Plan.md §2.2: 전원 준비 완료 시 자동 시작되므로, 마지막 참가자가 준비를 마치기 전에는
-  // 방이 아직 열려 있어야 한다 — 그래서 전원을 먼저 입장시킨 뒤 마지막에 한 번에 준비시킨다.
+  // 마지막 참가자가 준비를 마치기 전에는 방이 아직 열려 있어야 한다 — 그래서 전원을 먼저
+  // 입장시킨 뒤 마지막에 한 번에 준비시키고, 그 다음 호스트가 명시적으로 game:start를 부른다
+  // (게임은 더 이상 전원 준비만으로 자동 시작되지 않는다).
   for (let i = 0; i < playerCount; i += 1) {
     const socket = connect(origin, "PLAYER");
     await waitForConnect(socket);
@@ -61,8 +62,7 @@ async function main(): Promise<void> {
     console.log(`[simulate] player ${i + 1} joined team ${joinAck.data.teamId}`);
   }
 
-  // Plan.md §2.2: 전원 준비 완료 시 서버가 자동으로 게임을 시작한다 — 별도의 game:start 호출이 필요 없다.
-  const autoStarted = new Promise<{ from: string; to: string }>((resolve) =>
+  const phaseChangedPromise = new Promise<{ from: string; to: string }>((resolve) =>
     host.once("room:phaseChanged", (evt: any) => resolve(evt.data)),
   );
 
@@ -72,10 +72,14 @@ async function main(): Promise<void> {
     );
     if (!readyAck.ok) throw new Error(`player:setReady failed for player ${i}: ${readyAck.error.code}`);
   }
-  const phaseChange = await autoStarted;
+
+  // 게임은 더 이상 전원 준비만으로 자동 시작되지 않는다 — 호스트가 명시적으로 시작해야 한다.
+  const startAck = await new Promise<any>((resolve) => host.emit("game:start", { requestId: randomUUID() }, resolve));
+  if (!startAck.ok) throw new Error(`game:start failed: ${startAck.error.code}`);
+  const phaseChange = await phaseChangedPromise;
 
   console.log(
-    `[simulate] game auto-started: ${phaseChange.from} -> ${phaseChange.to}, teamA=${latestState.teams.A.playerIds.length}, teamB=${latestState.teams.B.playerIds.length}`,
+    `[simulate] game started: ${phaseChange.from} -> ${phaseChange.to}, teamA=${latestState.teams.A.playerIds.length}, teamB=${latestState.teams.B.playerIds.length}`,
   );
 
   for (const socket of [host, ...players]) socket.close();
