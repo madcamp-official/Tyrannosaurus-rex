@@ -91,7 +91,7 @@ export function tickExcavationHandoff(io: AppServer, rooms: RoomManager, roomCod
       "dino:started",
       toServerEvent(roomCode, room.state.revision, {
         teamId,
-        obstacleOffsetsMs: team.dinoRun.obstacleOffsetsMs,
+        skyObjects: team.dinoRun.skyObjects,
         startedAt: team.phaseStartedAt,
         endsAt: team.phaseEndsAt ?? 0,
       }),

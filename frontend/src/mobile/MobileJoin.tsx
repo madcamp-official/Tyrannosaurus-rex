@@ -11,10 +11,12 @@ import { ExcavationControls } from "./ExcavationControls";
 import { DinoRunControls } from "./DinoRunControls";
 import { AimControls } from "./AimControls";
 import {
+  applyDinoBonus,
   applyDinoFinished,
+  applyDinoHit,
   applyDinoTeamResult,
-  applyDinoProgress,
   applyDinoStarted,
+  applyPlayerDied,
   applyTeamPhaseChanged,
 } from "../roomStateReducer";
 
@@ -63,7 +65,9 @@ export function MobileJoin(): JSX.Element {
     socket.on("room:state", (evt) => setRoomState(evt.data));
     socket.on("team:phaseChanged", (evt) => setRoomState((prev) => (prev ? applyTeamPhaseChanged(prev, evt.data) : prev)));
     socket.on("dino:started", (evt) => setRoomState((prev) => (prev ? applyDinoStarted(prev, evt.data) : prev)));
-    socket.on("dino:progress", (evt) => setRoomState((prev) => (prev ? applyDinoProgress(prev, evt.data) : prev)));
+    socket.on("dino:hit", (evt) => setRoomState((prev) => (prev ? applyDinoHit(prev, evt.data) : prev)));
+    socket.on("dino:bonus", (evt) => setRoomState((prev) => (prev ? applyDinoBonus(prev, evt.data) : prev)));
+    socket.on("dino:playerDied", (evt) => setRoomState((prev) => (prev ? applyPlayerDied(prev, evt.data) : prev)));
     socket.on("dino:finished", (evt) => setRoomState((prev) => (prev ? applyDinoFinished(prev, evt.data) : prev)));
     socket.on("dino:teamResult", (evt) => setRoomState((prev) => (prev ? applyDinoTeamResult(prev, evt.data) : prev)));
 

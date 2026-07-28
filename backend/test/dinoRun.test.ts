@@ -2,14 +2,15 @@ import { describe, expect, it } from "vitest";
 import {
   CHARGING_PRACTICE_DURATION_MS,
   CHARGING_START_STABILITY_BASE,
-  DINO_DEATH_GRACE_MS,
-  DINO_JUMP_WINDOW_MS,
-  DINO_OBSTACLE_COUNT,
   DINO_RUN_DURATION_MS,
+  METEOR_BONUS_SCORE_REWARD,
+  METEOR_DODGE_LIVES,
+  METEOR_HIT_SCORE_PENALTY,
   ROUND_TRANSITION_MS,
+  SKY_OBJECT_COUNT,
 } from "@trex/shared";
 import { RoomManager } from "../src/rooms/RoomManager.js";
-import { makeObstacleSchedule } from "../src/game/dinoRun.js";
+import { makeSkyObjectSchedule } from "../src/game/dinoRun.js";
 
 function setupAssemblyRoom() {
   const rooms = new RoomManager("https://trex.example.com");
@@ -29,131 +30,202 @@ function setupAssemblyRoom() {
     team.phase = "ASSEMBLY";
     team.phaseStartedAt = now;
     team.phaseEndsAt = now + DINO_RUN_DURATION_MS;
-    team.dinoRun.obstacleOffsetsMs = makeObstacleSchedule(room.roundSeed!);
+    team.dinoRun.skyObjects = makeSkyObjectSchedule(room.roundSeed!);
+    for (const playerId of team.playerIds) {
+      team.dinoRun.livesByPlayer[playerId] = METEOR_DODGE_LIVES;
+    }
   }
   return { rooms, room, playerA: a.playerId, playerB: b.playerId, now };
 }
 
-/** A팀은 전 장애물 클리어, 대기 시간까지 지나 두 팀 다 CHARGING_PRACTICE로 넘어간 상태를 만든다. */
+/** A팀은 위치를 안 보내 모든 운석과 겹치는 화면 중앙(0.5)에 계속 있는 상태로 시간을 흘려보낸다. */
 function setupChargingPracticeRoom() {
   const setup = setupAssemblyRoom();
-  const { rooms, room, playerA, now } = setup;
-  for (const offset of room.state.teams.A.dinoRun.obstacleOffsetsMs) {
-    rooms.applyDinoJumpInput(room, "A", playerA, now + offset);
-  }
+  const { rooms, room, now } = setup;
   const evalNow = now + DINO_RUN_DURATION_MS + 1;
+  rooms.tickDinoCollisions(room, evalNow);
   rooms.tickDinoRun(room, evalNow);
   rooms.tickDinoRunTransition(room, evalNow + ROUND_TRANSITION_MS + 1);
   return setup;
 }
 
-describe("dino run", () => {
-  it("generates a deterministic obstacle schedule shared by both teams", () => {
-    const schedule1 = makeObstacleSchedule("seed-x");
-    const schedule2 = makeObstacleSchedule("seed-x");
-    const other = makeObstacleSchedule("seed-y");
+describe("dino run (meteor dodge)", () => {
+  it("generates a deterministic sky-object schedule shared by both teams", () => {
+    const schedule1 = makeSkyObjectSchedule("seed-x");
+    const schedule2 = makeSkyObjectSchedule("seed-x");
+    const other = makeSkyObjectSchedule("seed-y");
     expect(schedule1).toEqual(schedule2);
     expect(schedule1).not.toEqual(other);
-    expect(schedule1.length).toBe(DINO_OBSTACLE_COUNT);
+    expect(schedule1.length).toBe(SKY_OBJECT_COUNT);
     for (let i = 1; i < schedule1.length; i += 1) {
-      expect(schedule1[i]!).toBeGreaterThan(schedule1[i - 1]!);
+      expect(schedule1[i]!.hitAtMs).toBeGreaterThan(schedule1[i - 1]!.hitAtMs);
+    }
+    for (const obj of schedule1) {
+      expect(obj.x).toBeGreaterThanOrEqual(0);
+      expect(obj.x).toBeLessThanOrEqual(1);
+      expect(["METEOR", "BONUS"]).toContain(obj.kind);
     }
   });
 
-  it("obstacles come faster and faster (gaps shrink toward the end)", () => {
-    const schedule = makeObstacleSchedule("speedup-seed");
-    const firstGap = schedule[1]! - schedule[0]!;
-    const lastGap = schedule[schedule.length - 1]! - schedule[schedule.length - 2]!;
-    expect(lastGap).toBeLessThan(firstGap);
-  });
-
-  it("clears an obstacle when a jump lands inside the window", () => {
+  it("tracks a player's latest reported position and rejects stale/out-of-order sequences", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
-    const offset = room.state.teams.A.dinoRun.obstacleOffsetsMs[0]!;
-    const outcome = rooms.applyDinoJumpInput(room, "A", playerA, now + offset + DINO_JUMP_WINDOW_MS - 10);
-    expect(outcome.accepted).toBe(true);
-    if (outcome.accepted) {
-      expect(outcome.cleared).toBe(true);
-      expect(outcome.obstacleIndex).toBe(0);
-      expect(outcome.clearedCount).toBe(1);
+    const first = rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: 0.2, clientTime: now }, now);
+    expect(first).toBe(true);
+    expect(room.dinoPositionState.get(playerA)?.x).toBe(0.2);
+
+    const stale = rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: 0.9, clientTime: now }, now);
+    expect(stale).toBe(false);
+    expect(room.dinoPositionState.get(playerA)?.x).toBe(0.2);
+
+    const next = rooms.applyDinoPositionInput(room, "A", playerA, { seq: 2, x: 0.8, clientTime: now }, now);
+    expect(next).toBe(true);
+    expect(room.dinoPositionState.get(playerA)?.x).toBe(0.8);
+  });
+
+  it("rejects position updates outside the ASSEMBLY phase", () => {
+    const { rooms, room, playerA, now } = setupAssemblyRoom();
+    room.state.teams.A.phase = "EXCAVATION";
+    const accepted = rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: 0.5, clientTime: now }, now);
+    expect(accepted).toBe(false);
+  });
+
+  it("hits a player standing under a meteor: loses a life, loses score, and is judged only once", () => {
+    const { rooms, room, playerA, now } = setupAssemblyRoom();
+    const meteor = { id: 0, hitAtMs: 5000, x: 0.5, kind: "METEOR" as const };
+    room.state.teams.A.dinoRun.skyObjects = [meteor];
+    rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: meteor.x, clientTime: now }, now);
+
+    const events = rooms.tickDinoCollisions(room, now + meteor.hitAtMs + 1);
+    const hit = events.find((e) => e.teamId === "A" && e.event.kind === "HIT");
+    expect(hit).toBeDefined();
+    if (hit && hit.event.kind === "HIT") {
+      expect(hit.event.playerId).toBe(playerA);
+      expect(hit.event.livesLeft).toBe(METEOR_DODGE_LIVES - 1);
+      expect(hit.event.score).toBe(-METEOR_HIT_SCORE_PENALTY);
     }
+    expect(room.state.teams.A.dinoRun.livesByPlayer[playerA]).toBe(METEOR_DODGE_LIVES - 1);
+    expect(room.state.teams.A.dinoRun.scoreByPlayer[playerA]).toBe(-METEOR_HIT_SCORE_PENALTY);
+
+    // 같은 오브젝트는 같은 플레이어에게 두 번 판정되지 않는다.
+    const again = rooms.tickDinoCollisions(room, now + meteor.hitAtMs + 500);
+    expect(again.filter((e) => e.teamId === "A" && e.event.kind === "HIT")).toEqual([]);
+  });
+
+  it("dodging a meteor (standing away from it) costs no life and counts toward MVP stats", () => {
+    const { rooms, room, playerA, now } = setupAssemblyRoom();
+    const meteor = { id: 0, hitAtMs: 5000, x: 0.5, kind: "METEOR" as const };
+    room.state.teams.A.dinoRun.skyObjects = [meteor];
+    rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: 0, clientTime: now }, now);
+
+    const events = rooms.tickDinoCollisions(room, now + meteor.hitAtMs + 1);
+    expect(events.filter((e) => e.teamId === "A")).toEqual([]);
+    expect(room.state.teams.A.dinoRun.livesByPlayer[playerA]).toBe(METEOR_DODGE_LIVES);
     const player = room.state.players.find((p) => p.id === playerA)!;
     expect(player.stats.dinoCleared).toBe(1);
   });
 
-  it("rejects jumps outside the window and duplicate clears of the same obstacle", () => {
+  it("catching a bonus item adds score without costing a life; missing one has no penalty", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
-    const offset = room.state.teams.A.dinoRun.obstacleOffsetsMs[0]!;
+    const bonus = { id: 0, hitAtMs: 5000, x: 0.5, kind: "BONUS" as const };
+    room.state.teams.A.dinoRun.skyObjects = [bonus];
+    rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: bonus.x, clientTime: now }, now);
 
-    const miss = rooms.applyDinoJumpInput(room, "A", playerA, now + offset - DINO_JUMP_WINDOW_MS - 200);
-    expect(miss.accepted && !miss.cleared).toBe(true);
-
-    const first = rooms.applyDinoJumpInput(room, "A", playerA, now + offset);
-    expect(first.accepted && first.cleared).toBe(true);
-    const dup = rooms.applyDinoJumpInput(room, "A", playerA, now + offset + 50);
-    expect(dup.accepted && !dup.cleared).toBe(true);
-  });
-
-  it("rejects jumps outside the ASSEMBLY phase", () => {
-    const { rooms, room, playerA, now } = setupAssemblyRoom();
-    room.state.teams.A.phase = "EXCAVATION";
-    const outcome = rooms.applyDinoJumpInput(room, "A", playerA, now);
-    expect(outcome.accepted).toBe(false);
-  });
-
-  it("evaluates the run after 30s, decides WIN/LOSE by clear rate, and moves both teams to CHARGING_PRACTICE only after the wait", () => {
-    const { rooms, room, playerA, now } = setupAssemblyRoom();
-    // A팀은 전부 클리어, B팀은 0개.
-    for (const offset of room.state.teams.A.dinoRun.obstacleOffsetsMs) {
-      const res = rooms.applyDinoJumpInput(room, "A", playerA, now + offset);
-      expect(res.accepted && res.cleared).toBe(true);
+    const events = rooms.tickDinoCollisions(room, now + bonus.hitAtMs + 1);
+    const caught = events.find((e) => e.teamId === "A" && e.event.kind === "BONUS");
+    expect(caught).toBeDefined();
+    if (caught && caught.event.kind === "BONUS") {
+      expect(caught.event.score).toBe(METEOR_BONUS_SCORE_REWARD);
     }
-
-    const evalNow = now + DINO_RUN_DURATION_MS + 1;
-    const { finished, teamResults } = rooms.tickDinoRun(room, evalNow);
-    expect(finished.map((f) => f.teamId).sort()).toEqual(["A", "B"]);
-
-    const a = finished.find((f) => f.teamId === "A")!.result;
-    const b = finished.find((f) => f.teamId === "B")!.result;
-    expect(a.performance).toBe(1);
-    expect(a.grade).toBe("PERFECT");
-    expect(a.startStability).toBe(100);
-    expect(b.performance).toBe(0);
-    expect(b.grade).toBe("MESSY");
-    expect(b.startStability).toBe(CHARGING_START_STABILITY_BASE);
-
-    // 두 팀 다 끝나 곧바로 승/패는 갈리지만, 대기 시간이 지나기 전엔 CHARGING_PRACTICE로 넘어가지 않는다.
-    expect(teamResults).toContainEqual({ teamId: "A", result: "WIN", score: room.state.teams.A.scores.dinoRun });
-    expect(teamResults).toContainEqual({ teamId: "B", result: "LOSE", score: room.state.teams.B.scores.dinoRun });
-    expect(room.state.teams.A.phase).toBe("ASSEMBLY");
-    expect(rooms.tickDinoRunTransition(room, evalNow)).toBe(false);
-
-    const transitioned = rooms.tickDinoRunTransition(room, evalNow + ROUND_TRANSITION_MS + 1);
-    expect(transitioned).toBe(true);
-
-    for (const teamId of ["A", "B"] as const) {
-      expect(room.state.teams[teamId].phase).toBe("CHARGING_PRACTICE");
-      expect(room.state.teams[teamId].phaseEndsAt).not.toBeNull();
-      expect(room.state.teams[teamId].dinoRun.result).toBeNull();
-      expect(room.state.teams[teamId].dinoRun.performance).toBeNull();
-    }
-    expect(room.state.teams.A.charging.stability).toBe(100);
-    expect(room.state.teams.B.charging.stability).toBe(CHARGING_START_STABILITY_BASE);
-    expect(room.phaseDurations.A.assemblyMs).not.toBeNull();
-    // 연습 중에는 아직 공유 스켈레톤/충전 시작 시각이 잡히지 않는다 — 실제 CHARGING 진입 시점으로 미룬다.
-    expect(room.sharedTrexStartedAt).toBeNull();
-    expect(room.chargingStartedAt.A).toBeNull();
-
-    // 회귀 방지: 전환 직후 다음 틱에서 tickDinoRun을 다시 불러도 이미 넘어간 팀을 대상으로
-    // WIN/LOSE 비교·재전환이 다시 예약되면 안 된다 (phaseEndsAt이 계속 밀리는 버그였다).
-    const rechecked = rooms.tickDinoRun(room, evalNow + ROUND_TRANSITION_MS + 200);
-    expect(rechecked.teamResults).toEqual([]);
-    expect(room.dinoRunTransitionAt).toBeNull();
+    expect(room.state.teams.A.dinoRun.livesByPlayer[playerA]).toBe(METEOR_DODGE_LIVES);
+    expect(room.state.teams.A.dinoRun.scoreByPlayer[playerA]).toBe(METEOR_BONUS_SCORE_REWARD);
   });
 
-  it("marks both teams DRAW when clear rates tie", () => {
+  it("eliminates a player after losing all lives, and no longer judges collisions for them", () => {
+    const { rooms, room, playerA, now } = setupAssemblyRoom();
+    const meteors = Array.from({ length: METEOR_DODGE_LIVES }, (_, i) => ({
+      id: i,
+      hitAtMs: 5000 + i * 1000,
+      x: 0.5,
+      kind: "METEOR" as const,
+    }));
+    room.state.teams.A.dinoRun.skyObjects = meteors;
+
+    let deathEvent: { teamId: string; event: { kind: string } } | undefined;
+    for (const meteor of meteors) {
+      rooms.applyDinoPositionInput(room, "A", playerA, { seq: meteor.id + 1, x: meteor.x, clientTime: now }, now);
+      const events = rooms.tickDinoCollisions(room, now + meteor.hitAtMs + 1);
+      const death = events.find((e) => e.teamId === "A" && e.event.kind === "DEATH");
+      if (death) deathEvent = death;
+    }
+    expect(deathEvent).toBeDefined();
+    expect(room.state.teams.A.dinoRun.deadPlayerIds).toEqual([playerA]);
+    expect(room.state.teams.A.dinoRun.livesByPlayer[playerA]).toBe(0);
+
+    const afterDeath = rooms.applyDinoPositionInput(room, "A", playerA, { seq: 999, x: 0.5, clientTime: now }, now);
+    expect(afterDeath).toBe(false);
+  });
+
+  it(
+    "evaluates the run after 1 minute, decides WIN/LOSE by normalized score, and moves both teams to " +
+      "CHARGING_PRACTICE only after the wait",
+    () => {
+      const { rooms, room, playerA, now } = setupAssemblyRoom();
+      // A팀은 보너스를 전부 잡고, B팀은 아무 것도 하지 않는다.
+      const bonuses = Array.from({ length: 3 }, (_, i) => ({
+        id: i,
+        hitAtMs: 5000 + i * 1000,
+        x: 0.5,
+        kind: "BONUS" as const,
+      }));
+      room.state.teams.A.dinoRun.skyObjects = bonuses;
+      for (const bonus of bonuses) {
+        rooms.applyDinoPositionInput(room, "A", playerA, { seq: bonus.id + 1, x: bonus.x, clientTime: now }, now);
+        rooms.tickDinoCollisions(room, now + bonus.hitAtMs + 1);
+      }
+
+      const evalNow = now + DINO_RUN_DURATION_MS + 1;
+      const { finished, teamResults } = rooms.tickDinoRun(room, evalNow);
+      expect(finished.map((f) => f.teamId).sort()).toEqual(["A", "B"]);
+
+      const a = finished.find((f) => f.teamId === "A")!.result;
+      const b = finished.find((f) => f.teamId === "B")!.result;
+      expect(a.performance).toBeGreaterThan(0);
+      expect(b.performance).toBe(0);
+      expect(b.grade).toBe("MESSY");
+      expect(b.startStability).toBe(CHARGING_START_STABILITY_BASE);
+
+      // 두 팀 다 끝나 곧바로 승/패는 갈리지만, 대기 시간이 지나기 전엔 CHARGING_PRACTICE로 넘어가지 않는다.
+      expect(teamResults).toContainEqual({ teamId: "A", result: "WIN", score: room.state.teams.A.scores.dinoRun });
+      expect(teamResults).toContainEqual({ teamId: "B", result: "LOSE", score: room.state.teams.B.scores.dinoRun });
+      expect(room.state.teams.A.phase).toBe("ASSEMBLY");
+      expect(rooms.tickDinoRunTransition(room, evalNow)).toBe(false);
+
+      const transitioned = rooms.tickDinoRunTransition(room, evalNow + ROUND_TRANSITION_MS + 1);
+      expect(transitioned).toBe(true);
+
+      for (const teamId of ["A", "B"] as const) {
+        expect(room.state.teams[teamId].phase).toBe("CHARGING_PRACTICE");
+        expect(room.state.teams[teamId].phaseEndsAt).not.toBeNull();
+        expect(room.state.teams[teamId].dinoRun.result).toBeNull();
+        expect(room.state.teams[teamId].dinoRun.performance).toBeNull();
+      }
+      expect(room.state.teams.B.charging.stability).toBe(CHARGING_START_STABILITY_BASE);
+      expect(room.phaseDurations.A.assemblyMs).not.toBeNull();
+      // 연습 중에는 아직 공유 스켈레톤/충전 시작 시각이 잡히지 않는다 — 실제 CHARGING 진입 시점으로 미룬다.
+      expect(room.sharedTrexStartedAt).toBeNull();
+      expect(room.chargingStartedAt.A).toBeNull();
+
+      // 회귀 방지: 전환 직후 다음 틱에서 tickDinoRun을 다시 불러도 이미 넘어간 팀을 대상으로
+      // WIN/LOSE 비교·재전환이 다시 예약되면 안 된다 (phaseEndsAt이 계속 밀리는 버그였다).
+      const rechecked = rooms.tickDinoRun(room, evalNow + ROUND_TRANSITION_MS + 200);
+      expect(rechecked.teamResults).toEqual([]);
+      expect(room.dinoRunTransitionAt).toBeNull();
+    },
+  );
+
+  it("marks both teams DRAW when normalized scores tie", () => {
     const { rooms, room, now } = setupAssemblyRoom();
-    // 아무도 뛰지 않아 둘 다 0% 클리어로 동률 — DRAW로 표시된다.
+    // 아무도 움직이지 않아 둘 다 점수 0으로 동률 — DRAW로 표시된다.
     const { teamResults } = rooms.tickDinoRun(room, now + DINO_RUN_DURATION_MS + 1);
     expect(teamResults).toContainEqual({ teamId: "A", result: "DRAW", score: room.state.teams.A.scores.dinoRun });
     expect(teamResults).toContainEqual({ teamId: "B", result: "DRAW", score: room.state.teams.B.scores.dinoRun });
@@ -205,30 +277,7 @@ describe("dino run", () => {
     expect(room.state.teams.A.phase).toBe("CHARGING_PRACTICE");
   });
 
-  it("kills a player who lets an obstacle's window fully pass, and rejects further jumps from them", () => {
-    const { rooms, room, playerA, now } = setupAssemblyRoom();
-    const firstOffset = room.state.teams.A.dinoRun.obstacleOffsetsMs[0]!;
-
-    // 창이 닫힌 직후는 아직 유예 시간(DINO_DEATH_GRACE_MS) 안이라 죽지 않는다 — 네트워크
-    // 지연으로 창 끝자락에 보낸 점프가 늦게 도착할 여유를 준다.
-    const beforeDeath = rooms.tickDinoDeaths(room, now + firstOffset + DINO_JUMP_WINDOW_MS + 10);
-    expect(beforeDeath).toEqual([]);
-    expect(room.state.teams.A.dinoRun.deadPlayerIds).toEqual([]);
-
-    // A/B 모두 같은 roundSeed로 만든 동일한 장애물 스케줄을 쓰므로(§4 공정성), 두 팀 다 죽는다.
-    const died = rooms.tickDinoDeaths(room, now + firstOffset + DINO_JUMP_WINDOW_MS + DINO_DEATH_GRACE_MS + 10);
-    expect(died).toContainEqual({ teamId: "A", playerId: playerA });
-    expect(room.state.teams.A.dinoRun.deadPlayerIds).toEqual([playerA]);
-
-    // 다시 틱해도 이미 죽은 플레이어는 중복으로 보고되지 않는다.
-    const again = rooms.tickDinoDeaths(room, now + firstOffset + DINO_JUMP_WINDOW_MS + DINO_DEATH_GRACE_MS + 1000);
-    expect(again).toEqual([]);
-
-    const jumpAfterDeath = rooms.applyDinoJumpInput(room, "A", playerA, now + firstOffset + 2000);
-    expect(jumpAfterDeath.accepted).toBe(false);
-  });
-
-  it("does not finish the run before the 30s deadline", () => {
+  it("does not finish the run before the 1-minute deadline", () => {
     const { rooms, room, now } = setupAssemblyRoom();
     const { finished } = rooms.tickDinoRun(room, now + DINO_RUN_DURATION_MS - 1000);
     expect(finished).toEqual([]);

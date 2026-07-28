@@ -152,18 +152,36 @@ export type PublicPlayer = {
 
 export type DinoRunGrade = "PERFECT" | "GOOD" | "CLUMSY" | "MESSY";
 
-/** Plan.md §6.2. 골격 조립 다이노런 상태. 판정은 전적으로 서버가 한다. */
+export type SkyObjectKind = "METEOR" | "BONUS";
+/** phase 시작 기준 낙하 오브젝트 하나. 라운드 시드로 생성, 양 팀 동일(§4 공정성). */
+export type SkyObject = {
+  id: number;
+  /** phase 시작부터 이 오브젝트가 판정 지점(플레이어 위치)에 도달하는 시각(ms). */
+  hitAtMs: number;
+  /** 0~1 정규화 좌우 위치. */
+  x: number;
+  kind: SkyObjectKind;
+};
+
+/**
+ * 골격 조립 단계 상태 — 하늘에서 떨어지는 운석(METEOR)을 피하고 보너스 아이템(BONUS)을
+ * 잡는 미니게임. 판정은 전적으로 서버가 한다. 각 플레이어가 자기 위치(dino:position)를
+ * 독립적으로 조작하며, 같은 낙하 스케줄을 팀 전체가 공유한다.
+ */
 export type DinoRunState = {
-  /** phase 시작 기준 장애물 등장 오프셋(ms). 라운드 시드로 생성, 양 팀 동일. */
-  obstacleOffsetsMs: number[];
-  /** 플레이어별 클리어한 장애물 index 목록. */
-  clearedByPlayer: Record<PlayerId, number[]>;
-  /** 장애물을 놓쳐 탈락한 플레이어. 탈락 후에는 남은 시간 동안 점프해도 클리어로 인정하지 않는다. */
+  skyObjects: SkyObject[];
+  /** 플레이어별 남은 목숨(METEOR_DODGE_LIVES에서 시작, 0이면 탈락). */
+  livesByPlayer: Record<PlayerId, number>;
+  /** 플레이어별 누적 점수 (운석에 맞으면 감소, 보너스를 잡으면 증가). */
+  scoreByPlayer: Record<PlayerId, number>;
+  /** 플레이어별로 이미 판정을 마친 오브젝트 id — 같은 오브젝트를 중복 판정하지 않는다. */
+  resolvedObjectIdsByPlayer: Record<PlayerId, number[]>;
+  /** 목숨이 0이 된 플레이어. 탈락 후에는 더 이상 판정하지 않는다. */
   deadPlayerIds: PlayerId[];
-  /** 0~1 팀 클리어율. 30초 종료 시 확정. */
+  /** 0~1 팀 성능. 60초 종료 시 팀 점수 합을 정규화해 확정된다. */
   performance: number | null;
   grade: DinoRunGrade | null;
-  /** 두 팀 다 끝나면 클리어율을 비교해 정해진다. 정해지면 잠시 대기 후 함께 CHARGING으로 넘어간다. */
+  /** 두 팀 다 끝나면 성능을 비교해 정해진다. 정해지면 잠시 대기 후 함께 CHARGING으로 넘어간다. */
   result: "WIN" | "LOSE" | "DRAW" | null;
 };
 

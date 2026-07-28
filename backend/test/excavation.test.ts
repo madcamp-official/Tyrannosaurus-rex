@@ -160,7 +160,7 @@ describe("applyExcavation via RoomManager", () => {
       expect(room.state.teams[teamId].phase).toBe("ASSEMBLY");
       expect(room.state.teams[teamId].excavation.result).toBeNull();
       expect(room.state.teams[teamId].phaseEndsAt).not.toBeNull();
-      expect(room.state.teams[teamId].dinoRun.obstacleOffsetsMs.length).toBeGreaterThan(0);
+      expect(room.state.teams[teamId].dinoRun.skyObjects.length).toBeGreaterThan(0);
     }
   });
 
