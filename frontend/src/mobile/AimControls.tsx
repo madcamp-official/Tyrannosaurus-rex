@@ -5,7 +5,7 @@ import { AIM_UPDATE_MAX_HZ, CHARGING_PRACTICE_DURATION_MS, SHOT_COOLDOWN_MS, typ
 import type { AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
 
-const GYRO_SENSITIVITY_DEG = 130; // 이만큼 기울이면 화면 절반 끝까지 이동 — 값이 클수록 덜 민감하다
+const GYRO_SENSITIVITY_DEG = 87; // 이만큼 기울이면 화면 절반 끝까지 이동 — 값이 클수록 덜 민감하다 (130의 1/1.5)
 const LOW_PASS_ALPHA = 0.25;
 
 type OrientationPermissionApi = { requestPermission?: () => Promise<"granted" | "denied"> };

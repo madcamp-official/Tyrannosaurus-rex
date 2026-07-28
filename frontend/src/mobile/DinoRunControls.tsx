@@ -21,6 +21,8 @@ const FLASH_MS = 350;
 /** 화면 좌/우를 누르고 있는 동안 한 틱마다 이동하는 비율(0~1 기준). */
 const TAP_MOVE_STEP = 0.026;
 const TAP_MOVE_INTERVAL_MS = 16;
+/** 과일 종류를 오브젝트 id로 결정적으로 골라 시각적으로 다양하게 보이게 한다. */
+const FRUIT_EMOJIS = ["🍎", "🍇", "🍓", "🍑", "🍉"];
 /**
  * 운석·보너스가 착지하는(판정되는) 세로 위치 — 공룡이 서 있는 자리와 같은 줄이 되도록
  * 맞춘다. .dino-run__dino의 CSS bottom(16%)과 정확히 대응하는 값(100 - 16)이다.
@@ -43,7 +45,7 @@ export function DinoRunControls({
   result: "WIN" | "LOSE" | "DRAW" | null;
 }): JSX.Element {
   const [x, setX] = useState(0.5);
-  const [flash, setFlash] = useState<"hit" | "bonus" | null>(null);
+  const [flash, setFlash] = useState<"hit" | "bonus" | "heal" | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   const xRef = useRef(x);
@@ -63,6 +65,9 @@ export function DinoRunControls({
   useEffect(() => {
     if (lives < prevLivesRef.current) {
       setFlash("hit");
+      window.setTimeout(() => setFlash(null), FLASH_MS);
+    } else if (lives > prevLivesRef.current) {
+      setFlash("heal");
       window.setTimeout(() => setFlash(null), FLASH_MS);
     } else if (score > prevScoreRef.current) {
       setFlash("bonus");
@@ -175,13 +180,14 @@ export function DinoRunControls({
             }
             objX = locked;
           }
+          const emoji = obj.kind === "METEOR" ? "☄️" : obj.kind === "HEART" ? "❤️" : FRUIT_EMOJIS[obj.id % FRUIT_EMOJIS.length];
           return (
             <div
               key={obj.id}
-              className={`dino-run__sky-object${obj.kind === "BONUS" ? " dino-run__sky-object--bonus" : ""}`}
+              className={`dino-run__sky-object${obj.kind !== "METEOR" ? " dino-run__sky-object--bonus" : ""}`}
               style={{ left: `${objX * 100}%`, top: `${clamp01(progress) * LANDING_TOP_PERCENT}%` }}
             >
-              {obj.kind === "BONUS" ? "💎" : "☄️"}
+              {emoji}
             </div>
           );
         })}
@@ -190,7 +196,7 @@ export function DinoRunControls({
         </div>
         <div className="dino-run__ground" />
       </div>
-      <p className="mobile-game__hint">화면 왼쪽/오른쪽을 눌러 공룡을 움직여서 운석☄️을 피하고 보석💎을 잡으세요!</p>
+      <p className="mobile-game__hint">📺 모니터 화면을 보면서 왼쪽/오른쪽을 눌러 운석☄️은 피하고 과일·하트❤️는 잡으세요!</p>
     </div>
   );
 }

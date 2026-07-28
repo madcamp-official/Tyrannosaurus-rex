@@ -141,13 +141,13 @@ async function runBotLoop(bot: Bot, board: Blackboard, log: (msg: string) => voi
 
     if (team.phase === "ASSEMBLY") {
       // 운석 피하기: 곧 떨어질 오브젝트를 보고 좌우로 움직인다 — 운석이면 반대쪽으로,
-      // 보너스면 그 자리로. BAD 봇은 훨씬 늦게 반응하고 가끔 반대로(운석 쪽으로) 움직인다.
+      // 과일·하트면 그 자리로. BAD 봇은 훨씬 늦게 반응하고 가끔 반대로(운석 쪽으로) 움직인다.
       const elapsed = now - team.phaseStartedAt;
       const lookahead = bot.skill === "BAD" ? BAD_DINO_LOOKAHEAD_MS : DINO_LOOKAHEAD_MS;
       const upcoming = team.dinoRun.skyObjects.find((o) => o.hitAtMs >= elapsed && o.hitAtMs - elapsed <= lookahead);
       let targetX = 0.5;
       if (upcoming) {
-        if (upcoming.kind === "BONUS") {
+        if (upcoming.kind !== "METEOR") {
           targetX = upcoming.x;
         } else {
           const wrongWay = bot.skill === "BAD" && Math.random() < BAD_DINO_WRONG_DODGE_CHANCE;
@@ -393,7 +393,8 @@ async function main(): Promise<void> {
   });
   bots[0]!.socket.on("dino:bonus", (evt) => {
     const nickname = bots.find((b) => b.playerId === evt.data.playerId)?.nickname ?? evt.data.playerId;
-    log(`[${nickname}] 보너스 획득 (점수 ${evt.data.score})`);
+    const label = evt.data.kind === "HEART" ? "하트" : "과일";
+    log(`[${nickname}] ${label} 획득 (남은 목숨 ${evt.data.livesLeft}, 점수 ${evt.data.score})`);
   });
   bots[0]!.socket.on("dino:playerDied", (evt) => {
     const nickname = bots.find((b) => b.playerId === evt.data.playerId)?.nickname ?? evt.data.playerId;

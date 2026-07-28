@@ -11,15 +11,18 @@ import {
   DINO_GRADE_CLUMSY,
   DINO_GRADE_GOOD,
   DINO_GRADE_PERFECT,
-  METEOR_BONUS_SCORE_REWARD,
   METEOR_DODGE_LIVES,
   METEOR_DODGE_REFERENCE_SCORE_PER_PLAYER,
+  METEOR_FRUIT_SCORE_REWARD,
+  METEOR_HEART_LIVES_RESTORED,
+  METEOR_HEART_SCORE_REWARD,
   METEOR_HIT_SCORE_PENALTY,
-  SKY_OBJECT_BONUS_CHANCE,
   SKY_OBJECT_COLLISION_RADIUS,
   SKY_OBJECT_COUNT,
   SKY_OBJECT_DENSITY_CURVE_EXPONENT,
   SKY_OBJECT_FALL_MS,
+  SKY_OBJECT_FRUIT_CHANCE,
+  SKY_OBJECT_HEART_CHANCE,
   SKY_OBJECT_MAX_OFFSET_MS,
   SKY_OBJECT_MIN_GAP_MS,
   SKY_OBJECT_MIN_OFFSET_MS,
@@ -27,6 +30,7 @@ import {
   type DinoRunGrade,
   type PlayerId,
   type SkyObject,
+  type SkyObjectKind,
   type TeamId,
 } from "@trex/shared";
 import type { RoomRecord } from "../rooms/RoomManager.js";
@@ -36,7 +40,7 @@ import { seededRandom01 } from "./seededRandom.js";
  * 라운드 시드로 낙하 오브젝트 스케줄을 생성한다. 양 팀이 같은 스케줄을 공유한다(§4 공정성).
  * [MIN, MAX] 구간에 지터를 섞어 뿌리되, 지수(SKY_OBJECT_DENSITY_CURVE_EXPONENT < 1)로
  * 시간축을 휘어 초반엔 뜸하고 후반으로 갈수록 점점 빽빽해지게 만든 뒤, 최소 간격 미만이면
- * 뒤로 밀어 보정하고, 각 오브젝트의 좌우 위치·종류(운석/보너스)를 시드 기반으로 정한다.
+ * 뒤로 밀어 보정하고, 각 오브젝트의 좌우 위치·종류(운석/과일/하트)를 시드 기반으로 정한다.
  */
 export function makeSkyObjectSchedule(seed: string): SkyObject[] {
   const span = SKY_OBJECT_MAX_OFFSET_MS - SKY_OBJECT_MIN_OFFSET_MS;
@@ -53,7 +57,8 @@ export function makeSkyObjectSchedule(seed: string): SkyObject[] {
   }
   return offsets.map((hitAtMs, i) => {
     const x = seededRandom01(`${seed}:skyX`, i);
-    const kind = seededRandom01(`${seed}:skyKind`, i) < SKY_OBJECT_BONUS_CHANCE ? "BONUS" : "METEOR";
+    const roll = seededRandom01(`${seed}:skyKind`, i);
+    const kind: SkyObjectKind = roll < SKY_OBJECT_HEART_CHANCE ? "HEART" : roll < SKY_OBJECT_HEART_CHANCE + SKY_OBJECT_FRUIT_CHANCE ? "FRUIT" : "METEOR";
     return { id: i, hitAtMs, x, kind };
   });
 }
@@ -77,18 +82,27 @@ export function applyDinoPosition(
 
 export type SkyCollisionEvent =
   | { kind: "HIT"; playerId: PlayerId; objectId: number; livesLeft: number; score: number; x: number }
-  | { kind: "BONUS"; playerId: PlayerId; objectId: number; score: number; x: number }
+  | {
+      kind: "BONUS";
+      playerId: PlayerId;
+      objectId: number;
+      pickupKind: "FRUIT" | "HEART";
+      livesLeft: number;
+      score: number;
+      x: number;
+    }
   | { kind: "DEATH"; playerId: PlayerId };
 
 /**
  * 낙하 시각이 지났지만 아직 판정 안 한 오브젝트를 팀원별로 판정한다. 운석에 맞으면 목숨을
- * 깎고 점수를 감점, 목숨이 0이 되면 탈락시킨다(§METEOR_DODGE_LIVES). 보너스를 잡으면
- * 점수를 더한다. 판정은 플레이어의 가장 최근 위치(dino:position) 기준이며, 위치를 한
- * 번도 안 보낸 플레이어는 화면 중앙(0.5)에 있다고 본다.
+ * 깎고 점수를 감점, 목숨이 0이 되면 탈락시킨다(§METEOR_DODGE_LIVES). 과일을 잡으면 점수를
+ * 더하고, 하트를 잡으면 점수와 함께 목숨도 회복한다(METEOR_DODGE_LIVES 초과로는 안 찬다).
+ * 판정은 플레이어의 가장 최근 위치(dino:position) 기준이며, 위치를 한 번도 안 보낸
+ * 플레이어는 화면 중앙(0.5)에 있다고 본다.
  *
  * 운석은 "공룡을 따라다니다 떨어지는" 느낌을 주기 위해, 낙하가 시작되는 시각(스폰 시각 =
  * hitAtMs - SKY_OBJECT_FALL_MS)에 플레이어가 있던 좌우 위치를 목표로 고정한다 — 그 뒤로
- * 플레이어가 움직이면 고정된 지점에서 벗어나 피할 수 있다. 보너스는 기존처럼 셔플된
+ * 플레이어가 움직이면 고정된 지점에서 벗어나 피할 수 있다. 과일·하트는 기존처럼 셔플된
  * 고정 좌표(obj.x)를 그대로 쓴다(잡으려면 그 자리로 이동해야 한다).
  */
 export function tickSkyCollisions(room: RoomRecord, teamId: TeamId, now: number): SkyCollisionEvent[] {
@@ -139,11 +153,15 @@ export function tickSkyCollisions(room: RoomRecord, teamId: TeamId, now: number)
           events.push({ kind: "DEATH", playerId });
         }
       } else {
-        if (!overlap) continue; // 보너스는 못 잡아도 페널티 없음 — 조용히 지나간다.
+        if (!overlap) continue; // 과일·하트는 못 잡아도 페널티 없음 — 조용히 지나간다.
         if (player) player.stats.dinoCleared += 1;
-        const score = (team.dinoRun.scoreByPlayer[playerId] ?? 0) + METEOR_BONUS_SCORE_REWARD;
+        const livesBefore = team.dinoRun.livesByPlayer[playerId] ?? METEOR_DODGE_LIVES;
+        const livesLeft = obj.kind === "HEART" ? Math.min(METEOR_DODGE_LIVES, livesBefore + METEOR_HEART_LIVES_RESTORED) : livesBefore;
+        team.dinoRun.livesByPlayer[playerId] = livesLeft;
+        const reward = obj.kind === "HEART" ? METEOR_HEART_SCORE_REWARD : METEOR_FRUIT_SCORE_REWARD;
+        const score = (team.dinoRun.scoreByPlayer[playerId] ?? 0) + reward;
         team.dinoRun.scoreByPlayer[playerId] = score;
-        events.push({ kind: "BONUS", playerId, objectId: obj.id, score, x: targetX });
+        events.push({ kind: "BONUS", playerId, objectId: obj.id, pickupKind: obj.kind, livesLeft, score, x: targetX });
       }
     }
   }

@@ -58,6 +58,8 @@ export function tickRoomDinoRun(io: AppServer, rooms: RoomManager, roomCode: str
           teamId,
           playerId: event.playerId,
           objectId: event.objectId,
+          kind: event.pickupKind,
+          livesLeft: event.livesLeft,
           score: event.score,
           x: event.x,
         }),

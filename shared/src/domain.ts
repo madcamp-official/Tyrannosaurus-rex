@@ -152,7 +152,7 @@ export type PublicPlayer = {
 
 export type DinoRunGrade = "PERFECT" | "GOOD" | "CLUMSY" | "MESSY";
 
-export type SkyObjectKind = "METEOR" | "BONUS";
+export type SkyObjectKind = "METEOR" | "FRUIT" | "HEART";
 /** phase 시작 기준 낙하 오브젝트 하나. 라운드 시드로 생성, 양 팀 동일(§4 공정성). */
 export type SkyObject = {
   id: number;
