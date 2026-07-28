@@ -31,7 +31,19 @@ export function ExcavationControls({
   useEffect(() => {
     if (typeof window.DeviceMotionEvent === "undefined") {
       setMotionPermission("UNSUPPORTED");
+      return;
     }
+    // 버튼 없이 바로 요청한다 — 입장 폼 제출 시 이미 한 번 요청해둬서(§sensorPermissions),
+    // 대부분 여기서는 팝업 없이 캐시된 결과가 즉시 돌아온다.
+    const api = window.DeviceMotionEvent as unknown as MotionPermissionApi;
+    if (typeof api.requestPermission !== "function") {
+      setMotionPermission("GRANTED");
+      return;
+    }
+    api
+      .requestPermission()
+      .then((result) => setMotionPermission(result === "granted" ? "GRANTED" : "DENIED"))
+      .catch(() => setMotionPermission("DENIED"));
   }, []);
 
   useEffect(() => {
@@ -81,21 +93,6 @@ export function ExcavationControls({
     return () => window.clearInterval(interval);
   }, [socket]);
 
-  const requestMotionPermission = async () => {
-    const api = window.DeviceMotionEvent as unknown as MotionPermissionApi;
-    if (typeof api.requestPermission === "function") {
-      try {
-        const result = await api.requestPermission();
-        setMotionPermission(result === "granted" ? "GRANTED" : "DENIED");
-      } catch {
-        setMotionPermission("DENIED");
-      }
-    } else {
-      // Android 등 권한 API가 없는 브라우저는 즉시 사용 가능하다고 가정한다.
-      setMotionPermission("GRANTED");
-    }
-  };
-
   const handleTap = () => {
     tapCountRef.current += 1;
     // 탭도 흔들기와 똑같이 삽 모션을 재생해서, 어느 방식으로 파든 파는 동작이 눈에 보이게 한다.
@@ -116,11 +113,6 @@ export function ExcavationControls({
   return (
     <div className="excavation-controls">
       <p className="mobile-game__title">흔들어서 뼈를 발굴하세요!</p>
-      {motionPermission === "UNKNOWN" && (
-        <button type="button" className="mobile-game__button" onClick={() => void requestMotionPermission()}>
-          흔들기 센서 켜기
-        </button>
-      )}
       {motionPermission === "DENIED" && <p className="mobile-game__hint">센서 권한이 꺼져 있어요. 아래 버튼으로 발굴하세요.</p>}
       {motionPermission === "UNSUPPORTED" && <p className="mobile-game__hint">이 기기는 흔들기를 지원하지 않아요. 아래 버튼으로 발굴하세요.</p>}
       {motionPermission === "GRANTED" && <p className="mobile-game__hint">흔드는 대로 자동으로 인식돼요.</p>}

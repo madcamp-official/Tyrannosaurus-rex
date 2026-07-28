@@ -7,6 +7,7 @@ import { connectSocket, type AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
 import { useWakeLock } from "../util/useWakeLock";
 import { describeAckError } from "../util/errorMessages";
+import { requestAllSensorPermissions } from "../util/sensorPermissions";
 import { ExcavationControls } from "./ExcavationControls";
 import { DinoRunControls } from "./DinoRunControls";
 import { AimControls } from "./AimControls";
@@ -58,6 +59,9 @@ export function MobileJoin(): JSX.Element {
   const handleJoin = (event: FormEvent) => {
     event.preventDefault();
     if (!code || nickname.trim().length === 0) return;
+    // 이 탭(제스처) 안에서 미리 센서 권한을 요청해둬야 이후 게임 화면에서 버튼 없이도
+    // 자이로/흔들기가 바로 동작한다 (iOS는 제스처 밖에서 요청하면 조용히 거부된다).
+    requestAllSensorPermissions();
     setStatus("JOINING");
     setError(null);
 
