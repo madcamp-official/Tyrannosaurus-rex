@@ -4,6 +4,7 @@ import {
   type Ack,
   type GameRematchResponse,
   type GameResultEvent,
+  type PublicPlayer,
   type RoomState,
   type TeamId,
 } from "@trex/shared";
@@ -11,14 +12,49 @@ import type { AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
 
 const TEAM_IDS: readonly TeamId[] = ["A", "B"];
-
-function formatMs(ms: number | null): string {
-  if (ms === null) return "-";
-  return `${(ms / 1000).toFixed(1)}초`;
-}
+const TEAM_EMBLEM: Record<TeamId, string> = { A: "🔥", B: "❄️" };
 
 function formatScore(score: number | null | undefined): string {
   return score === null || score === undefined ? "-" : String(Math.round(score));
+}
+
+/** 점수 산출 방식이 잘 안 와닿는다는 피드백에 따라, 추상적인 "점" 대신 실제로 한 일(흔든 횟수·명중)을 보여준다. */
+function teamActionSummary(players: PublicPlayer[], teamId: TeamId) {
+  return players
+    .filter((p) => p.teamId === teamId)
+    .reduce(
+      (acc, p) => ({
+        shakes: acc.shakes + p.stats.excavationInputs,
+        shots: acc.shots + p.stats.shots,
+        hits: acc.hits + p.stats.hits,
+      }),
+      { shakes: 0, shots: 0, hits: 0 },
+    );
+}
+
+function TeamPanel({
+  teamId,
+  roomState,
+  gameResult,
+}: {
+  teamId: TeamId;
+  roomState: RoomState;
+  gameResult: GameResultEvent | null;
+}): JSX.Element {
+  const teamResult = gameResult?.teams.find((t) => t.teamId === teamId);
+  const summary = teamActionSummary(gameResult?.players ?? [], teamId);
+  return (
+    <div className={`result-view__team-panel result-view__team-panel--${teamId.toLowerCase()}`}>
+      <h3 className="result-view__team-name">
+        {TEAM_EMBLEM[teamId]} {roomState.teamNames[teamId]}
+      </h3>
+      <p className="result-view__form">{teamResult?.form === "YRANNO" ? "🦖 와이라노..." : "🦖 정상 부활"}</p>
+      <p className="result-view__action-summary">
+        흔든 횟수 {summary.shakes}회 · 명중 {summary.hits}/{summary.shots} + 시간 보너스!
+      </p>
+      {roomState.roomPhase === "DECORATION" && <p className="result-view__voting">박물관에 기록 중…</p>}
+    </div>
+  );
 }
 
 export function ResultView({
@@ -40,9 +76,13 @@ export function ResultView({
 
   return (
     <section className="result-view">
-      <header className="lobby-header lobby-header--centered">
-        <img className="lobby-header__logo lobby-header__logo--big" src="/images/logo.png" alt="내 티라노를 살려내!" />
-      </header>
+      <h2 className="result-view__title">{roomState.winner.teamId ? `${roomState.teamNames[roomState.winner.teamId]} 승리!` : "무승부"}</h2>
+
+      <div className="result-view__header-row">
+        <TeamPanel teamId="A" roomState={roomState} gameResult={gameResult} />
+        <img className="result-view__logo" src="/images/logo.png" alt="내 티라노를 살려내!" />
+        <TeamPanel teamId="B" roomState={roomState} gameResult={gameResult} />
+      </div>
 
       <div className="result-view__score-header">
         <span className="result-view__score-header-value">{formatScore(gameResult?.teams.find((t) => t.teamId === "A")?.totalScore)}</span>
@@ -52,50 +92,10 @@ export function ResultView({
         <span className="result-view__score-header-value">{formatScore(gameResult?.teams.find((t) => t.teamId === "B")?.totalScore)}</span>
       </div>
 
-      <h2>{roomState.winner.teamId ? `${roomState.teamNames[roomState.winner.teamId]} 승리!` : "무승부"}</h2>
-
-      <div className="result-view__teams">
-        {TEAM_IDS.map((teamId) => {
-          const teamResult = gameResult?.teams.find((t) => t.teamId === teamId);
-          return (
-            <div key={teamId} className="result-view__team">
-              <h3>{roomState.teamNames[teamId]}</h3>
-              <p>{teamResult?.form === "YRANNO" ? "🦖 와이라노..." : "🦖 정상 부활"}</p>
-              <ul className="result-view__stats">
-                <li>
-                  <span className="result-view__stat-label">발굴</span>
-                  <span className="result-view__stat-time">{formatMs(teamResult?.excavationMs ?? null)}</span>
-                  <span className="result-view__stat-sep">|</span>
-                  <span className="result-view__stat-score">{teamResult?.scores.excavation ?? "-"}점</span>
-                </li>
-                <li>
-                  <span className="result-view__stat-label">조립</span>
-                  <span className="result-view__stat-time">{formatMs(teamResult?.assemblyMs ?? null)}</span>
-                  <span className="result-view__stat-sep">|</span>
-                  <span className="result-view__stat-score">{teamResult?.scores.dinoRun ?? "-"}점</span>
-                </li>
-                <li>
-                  <span className="result-view__stat-label">충전</span>
-                  <span className="result-view__stat-time">{formatMs(teamResult?.chargingMs ?? null)}</span>
-                  <span className="result-view__stat-sep">|</span>
-                  <span className="result-view__stat-score">{teamResult?.scores.charging ?? "-"}점</span>
-                </li>
-              </ul>
-              <div className="result-view__total-score">{teamResult?.totalScore ?? "-"}</div>
-              {roomState.roomPhase === "DECORATION" && (
-                <div className="result-view__voting">
-                  <p>박물관에 기록 중…</p>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-
       {gameResult && gameResult.mvp.length > 0 && (
         <div className="result-view__mvp">
           <h3>개인 MVP</h3>
-          <ol className="result-view__mvp-list">
+          <ol className="result-view__mvp-grid">
             {gameResult.mvp.map((entry, i) => (
               <li key={entry.playerId} className="result-view__mvp-row">
                 <span className="result-view__mvp-rank">{i + 1}</span>

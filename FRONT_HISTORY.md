@@ -57,3 +57,16 @@
 - API/Socket.IO/Shared 계약 변경: 없음 — `ErrorCode`는 이미 `shared`에 있던 계약을 그대로 썼다.
 - 환경 변수 변경: 없음.
 - 검증 결과: `npm run typecheck -w frontend`, `npm run test -w frontend`, `npm run build -w frontend` 통과. 폰트 CDN URL은 curl로 200 응답을 직접 확인했다. 실기기/실제 화면 스크린샷 검증은 이 세션에 브라우저 자동화 도구가 없어 못 했다 — 남은 위험으로 남긴다.
+
+## 2026-07-28 - 결과 화면 레이아웃 재구성 (`frontend/result-screen-redesign` 브랜치)
+
+- 구현 목적: 결과 화면 로고가 너무 크고 아래에 치우쳐 있고, 팀별 정보 칸이 좁아 글자가 겹치고, 점수 산출 방식이 직관적이지 않다는 피드백에 따라 결과 화면을 다시 짰다.
+- 주요 변경 사항:
+  - 레이아웃을 [팀A 패널 | 로고 | 팀B 패널] 헤더 행 → 전체 점수판(기존 "{점수} {팀} | {팀} {점수}" 줄 유지) → 개인 MVP 2열 그리드 → 재경기 버튼 순으로 재구성했다(`ResultView.tsx`).
+  - 팀 패널에 팀별 색상(A=주황 `#ffb27a`, B=하늘 `#8ecdf0`, 로비 팀 카드와 동일 팔레트)을 적용해 로비에서 보던 색이 결과 화면까지 이어지게 했다.
+  - 점수(점) 대신 `game:result`가 이미 내려주는 `players[].stats`(excavationInputs/shots/hits)를 팀별로 합산해 "흔든 횟수 N회 · 명중 H/S + 시간 보너스!"로 표시했다. 서버/계약 변경 없이 기존 payload만 프론트에서 재가공했다.
+  - `.result-view` 최대 폭을 960px → `min(1400px, 96vw)`로 넓히고 팀 패널을 `flex: 1 1 360px`로 키워 긴 팀 이름·통계 텍스트가 겹치지 않게 했다.
+  - `.lobby-header__logo--big`(대기/방 개설 화면 공용 로고)을 280px → 224px(80%)로 한 번 더 줄이고, 결과 화면은 별도의 더 작은 `.result-view__logo`(clamp 96~150px)를 새로 둬 헤더 행 안에 맞게 했다.
+- API/Socket.IO/Shared 계약 변경: 없음 — `GameResultEvent.players[].stats` 등 기존 계약 필드만 사용했다.
+- 환경 변수 변경: 없음.
+- 검증 결과: `npm run typecheck -w frontend`, `npm run test -w frontend`, `npm run build -w frontend` 통과. `npm run autoplay`로 로컬 서버에서 4인 봇 게임을 끝까지 돌려 `game:result` 수신과 결과 화면 렌더링 경로에 런타임 예외가 없는지 확인했다. 실제 화면 스크린샷 검증은 이 세션에 브라우저 자동화 도구가 없어 못 했다 — 남은 위험으로 남긴다.

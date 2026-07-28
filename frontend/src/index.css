@@ -272,10 +272,11 @@ body {
 }
 
 .lobby-header__logo--big {
-  height: 280px;
+  /* 기존 280px의 80%로(20% 추가 축소). */
+  height: 224px;
   /* 로고 PNG 하단에 여백이 baked-in 되어 있어(전체 높이의 약 20%),
      그만큼을 상쇄해 서브타이틀과의 시각적 간격을 좁힌다. */
-  margin-bottom: -56px;
+  margin-bottom: -45px;
 }
 
 .lobby-header__subtitle {
@@ -1556,10 +1557,79 @@ body {
 }
 
 .result-view {
-  max-width: 960px;
+  max-width: min(1400px, 96vw);
   margin: 0 auto;
   padding: 24px;
   text-align: center;
+  box-sizing: border-box;
+}
+
+.result-view__title {
+  font-family: "Baloo 2", sans-serif;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  margin: 0 0 12px;
+}
+
+.result-view__header-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(16px, 3vw, 40px);
+  margin: 0 0 20px;
+}
+
+.result-view__logo {
+  height: clamp(96px, 11vw, 150px);
+  width: auto;
+  flex-shrink: 0;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.45));
+}
+
+.result-view__team-panel {
+  flex: 1 1 360px;
+  max-width: 480px;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 18px 24px;
+  border-radius: 16px;
+  text-align: left;
+  backdrop-filter: blur(14px) saturate(140%);
+}
+
+.result-view__team-panel--a {
+  background: rgba(255, 245, 235, 0.16);
+  border: 1px solid rgba(255, 178, 122, 0.45);
+}
+
+.result-view__team-panel--b {
+  background: rgba(225, 240, 250, 0.14);
+  border: 1px solid rgba(142, 205, 240, 0.45);
+}
+
+.result-view__team-name {
+  font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
+  font-weight: 400;
+  font-size: 1.6rem;
+  margin: 0 0 6px;
+}
+
+.result-view__team-panel--a .result-view__team-name {
+  color: #ffb27a;
+}
+
+.result-view__team-panel--b .result-view__team-name {
+  color: #8ecdf0;
+}
+
+.result-view__form {
+  margin: 0 0 10px;
+  opacity: 0.85;
+}
+
+.result-view__action-summary {
+  margin: 0;
+  font-size: 0.95rem;
+  opacity: 0.85;
 }
 
 .result-view__score-header {
@@ -1590,64 +1660,6 @@ body {
   padding: 0 4px;
 }
 
-.result-view__teams {
-  display: flex;
-  gap: 24px;
-  justify-content: center;
-  margin: 24px 0;
-  text-align: left;
-}
-
-.result-view__team {
-  flex: 1;
-  min-width: 0;
-  padding: 12px;
-  border: 1px solid #2a323d;
-  border-radius: 8px;
-  background: rgba(16, 21, 28, 0.85);
-}
-
-.result-view__stats {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.result-view__stats li {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.result-view__stat-label {
-  font-weight: 700;
-  min-width: 2.4em;
-}
-
-.result-view__stat-time {
-  opacity: 0.75;
-}
-
-.result-view__stat-sep {
-  opacity: 0.4;
-}
-
-.result-view__stat-score {
-  font-weight: 700;
-}
-
-.result-view__total-score {
-  margin-top: 10px;
-  font-size: 2.6rem;
-  font-weight: 800;
-  font-family: "Baloo 2", sans-serif;
-  color: #f5c542;
-  text-align: center;
-}
-
 .result-view__mvp {
   width: 100%;
   box-sizing: border-box;
@@ -1658,13 +1670,13 @@ body {
   background: rgba(16, 21, 28, 0.85);
 }
 
-.result-view__mvp-list {
+.result-view__mvp-grid {
   list-style: none;
   margin: 8px 0 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px 24px;
 }
 
 .result-view__mvp-row {
