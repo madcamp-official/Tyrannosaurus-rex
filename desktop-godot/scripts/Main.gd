@@ -12,6 +12,7 @@ var _crosshair_overlay: CrosshairOverlay
 
 func _ready() -> void:
 	_build_environment()
+	_build_ground_backdrop()
 	_build_camera()
 	_build_stages()
 	_build_crosshair_overlay()
@@ -37,11 +38,23 @@ func _build_environment() -> void:
 	light.light_energy = 1.8
 	add_child(light)
 
+## 각 팀의 발굴 지형(GroundDig)은 16×16짜리 독립된 패치라, 그 바깥은 원래 아무것도 없어
+## 카메라가 조금만 벗어나도 어두운 배경색이 옆쪽에 그대로 비쳤다. 두 무대(±9 오프셋)를
+## 넉넉히 덮는 큰 잔디 평면을 살짝 아래(y=-0.03)에 깔아서, 어디를 봐도 검은 여백 대신
+## 잔디가 보이게 한다 — 실제 발굴 패치는 이 위에 그대로 겹쳐 보인다.
+func _build_ground_backdrop() -> void:
+	var backdrop := MeshInstance3D.new()
+	backdrop.mesh = GroundDig.build_flat_tile_mesh(46.0)
+	backdrop.material_override = GroundDig.build_flat_material()
+	backdrop.position = Vector3(0, -0.03, 0)
+	add_child(backdrop)
+
 func _build_camera() -> void:
 	var camera := Camera3D.new()
-	# 발굴 구덩이가 더 잘 보이도록 더 당기고, 시선이 구덩이 쪽(더 아래)을 향하게 각도를 세웠다.
-	camera.position = Vector3(0, 8, 11)
-	camera.fov = 74.0
+	# 시선을 땅에 더 가깝게, 더 당겨서 옆쪽 여백이 덜 보이게 했다 (배경 잔디 평면도 함께 깔아
+	# 혹시 남는 여백도 검은색 대신 잔디로 보이게 함).
+	camera.position = Vector3(0, 6, 8)
+	camera.fov = 66.0
 	camera.near = 0.1
 	camera.far = 100.0
 	add_child(camera)

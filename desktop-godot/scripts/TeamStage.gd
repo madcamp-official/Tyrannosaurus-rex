@@ -72,6 +72,10 @@ func _build_label() -> void:
 
 func _on_pieces_ready(_ids: Array[String]) -> void:
 	_model_ready = true
+	# 발굴 중 드러나는 조각이 완성된 자리가 아니라 흩어진 채로 보이도록, 조립(ASSEMBLY) 전에
+	# 미리 흩뿌려 둔다. scatter()가 모든 조각을 잠깐 visible로 만들지만 바로 아래에서 다시
+	# 숨기므로, 결과적으로 위치만 흩어지고 발견 전까지는 여전히 안 보인다.
+	_model.scatter(team_id.hash())
 	for piece_id in _model.get_piece_ids():
 		var piece := _model.get_piece(piece_id)
 		if piece:

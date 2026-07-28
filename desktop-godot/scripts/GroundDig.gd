@@ -227,3 +227,14 @@ static func build_flat_tile_mesh(size: float) -> ArrayMesh:
 	st.generate_normals(true)
 	st.index()
 	return st.commit()
+
+## build_flat_tile_mesh와 짝을 이루는 잔디 전용 머티리얼 — 실제 발굴 지형과 같은
+## 셰이더/텍스처를 써서 이어붙였을 때 이질감이 없게 한다.
+static func build_flat_material() -> ShaderMaterial:
+	var mat := ShaderMaterial.new()
+	mat.shader = preload("res://shaders/ground.gdshader")
+	var grass_tex: Texture2D = load("res://assets/textures/grass.jpg") if ResourceLoader.exists("res://assets/textures/grass.jpg") else ProceduralTextures.make_grass()
+	var dirt_tex: Texture2D = load("res://assets/textures/dirt.png") if ResourceLoader.exists("res://assets/textures/dirt.png") else ProceduralTextures.make_dirt()
+	mat.set_shader_parameter("grass_tex", grass_tex)
+	mat.set_shader_parameter("dirt_tex", dirt_tex)
+	return mat
