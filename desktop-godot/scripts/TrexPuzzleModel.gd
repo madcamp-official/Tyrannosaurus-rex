@@ -84,7 +84,9 @@ func show_only_piece(piece_id: String) -> void:
 			piece.position = Vector3.ZERO
 			piece.rotation = Vector3.ZERO
 
-func scatter(seed_value: int = 0, radius_meters: float = 4.5) -> void:
+## radius_meters 기본값(6.0)은 GroundDig.PILE_RING_OUTER(5.2)보다 바깥이라, 발굴된 뼈가
+## 구덩이는 물론 그 주위에 쌓이는 흙 둔덕 너머 평평한 자리에 놓인다.
+func scatter(seed_value: int = 0, radius_meters: float = 6.0) -> void:
 	_displayed_piece_id = ""
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value if seed_value != 0 else Time.get_ticks_usec()
