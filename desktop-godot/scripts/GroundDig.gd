@@ -202,13 +202,15 @@ func reset() -> void:
 	_rebuild_geometry()
 
 ## 메인 발굴 지형 주변을 채우는, 항상 잔디인 평면 타일 (dirtAmount=0 고정).
-static func build_flat_tile_mesh(size: float) -> ArrayMesh:
-	var half := size * 0.5
+## depth를 안 주면 정사각형이 된다 — 좁고 긴 여백(팀 사이 틈 등)을 채울 때는 따로 준다.
+static func build_flat_tile_mesh(width: float, depth: float = -1.0) -> ArrayMesh:
+	var half_x := width * 0.5
+	var half_z := (depth if depth > 0.0 else width) * 0.5
 	var verts := [
-		Vector3(-half, 0.0, -half),
-		Vector3(half, 0.0, -half),
-		Vector3(-half, 0.0, half),
-		Vector3(half, 0.0, half),
+		Vector3(-half_x, 0.0, -half_z),
+		Vector3(half_x, 0.0, -half_z),
+		Vector3(-half_x, 0.0, half_z),
+		Vector3(half_x, 0.0, half_z),
 	]
 	var uvs := [
 		Vector2(0.0, 0.0),

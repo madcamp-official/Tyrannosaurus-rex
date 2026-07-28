@@ -91,7 +91,32 @@ export function DesktopLobby(): JSX.Element {
     socket.on("excavation:teamFinished", (evt) => setRoomState((prev) => (prev ? applyExcavationTeamFinished(prev, evt.data) : prev)));
     socket.on("team:phaseChanged", (evt) => setRoomState((prev) => (prev ? applyTeamPhaseChanged(prev, evt.data) : prev)));
     socket.on("dino:started", (evt) => setRoomState((prev) => (prev ? applyDinoStarted(prev, evt.data) : prev)));
-    socket.on("dino:progress", (evt) => setRoomState((prev) => (prev ? applyDinoProgress(prev, evt.data) : prev)));
+    socket.on("dino:progress", (evt) => {
+      setRoomState((prev) => {
+        if (!prev) return prev;
+        const next = applyDinoProgress(prev, evt.data);
+        // 다이노런을 잘 할수록 뼈가 점점 더 조립돼 보이도록, 팀 클리어율(백엔드 performance와
+        // 같은 공식)에 비례한 개수만큼 진행 중에도 미리 스냅해 보낸다. 완료 시 dino:finished가
+        // 13개 전부를 다시 스냅하므로 여기서 반올림 오차가 있어도 최종적으로는 항상 맞는다.
+        const team = next.teams[evt.data.teamId];
+        const teamPlayerCount = next.players.filter((p) => p.teamId === evt.data.teamId).length;
+        const totalCleared = Object.values(team.dinoRun.clearedByPlayer).reduce((sum, list) => sum + list.length, 0);
+        const possible = team.dinoRun.obstacleOffsetsMs.length * Math.max(1, teamPlayerCount);
+        const ratio = possible > 0 ? Math.min(1, totalCleared / possible) : 0;
+        const assembledCount = Math.min(BONE_IDS.length, Math.round(ratio * BONE_IDS.length));
+        if (assembledCount > 0) {
+          bridge.send("PUZZLE_STATE", {
+            teamId: evt.data.teamId,
+            pieces: BONE_IDS.slice(0, assembledCount).map((boneId) => ({
+              boneId,
+              transform: PUZZLE_TARGET_TRANSFORMS[boneId],
+              fixed: true,
+            })),
+          });
+        }
+        return next;
+      });
+    });
     socket.on("dino:playerDied", (evt) => setRoomState((prev) => (prev ? applyPlayerDied(prev, evt.data) : prev)));
     socket.on("dino:finished", (evt) => {
       setRoomState((prev) => (prev ? applyDinoFinished(prev, evt.data) : prev));
