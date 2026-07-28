@@ -15,6 +15,7 @@ func _ready() -> void:
 	_build_ground_backdrop()
 	_build_camera()
 	_build_stages()
+	_build_bottom_gradient_overlay()
 	_build_crosshair_overlay()
 	RenderRouter.snapshot_updated.connect(_on_snapshot_updated)
 	RenderRouter.message_routed.connect(_on_message_routed)
@@ -24,24 +25,21 @@ func _ready() -> void:
 
 func _build_environment() -> void:
 	var environment := Environment.new()
-	# 절차적 그라디언트 대신 실제 하늘 사진을 파노라마 텍스처로 씌운다.
-	var sky_material := PanoramaSkyMaterial.new()
-	sky_material.panorama = load("res://assets/textures/night_sky.jpg")
-	var sky := Sky.new()
-	sky.sky_material = sky_material
-	environment.background_mode = Environment.BG_SKY
-	environment.sky = sky
-	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	# 그림자를 살리려고 주변광을 0.55까지 낮췄더니 발굴 화면 전체가 너무 어둡다는 피드백이
-	# 있어 다시 올렸다 — 그림자는 방향광 자체의 세기(아래 light_energy)로도 충분히 뚜렷하다.
-	environment.ambient_light_energy = 0.95
+	# 밤하늘 사진 배경을 없애고 단색 배경으로 바꿨다 — 그 사진 자체가 어두워서 하늘광
+	# (AMBIENT_SOURCE_SKY) 기반 주변광을 아무리 올려도 충분히 밝아지지 않았다. 단색
+	# 배경은 밝기를 직접 정할 수 있어 훨씬 다루기 쉽다.
+	environment.background_mode = Environment.BG_COLOR
+	environment.background_color = Color(0.55, 0.72, 0.88)
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	environment.ambient_light_color = Color(0.65, 0.75, 0.85)
+	environment.ambient_light_energy = 1.1
 	var world := WorldEnvironment.new()
 	world.environment = environment
 	add_child(world)
 
 	var light := DirectionalLight3D.new()
 	light.rotation_degrees = Vector3(-55, -30, 0)
-	light.light_energy = 2.1
+	light.light_energy = 2.2
 	# 기본값이 꺼져 있어서 지금까지 땅/뼈 모델 모두 그림자를 전혀 드리우지 않았다.
 	light.shadow_enabled = true
 	add_child(light)
@@ -102,6 +100,31 @@ func _build_stages() -> void:
 		add_child(stage)
 		stage.setup(team_id)
 		_stages[team_id] = stage
+
+## 화면 위쪽은 그대로 두고 아래쪽으로 갈수록 점점 어두워지는 화면 공간 그라데이션.
+## 탑다운 카메라라 3D 배경색은 거의 안 보이므로, 3D 씬 위에 얹는 2D 오버레이로 구현한다.
+func _build_bottom_gradient_overlay() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 0  # 크로스헤어(기본 layer=1)보다 아래에 그려지게 한다.
+	add_child(layer)
+
+	var gradient := Gradient.new()
+	gradient.colors = PackedColorArray([Color(0, 0, 0, 0.0), Color(0, 0, 0, 0.5)])
+
+	var gradient_tex := GradientTexture2D.new()
+	gradient_tex.gradient = gradient
+	gradient_tex.fill = GradientTexture2D.FILL_LINEAR
+	gradient_tex.fill_from = Vector2(0.5, 0.0)
+	gradient_tex.fill_to = Vector2(0.5, 1.0)
+	gradient_tex.width = 4
+	gradient_tex.height = 256
+
+	var rect := TextureRect.new()
+	rect.texture = gradient_tex
+	rect.stretch_mode = TextureRect.STRETCH_SCALE
+	rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	layer.add_child(rect)
 
 func _build_crosshair_overlay() -> void:
 	var layer := CanvasLayer.new()
