@@ -1,7 +1,7 @@
 /**
- * Plan.md §5.2, §6.2. 모바일 운석 피하기: 좌우 기울이기(자이로)로 공룡을 움직여 떨어지는
- * 운석을 피하고 보너스 아이템을 잡는다. 다이노런(장애물 점프) 대신이지만 컴포넌트 이름과
- * 이벤트 접두사(dino:*)는 리네임 범위를 줄이기 위해 그대로 두었다.
+ * Plan.md §5.2, §6.2. 모바일 운석 피하기: 화면 좌/우를 눌러(또는 폰을 좌우로 기울여) 공룡을
+ * 움직여 떨어지는 운석을 피하고 보너스 아이템을 잡는다. 다이노런(장애물 점프) 대신이지만
+ * 컴포넌트 이름과 이벤트 접두사(dino:*)는 리네임 범위를 줄이기 위해 그대로 두었다.
  */
 
 import { useEffect, useRef, useState, type PointerEvent } from "react";
@@ -19,11 +19,15 @@ import type { AppSocket } from "../socket";
 /** 이만큼 기울이면 화면 절반 끝까지 이동 — 값이 작을수록 더 민감하다. */
 const GYRO_SENSITIVITY_DEG = 45;
 const LOW_PASS_ALPHA = 0.3;
-const TOUCH_SENSITIVITY = 1.6;
 const FLASH_MS = 350;
-/** 방향 버튼을 누르고 있는 동안 한 틱(ARROW_INTERVAL_MS)마다 이동하는 비율(0~1 기준). */
-const ARROW_STEP = 0.028;
-const ARROW_INTERVAL_MS = 16;
+/** 화면 좌/우를 누르고 있는 동안 한 틱마다 이동하는 비율(0~1 기준). */
+const TAP_MOVE_STEP = 0.026;
+const TAP_MOVE_INTERVAL_MS = 16;
+/**
+ * 운석·보너스가 착지하는(판정되는) 세로 위치 — 공룡이 서 있는 자리와 같은 줄이 되도록
+ * 맞춘다. .dino-run__dino의 CSS bottom(16%)과 정확히 대응하는 값(100 - 16)이다.
+ */
+const LANDING_TOP_PERCENT = 84;
 
 type OrientationPermissionApi = { requestPermission?: () => Promise<"granted" | "denied"> };
 
@@ -51,9 +55,8 @@ export function DinoRunControls({
   xRef.current = x;
   const zeroRef = useRef<number | null>(null);
   const filteredGammaRef = useRef(0);
-  const dragOriginRef = useRef<{ clientX: number; x: number } | null>(null);
   const seqRef = useRef(0);
-  const arrowIntervalRef = useRef<number | null>(null);
+  const moveIntervalRef = useRef<number | null>(null);
 
   const dead = team.dinoRun.deadPlayerIds.includes(playerId);
   const lives = team.dinoRun.livesByPlayer[playerId] ?? METEOR_DODGE_LIVES;
@@ -140,41 +143,32 @@ export function DinoRunControls({
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    dragOriginRef.current = { clientX: event.clientX, x: xRef.current };
-    event.currentTarget.setPointerCapture(event.pointerId);
+  const startMove = (direction: 1 | -1) => {
+    if (moveIntervalRef.current !== null) window.clearInterval(moveIntervalRef.current);
+    setX((prev) => clamp01(prev + direction * TAP_MOVE_STEP));
+    moveIntervalRef.current = window.setInterval(() => {
+      setX((prev) => clamp01(prev + direction * TAP_MOVE_STEP));
+    }, TAP_MOVE_INTERVAL_MS);
   };
-  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (!dragOriginRef.current) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const dx = ((event.clientX - dragOriginRef.current.clientX) / rect.width) * TOUCH_SENSITIVITY;
-    setX(clamp01(dragOriginRef.current.x + dx));
-  };
-  const handlePointerUp = () => {
-    dragOriginRef.current = null;
-  };
-
-  const startArrow = (direction: 1 | -1) => (event: PointerEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    if (arrowIntervalRef.current !== null) window.clearInterval(arrowIntervalRef.current);
-    setX((prev) => clamp01(prev + direction * ARROW_STEP));
-    arrowIntervalRef.current = window.setInterval(() => {
-      setX((prev) => clamp01(prev + direction * ARROW_STEP));
-    }, ARROW_INTERVAL_MS);
-  };
-  const stopArrow = (event: PointerEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    if (arrowIntervalRef.current !== null) {
-      window.clearInterval(arrowIntervalRef.current);
-      arrowIntervalRef.current = null;
+  const stopMove = () => {
+    if (moveIntervalRef.current !== null) {
+      window.clearInterval(moveIntervalRef.current);
+      moveIntervalRef.current = null;
     }
   };
-
   useEffect(() => {
     return () => {
-      if (arrowIntervalRef.current !== null) window.clearInterval(arrowIntervalRef.current);
+      if (moveIntervalRef.current !== null) window.clearInterval(moveIntervalRef.current);
     };
   }, []);
+
+  // 화면(트랙) 오른쪽을 누르면 오른쪽, 왼쪽을 누르면 왼쪽으로 누르고 있는 동안 이동한다.
+  const handleTrackPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const direction: 1 | -1 = event.clientX - rect.left > rect.width / 2 ? 1 : -1;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    startMove(direction);
+  };
 
   // 서버 phaseStartedAt(서버 시계)과 로컬 시계의 오차는 연출용으로만 쓴다 — 실제 판정은
   // 서버 수신 시각 기준이다 (§6.2).
@@ -205,13 +199,7 @@ export function DinoRunControls({
   }
 
   return (
-    <div
-      className={`dino-run${flash ? ` dino-run--flash-${flash}` : ""}`}
-      onPointerDown={handlePointerDown}
-      onPointerMove={handlePointerMove}
-      onPointerUp={handlePointerUp}
-      onPointerCancel={handlePointerUp}
-    >
+    <div className={`dino-run${flash ? ` dino-run--flash-${flash}` : ""}`}>
       <div className="dino-run__hud">
         <span>⏱ {remainingSec}초</span>
         <span>
@@ -220,7 +208,13 @@ export function DinoRunControls({
         </span>
         <span>점수 {score}</span>
       </div>
-      <div className="dino-run__track">
+      <div
+        className="dino-run__track"
+        onPointerDown={handleTrackPointerDown}
+        onPointerUp={stopMove}
+        onPointerCancel={stopMove}
+        onPointerLeave={stopMove}
+      >
         {team.dinoRun.skyObjects.map((obj) => {
           const progress = (elapsed - (obj.hitAtMs - SKY_OBJECT_FALL_MS)) / SKY_OBJECT_FALL_MS;
           if (progress < -0.05 || progress > 1.05) return null;
@@ -228,7 +222,7 @@ export function DinoRunControls({
             <div
               key={obj.id}
               className={`dino-run__sky-object${obj.kind === "BONUS" ? " dino-run__sky-object--bonus" : ""}`}
-              style={{ left: `${obj.x * 100}%`, top: `${clamp01(progress) * 82}%` }}
+              style={{ left: `${obj.x * 100}%`, top: `${clamp01(progress) * LANDING_TOP_PERCENT}%` }}
             >
               {obj.kind === "BONUS" ? "💎" : "☄️"}
             </div>
@@ -238,28 +232,6 @@ export function DinoRunControls({
           🦖
         </div>
         <div className="dino-run__ground" />
-      </div>
-      <div className="dino-run__arrows">
-        <button
-          type="button"
-          className="dino-run__arrow-btn"
-          onPointerDown={startArrow(-1)}
-          onPointerUp={stopArrow}
-          onPointerLeave={stopArrow}
-          onPointerCancel={stopArrow}
-        >
-          ◀
-        </button>
-        <button
-          type="button"
-          className="dino-run__arrow-btn"
-          onPointerDown={startArrow(1)}
-          onPointerUp={stopArrow}
-          onPointerLeave={stopArrow}
-          onPointerCancel={stopArrow}
-        >
-          ▶
-        </button>
       </div>
       {orientationPermission === "GRANTED" && (
         <button type="button" className="mobile-game__button" onClick={recalibrate}>
@@ -271,10 +243,7 @@ export function DinoRunControls({
           자이로 켜기
         </button>
       )}
-      {(orientationPermission === "UNSUPPORTED" || orientationPermission === "DENIED") && (
-        <p className="mobile-game__hint">자이로를 쓸 수 없어요 — 화면을 좌우로 드래그해서 피하세요!</p>
-      )}
-      <p className="mobile-game__hint">폰을 좌우로 기울이거나 ◀▶ 버튼으로 공룡을 움직여서 운석☄️을 피하고 보석💎을 잡으세요!</p>
+      <p className="mobile-game__hint">화면 왼쪽/오른쪽을 눌러 공룡을 움직여서 운석☄️을 피하고 보석💎을 잡으세요!</p>
     </div>
   );
 }
