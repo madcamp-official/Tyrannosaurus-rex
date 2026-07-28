@@ -144,6 +144,28 @@ describe("applyExcavation via RoomManager", () => {
     }
   });
 
+  it("마무리 시각이 EXCAVATION_DRAW_WINDOW_MS 안이면 두 팀 다 DRAW로 정정된다", () => {
+    const { rooms, room, playerA, playerB } = setupStartedRoom();
+    const start = Date.now();
+
+    // 두 팀 다 목표치·투입 패턴이 동일해, 같은 시작 시각으로 각자 끝까지 파면 정확히 같은
+    // 시각에 완료된다 — 사실상 동시 완료를 재현하는 가장 간단한 방법이다.
+    const afterA = digUntilDone(rooms, room, "A", playerA, start);
+    expect(room.state.teams.A.excavation.result).toBe("WIN");
+
+    const afterB = digUntilDone(rooms, room, "B", playerB, start);
+    expect(afterB).toBe(afterA);
+    expect(room.state.teams.A.excavation.result).toBe("DRAW");
+    expect(room.state.teams.B.excavation.result).toBe("DRAW");
+
+    const transitioned = rooms.tickExcavationTransition(room, afterB + ROUND_TRANSITION_MS + 1);
+    expect(transitioned).toBe(true);
+    for (const teamId of ["A", "B"] as const) {
+      expect(room.state.teams[teamId].phase).toBe("ASSEMBLY");
+      expect(room.state.teams[teamId].excavation.result).toBeNull();
+    }
+  });
+
   it("does nothing once the team has already left EXCAVATION", () => {
     const { rooms, room, playerA } = setupStartedRoom();
     room.state.teams.A.phase = "ASSEMBLY";

@@ -172,8 +172,9 @@ export type TeamState = {
     nextBoneAt: number;
     discoveredBoneIds: BoneId[];
     fossils: number;
-    /** 발굴을 먼저 끝내면 WIN, 상대도 끝내면 그 상대는 LOSE. 둘 다 정해지면 잠시 대기 후 다음 라운드로 함께 넘어간다. */
-    result: "WIN" | "LOSE" | null;
+    /** 발굴을 먼저 끝내면 WIN, 상대도 끝내면 그 상대는 LOSE — 단 EXCAVATION_DRAW_WINDOW_MS
+     * 안에 거의 동시에 끝나면 둘 다 DRAW로 정정된다. 둘 다 정해지면 잠시 대기 후 다음 라운드로 함께 넘어간다. */
+    result: "WIN" | "LOSE" | "DRAW" | null;
   };
   dinoRun: DinoRunState;
   charging: {

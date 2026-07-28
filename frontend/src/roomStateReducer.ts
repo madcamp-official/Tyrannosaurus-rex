@@ -68,7 +68,7 @@ export function applyExcavationEvent(state: RoomState, data: { teamId: TeamId; k
 
 export function applyExcavationTeamFinished(
   state: RoomState,
-  data: { teamId: TeamId; result: "WIN" | "LOSE"; score: number },
+  data: { teamId: TeamId; result: "WIN" | "LOSE" | "DRAW"; score: number },
 ): RoomState {
   const team = state.teams[data.teamId];
   return {

@@ -5,6 +5,7 @@ import {
   CHARGING_DURATION_MS,
   DINO_RUN_DURATION_MS,
   DECORATION_VOTE_DURATION_MS,
+  EXCAVATION_DRAW_WINDOW_MS,
   EXCAVATION_POINTS_PER_BONE,
   GAME_SCORE_MAX,
   MIN_PLAYERS,
@@ -86,6 +87,8 @@ export type RoomRecord = {
   excavation: ExcavationRoomState;
   /** 두 팀 다 발굴을 끝내면 이 시각에 함께 다이노런으로 넘어간다 (§ROUND_TRANSITION_MS 대기). */
   excavationTransitionAt: number | null;
+  /** 먼저 발굴을 끝낸 팀의 완료 시각. 상대가 EXCAVATION_DRAW_WINDOW_MS 안에 이어서 끝나면 DRAW로 정정한다. */
+  excavationFirstFinishAt: number | null;
   /** 두 팀 다 다이노런을 끝내면 이 시각에 함께 CHARGING으로 넘어간다 (§ROUND_TRANSITION_MS 대기). */
   dinoRunTransitionAt: number | null;
   phaseDurations: Record<TeamId, PhaseDurations>;
@@ -241,6 +244,7 @@ export class RoomManager {
       boneOrder: [],
       excavation: createExcavationState(now),
       excavationTransitionAt: null,
+      excavationFirstFinishAt: null,
       dinoRunTransitionAt: null,
       phaseDurations: {
         A: { excavationMs: null, assemblyMs: null, chargingMs: null },
@@ -387,6 +391,7 @@ export class RoomManager {
       resetTeamGameplayState(room.state.teams[teamId], now);
     }
     room.excavationTransitionAt = null;
+    room.excavationFirstFinishAt = null;
     room.dinoRunTransitionAt = null;
     Object.assign(room, makeVoteState());
     this.touch(room);
@@ -396,7 +401,8 @@ export class RoomManager {
   /**
    * 팀 발굴 판정을 적용한다. 먼저 끝난 팀은 WIN으로 표시하고 상대를 기다리며, 상대도 끝나면
    * LOSE로 표시하고 ROUND_TRANSITION_MS 뒤 두 팀이 동시에 다이노런으로 넘어가도록 예약한다
-   * (실제 전환은 tickExcavationTransition이 처리).
+   * (실제 전환은 tickExcavationTransition이 처리). 단, 상대가 EXCAVATION_DRAW_WINDOW_MS
+   * 안에 이어서 끝나면 거의 동시로 보고 먼저 끝난 팀의 WIN도 함께 DRAW로 정정한다.
    */
   applyExcavation(
     room: RoomRecord,
@@ -404,25 +410,41 @@ export class RoomManager {
     playerId: PlayerId,
     input: ExcavateInput,
     now: number,
-  ): ExcavationApplyResult & { teamResult: { result: "WIN" | "LOSE"; score: number } | null } {
+  ): ExcavationApplyResult & { teamResults: Array<{ teamId: TeamId; result: "WIN" | "LOSE" | "DRAW"; score: number }> } {
     const result = applyExcavateInput(room, teamId, playerId, input, now);
-    if (!result.accepted) return { ...result, teamResult: null };
+    if (!result.accepted) return { ...result, teamResults: [] };
 
     this.touch(room);
-    let teamResult: { result: "WIN" | "LOSE"; score: number } | null = null;
+    const teamResults: Array<{ teamId: TeamId; result: "WIN" | "LOSE" | "DRAW"; score: number }> = [];
     if (result.phaseCompleted) {
       const team = room.state.teams[teamId];
-      const otherTeam = room.state.teams[teamId === "A" ? "B" : "A"];
+      const otherTeamId: TeamId = teamId === "A" ? "B" : "A";
+      const otherTeam = room.state.teams[otherTeamId];
       room.phaseDurations[teamId].excavationMs = now - team.phaseStartedAt;
       team.scores.excavation = this.computeExcavationScore(room, now);
-      team.excavation.result = otherTeam.excavation.result !== null ? "LOSE" : "WIN";
-      teamResult = { result: team.excavation.result, score: team.scores.excavation };
+
+      if (otherTeam.excavation.result === null) {
+        team.excavation.result = "WIN";
+        room.excavationFirstFinishAt = now;
+      } else if (
+        otherTeam.excavation.result === "WIN" &&
+        room.excavationFirstFinishAt !== null &&
+        now - room.excavationFirstFinishAt <= EXCAVATION_DRAW_WINDOW_MS
+      ) {
+        team.excavation.result = "DRAW";
+        otherTeam.excavation.result = "DRAW";
+        teamResults.push({ teamId: otherTeamId, result: "DRAW", score: otherTeam.scores.excavation ?? 0 });
+      } else {
+        team.excavation.result = "LOSE";
+      }
+
+      teamResults.push({ teamId, result: team.excavation.result, score: team.scores.excavation });
       if (otherTeam.excavation.result !== null) {
         room.excavationTransitionAt = now + ROUND_TRANSITION_MS;
       }
     }
     this.bumpRevision(room);
-    return { ...result, teamResult };
+    return { ...result, teamResults };
   }
 
   /** 두 팀 다 발굴을 끝내고 대기 시간이 지나면, 함께 다이노런으로 전환한다. */

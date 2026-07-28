@@ -22,9 +22,11 @@ export function ExcavationTeamPanel({ team, players }: { team: TeamState; player
 
   if (team.excavation.result) {
     const isWin = team.excavation.result === "WIN";
+    const isDraw = team.excavation.result === "DRAW";
+    const variant = isWin ? "win" : isDraw ? "draw" : "lose";
     return (
-      <div className={`exca-result${isWin ? " exca-result--win" : " exca-result--lose"}`}>
-        <div className="exca-result__label">{isWin ? "WIN" : "LOSE"}</div>
+      <div className={`exca-result exca-result--${variant}`}>
+        <div className="exca-result__label">{isWin ? "WIN" : isDraw ? "DRAW" : "LOSE"}</div>
         <div className="exca-result__score">{Math.round(team.scores.excavation ?? 0)}점</div>
         {isWin && <p className="exca-result__hint">상대 팀을 기다리는 중…</p>}
       </div>

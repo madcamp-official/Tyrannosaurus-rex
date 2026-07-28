@@ -26,11 +26,25 @@ import { CORE_OFFSETS } from "./game/charging.js";
 
 type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
-const EXCAVATE_TICK_MS = 100;
-const FIRE_TICK_MS = 400;
+// 사격 장면에서 티라노 이동이 눈에 보이도록, 봇 페이스를 사람처럼 느긋하게 잡는다.
+// (예전엔 400ms마다 기계처럼 정확히 쐈다 — 그러니 움직여도 체감이 안 될 수밖에 없었다.)
+const EXCAVATE_TICK_MS = 150;
+const FIRE_TICK_MS = 1_200;
+const FIRE_JITTER_MS = 600;
+const DINO_POLL_MS = 80;
 const OVERALL_TIMEOUT_MS = 6 * 60_000;
 // 결과 화면 뒤 이만큼 시간 안에 "재경기"가 눌리지 않으면 더 기다리지 않고 봇을 종료한다.
 const REMATCH_GRACE_MS = 3 * 60_000;
+
+/**
+ * BAD 봇은 일부러 못한다 — 조준이 부정확하고, 다이노런에서 가끔 아예 반응을 안 하거나
+ * 늦게 반응한다. 실력이 섞여야 매번 완벽한 클리어/명중만 보고는 못 잡는 버그(빗나간 판정,
+ * 탈락 처리, 무승부 등)를 눈으로 확인하기 쉽다. 봇을 절반씩 GOOD/BAD로 섞어서 투입한다.
+ */
+type Skill = "GOOD" | "BAD";
+const BAD_AIM_ERROR_RADIUS = 0.16; // 정규화 좌표 기준 조준 오차 반경 — 코어(0.05)/몸통(0.18) 판정 다 흔든다.
+const BAD_JUMP_SKIP_CHANCE = 0.35; // 이 확률로 장애물을 보고도 아예 안 뛴다(탈락 유도).
+const BAD_JUMP_REACTION_DELAY_MS = 350; // 반응이 느려 판정 창(±450ms) 끝자락으로 밀린다.
 
 function parseArg(argv: string[], name: string): string | null {
   const index = argv.indexOf(name);
@@ -70,6 +84,7 @@ type Bot = {
   nickname: string;
   playerId: string;
   teamId: TeamId;
+  skill: Skill;
   excavateSeq: number;
   aimSeq: number;
   jumpedObstacles: Set<number>;
@@ -88,6 +103,7 @@ async function ackEmit<TRes>(
 async function runBotLoop(bot: Bot, board: Blackboard, log: (msg: string) => void): Promise<void> {
   let lastFireAt = 0;
   let lastExcavateAt = 0;
+  let nextFireDelay = FIRE_TICK_MS + Math.random() * FIRE_JITTER_MS;
 
   while (!board.finished) {
     const team = teamOf(board, bot.teamId);
@@ -114,20 +130,25 @@ async function runBotLoop(bot: Bot, board: Blackboard, log: (msg: string) => voi
 
     if (team.phase === "ASSEMBLY") {
       // 다이노런: 장애물 오프셋 시각에 맞춰 점프한다 (판정 창 ±450ms 안).
+      // BAD 봇은 반응이 늦어 판정 창 끝자락이나 바깥으로 밀린다.
       const offsets = team.dinoRun.obstacleOffsetsMs;
       const elapsed = now - team.phaseStartedAt;
+      const reactionOffset = bot.skill === "BAD" ? BAD_JUMP_REACTION_DELAY_MS : 0;
       const dueIndex = offsets.findIndex(
-        (offset, i) => !bot.jumpedObstacles.has(i) && Math.abs(elapsed - offset) <= 200,
+        (offset, i) => !bot.jumpedObstacles.has(i) && Math.abs(elapsed - reactionOffset - offset) <= 200,
       );
       if (dueIndex !== -1) {
         bot.jumpedObstacles.add(dueIndex);
-        bot.aimSeq += 1;
-        const res = await ackEmit<{ cleared: boolean; clearedCount: number }>((ack) =>
-          bot.socket.emit("dino:jump", { requestId: randomUUID(), seq: bot.aimSeq, clientTime: now }, ack),
-        );
-        if (res.ok && res.data.cleared) log(`[${bot.nickname}] 장애물 클리어 (${res.data.clearedCount}/${offsets.length})`);
+        // BAD 봇은 이 확률로 아예 뛰지 않는다 — 탈락 처리 경로를 실제로 타 보게 한다.
+        if (bot.skill !== "BAD" || Math.random() >= BAD_JUMP_SKIP_CHANCE) {
+          bot.aimSeq += 1;
+          const res = await ackEmit<{ cleared: boolean; clearedCount: number }>((ack) =>
+            bot.socket.emit("dino:jump", { requestId: randomUUID(), seq: bot.aimSeq, clientTime: now }, ack),
+          );
+          if (res.ok && res.data.cleared) log(`[${bot.nickname}] 장애물 클리어 (${res.data.clearedCount}/${offsets.length})`);
+        }
       }
-      await sleep(50);
+      await sleep(DINO_POLL_MS);
       continue;
     }
 
@@ -138,12 +159,23 @@ async function runBotLoop(bot: Bot, board: Blackboard, log: (msg: string) => voi
         await sleep(100);
         continue;
       }
-      if (now - lastFireAt >= FIRE_TICK_MS) {
+      if (now - lastFireAt >= nextFireDelay) {
         lastFireAt = now;
+        nextFireDelay = FIRE_TICK_MS + Math.random() * FIRE_JITTER_MS;
         const offset = CORE_OFFSETS[core];
+        // BAD 봇은 코어/티라노 중심에서 랜덤하게 벗어나 조준한다 — 몸통 명중이나 완전
+        // 빗나감(0점)도 실제로 나오게 해서 판정 로직을 골고루 확인할 수 있다.
+        let errorX = 0;
+        let errorY = 0;
+        if (bot.skill === "BAD") {
+          const angle = Math.random() * Math.PI * 2;
+          const radius = BAD_AIM_ERROR_RADIUS * Math.random();
+          errorX = Math.cos(angle) * radius;
+          errorY = Math.sin(angle) * radius;
+        }
         const point = {
-          x: Math.min(1, Math.max(0, trex.x + offset.x)),
-          y: Math.min(1, Math.max(0, trex.y + offset.y)),
+          x: Math.min(1, Math.max(0, trex.x + offset.x + errorX)),
+          y: Math.min(1, Math.max(0, trex.y + offset.y + errorY)),
         };
         bot.aimSeq += 1;
         bot.socket.emit("aim:update", { seq: bot.aimSeq, point, mode: "TOUCHPAD", calibrated: true, clientTime: now });
@@ -279,6 +311,9 @@ async function main(): Promise<void> {
     const socket = connect(origin, "PLAYER");
     await waitForConnect(socket);
     const nickname = `봇${i + 1}`;
+    // 절반은 못하는 봇으로 섞는다 — 매번 완벽한 플레이만 보고는 빗나간 판정·탈락·무승부 같은
+    // 경로를 못 잡는다.
+    const skill: Skill = i % 2 === 0 ? "GOOD" : "BAD";
     const joined = await ackEmit<{ playerId: string; teamId: TeamId; state: RoomState }>((ack) =>
       socket.emit("room:join", { requestId: randomUUID(), roomCode, nickname }, ack),
     );
@@ -292,9 +327,18 @@ async function main(): Promise<void> {
       throw new Error(`room:join 실패(${nickname}): ${joined.error.code} ${joined.error.message}`);
     }
     board.state = joined.data.state;
-    const bot: Bot = { socket, nickname, playerId: joined.data.playerId, teamId: joined.data.teamId, excavateSeq: 0, aimSeq: 0, jumpedObstacles: new Set() };
+    const bot: Bot = {
+      socket,
+      nickname,
+      playerId: joined.data.playerId,
+      teamId: joined.data.teamId,
+      skill,
+      excavateSeq: 0,
+      aimSeq: 0,
+      jumpedObstacles: new Set(),
+    };
     bots.push(bot);
-    log(`${nickname} → ${bot.teamId}팀 입장`);
+    log(`${nickname}(${skill}) → ${bot.teamId}팀 입장`);
 
     socket.on("room:state", (evt) => {
       board.state = evt.data;
