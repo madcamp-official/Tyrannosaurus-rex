@@ -70,6 +70,7 @@ body {
 .mobile-join__logo {
   height: clamp(140px, 40vw, 220px);
   width: auto;
+  margin-top: -8px;
   filter: drop-shadow(0 8px 20px rgba(0, 0, 0, 0.45));
   /* 로고 PNG 하단 여백(약 20%) 상쇄 — 높이 clamp와 같은 비율로 함께 스케일 */
   margin-bottom: clamp(-44px, -8.08vw, -28px);
@@ -77,6 +78,7 @@ body {
 
 .mobile-join__logo--small {
   height: clamp(100px, 28vw, 150px);
+  margin-top: -6px;
   margin-bottom: clamp(-30px, -5.656vw, -20px);
 }
 
@@ -242,7 +244,8 @@ body {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding-top: clamp(20px, 3vh, 34px);
+  /* 상단까지의 거리를 기존값의 80%로(20% 단축). */
+  padding-top: clamp(16px, 2.4vh, 27px);
   text-align: left;
 }
 
@@ -294,7 +297,8 @@ body {
 
 .home-screen__logo-mark {
   position: absolute;
-  top: 24px;
+  /* 상단까지의 거리를 기존값(24px)의 80%로(20% 단축). */
+  top: 19px;
   right: 24px;
   z-index: 1;
   display: block;
@@ -623,11 +627,11 @@ body {
   color: #3d2a12;
   font-family: "Baloo 2", sans-serif;
   font-weight: 800;
-  font-size: 32px;
-  padding: 14px 60px;
+  font-size: 22px;
+  padding: 10px 40px;
   border: none;
-  border-radius: 20px;
-  box-shadow: 0 6px 0 #b8933a;
+  border-radius: 16px;
+  box-shadow: 0 5px 0 #b8933a;
   cursor: pointer;
   transition: transform 0.15s ease-out;
 }
@@ -1346,6 +1350,19 @@ body {
   padding: 20px;
 }
 
+.aim-controls__practice-banner {
+  background: rgba(232, 195, 74, 0.18);
+  border: 1px solid rgba(232, 195, 74, 0.5);
+  color: #fff8ec;
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  text-align: center;
+  margin: 0;
+}
+
 .aim-controls__mode {
   display: flex;
   gap: 10px;
@@ -1481,9 +1498,32 @@ body {
   text-align: center;
 }
 
-.result-view__reason {
-  opacity: 0.7;
-  font-size: 1rem;
+.result-view__score-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 12px;
+  font-family: "Baloo 2", sans-serif;
+  margin-bottom: 6px;
+}
+
+.result-view__score-header-value {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #e8c34a;
+}
+
+.result-view__score-header-team {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: rgba(255, 248, 236, 0.85);
+}
+
+.result-view__score-header-sep {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: rgba(255, 248, 236, 0.4);
+  padding: 0 4px;
 }
 
 .result-view__teams {

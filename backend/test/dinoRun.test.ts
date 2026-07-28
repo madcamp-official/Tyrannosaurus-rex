@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  CHARGING_PRACTICE_DURATION_MS,
   CHARGING_START_STABILITY_BASE,
   DINO_DEATH_GRACE_MS,
   DINO_JUMP_WINDOW_MS,
@@ -31,6 +32,19 @@ function setupAssemblyRoom() {
     team.dinoRun.obstacleOffsetsMs = makeObstacleSchedule(room.roundSeed!);
   }
   return { rooms, room, playerA: a.playerId, playerB: b.playerId, now };
+}
+
+/** A팀은 전 장애물 클리어, 대기 시간까지 지나 두 팀 다 CHARGING_PRACTICE로 넘어간 상태를 만든다. */
+function setupChargingPracticeRoom() {
+  const setup = setupAssemblyRoom();
+  const { rooms, room, playerA, now } = setup;
+  for (const offset of room.state.teams.A.dinoRun.obstacleOffsetsMs) {
+    rooms.applyDinoJumpInput(room, "A", playerA, now + offset);
+  }
+  const evalNow = now + DINO_RUN_DURATION_MS + 1;
+  rooms.tickDinoRun(room, evalNow);
+  rooms.tickDinoRunTransition(room, evalNow + ROUND_TRANSITION_MS + 1);
+  return setup;
 }
 
 describe("dino run", () => {
@@ -87,7 +101,7 @@ describe("dino run", () => {
     expect(outcome.accepted).toBe(false);
   });
 
-  it("evaluates the run after 30s, decides WIN/LOSE by clear rate, and moves both teams to CHARGING only after the wait", () => {
+  it("evaluates the run after 30s, decides WIN/LOSE by clear rate, and moves both teams to CHARGING_PRACTICE only after the wait", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
     // A팀은 전부 클리어, B팀은 0개.
     for (const offset of room.state.teams.A.dinoRun.obstacleOffsetsMs) {
@@ -108,7 +122,7 @@ describe("dino run", () => {
     expect(b.grade).toBe("MESSY");
     expect(b.startStability).toBe(CHARGING_START_STABILITY_BASE);
 
-    // 두 팀 다 끝나 곧바로 승/패는 갈리지만, 대기 시간이 지나기 전엔 CHARGING으로 넘어가지 않는다.
+    // 두 팀 다 끝나 곧바로 승/패는 갈리지만, 대기 시간이 지나기 전엔 CHARGING_PRACTICE로 넘어가지 않는다.
     expect(teamResults).toContainEqual({ teamId: "A", result: "WIN", score: room.state.teams.A.scores.dinoRun });
     expect(teamResults).toContainEqual({ teamId: "B", result: "LOSE", score: room.state.teams.B.scores.dinoRun });
     expect(room.state.teams.A.phase).toBe("ASSEMBLY");
@@ -118,7 +132,7 @@ describe("dino run", () => {
     expect(transitioned).toBe(true);
 
     for (const teamId of ["A", "B"] as const) {
-      expect(room.state.teams[teamId].phase).toBe("CHARGING");
+      expect(room.state.teams[teamId].phase).toBe("CHARGING_PRACTICE");
       expect(room.state.teams[teamId].phaseEndsAt).not.toBeNull();
       expect(room.state.teams[teamId].dinoRun.result).toBeNull();
       expect(room.state.teams[teamId].dinoRun.performance).toBeNull();
@@ -126,10 +140,12 @@ describe("dino run", () => {
     expect(room.state.teams.A.charging.stability).toBe(100);
     expect(room.state.teams.B.charging.stability).toBe(CHARGING_START_STABILITY_BASE);
     expect(room.phaseDurations.A.assemblyMs).not.toBeNull();
+    // 연습 중에는 아직 공유 스켈레톤/충전 시작 시각이 잡히지 않는다 — 실제 CHARGING 진입 시점으로 미룬다.
+    expect(room.sharedTrexStartedAt).toBeNull();
+    expect(room.chargingStartedAt.A).toBeNull();
 
-    // 회귀 방지: 전환 직후 다음 틱에서 tickDinoRun을 다시 불러도 이미 CHARGING으로 넘어간
-    // 팀을 대상으로 WIN/LOSE 비교·재전환이 다시 예약되면 안 된다 (phaseEndsAt이 계속
-    // 밀리는 버그였다).
+    // 회귀 방지: 전환 직후 다음 틱에서 tickDinoRun을 다시 불러도 이미 넘어간 팀을 대상으로
+    // WIN/LOSE 비교·재전환이 다시 예약되면 안 된다 (phaseEndsAt이 계속 밀리는 버그였다).
     const rechecked = rooms.tickDinoRun(room, evalNow + ROUND_TRANSITION_MS + 200);
     expect(rechecked.teamResults).toEqual([]);
     expect(room.dinoRunTransitionAt).toBeNull();
@@ -141,6 +157,52 @@ describe("dino run", () => {
     const { teamResults } = rooms.tickDinoRun(room, now + DINO_RUN_DURATION_MS + 1);
     expect(teamResults).toContainEqual({ teamId: "A", result: "DRAW", score: room.state.teams.A.scores.dinoRun });
     expect(teamResults).toContainEqual({ teamId: "B", result: "DRAW", score: room.state.teams.B.scores.dinoRun });
+  });
+
+  it("moves a team from CHARGING_PRACTICE to real CHARGING once the 10s practice window ends", () => {
+    const { rooms, room } = setupChargingPracticeRoom();
+    expect(room.state.teams.A.phase).toBe("CHARGING_PRACTICE");
+
+    const practiceEndsAt = room.state.teams.A.phaseEndsAt!;
+    const tooEarly = rooms.tickChargingPractice(room, practiceEndsAt - 1);
+    expect(tooEarly).toEqual([]);
+    expect(room.state.teams.A.phase).toBe("CHARGING_PRACTICE");
+
+    const finished = rooms.tickChargingPractice(room, practiceEndsAt + 1);
+    expect(finished.sort()).toEqual(["A", "B"]);
+    for (const teamId of ["A", "B"] as const) {
+      expect(room.state.teams[teamId].phase).toBe("CHARGING");
+      expect(room.state.teams[teamId].phaseEndsAt).not.toBeNull();
+      expect(room.chargingStartedAt[teamId]).not.toBeNull();
+    }
+    expect(room.sharedTrexStartedAt).not.toBeNull();
+  });
+
+  it("accepts aim:update but rejects energy:fire during CHARGING_PRACTICE", () => {
+    const { rooms, room, playerA } = setupChargingPracticeRoom();
+    expect(room.state.teams.A.phase).toBe("CHARGING_PRACTICE");
+
+    const aimAccepted = rooms.applyAim(
+      room,
+      "A",
+      playerA,
+      { seq: 1, point: { x: 0.5, y: 0.5 }, mode: "TOUCHPAD", calibrated: true, clientTime: Date.now() },
+      Date.now(),
+    );
+    expect(aimAccepted).toBe(true);
+
+    const fireOutcome = rooms.fireEnergy(room, "A", playerA, "shot-1", Date.now());
+    expect(fireOutcome.accepted).toBe(false);
+    expect(fireOutcome.reason).toBe("WRONG_TEAM_PHASE");
+  });
+
+  it("does not finish the practice window before CHARGING_PRACTICE_DURATION_MS has passed", () => {
+    const { rooms, room } = setupChargingPracticeRoom();
+    const practiceStart = room.state.teams.A.phaseStartedAt;
+
+    const finished = rooms.tickChargingPractice(room, practiceStart + CHARGING_PRACTICE_DURATION_MS - 1000);
+    expect(finished).toEqual([]);
+    expect(room.state.teams.A.phase).toBe("CHARGING_PRACTICE");
   });
 
   it("kills a player who lets an obstacle's window fully pass, and rejects further jumps from them", () => {

@@ -83,21 +83,49 @@ export function tickRoomDinoRun(io: AppServer, rooms: RoomManager, roomCode: str
   }
 }
 
-/** 100ms 배경 틱: 두 팀 다 다이노런을 끝내고 대기 시간이 지나면 함께 CHARGING으로 전환한다. */
+/**
+ * 100ms 배경 틱: 두 팀 다 다이노런을 끝내고 대기 시간이 지나면 함께 CHARGING_PRACTICE(영점
+ * 조정 연습)로 전환한다. 연습 10초가 끝난 팀은 실제 CHARGING으로 전환한다.
+ */
 export function tickDinoRunHandoff(io: AppServer, rooms: RoomManager, roomCode: string): void {
   const room = rooms.getRoom(roomCode);
   if (!room || room.state.roomPhase !== "PLAYING") return;
 
-  const transitioned = rooms.tickDinoRunTransition(room, Date.now());
-  if (!transitioned) return;
-
   const channel = roomChannel(roomCode);
-  for (const teamId of TEAM_IDS) {
-    const team = room.state.teams[teamId];
-    io.to(channel).emit(
-      "team:phaseChanged",
-      toServerEvent(roomCode, room.state.revision, { teamId, from: "ASSEMBLY", to: "CHARGING", endsAt: team.phaseEndsAt }),
-    );
+  const now = Date.now();
+  let changed = false;
+
+  const transitioned = rooms.tickDinoRunTransition(room, now);
+  if (transitioned) {
+    changed = true;
+    for (const teamId of TEAM_IDS) {
+      io.to(channel).emit(
+        "team:phaseChanged",
+        toServerEvent(roomCode, room.state.revision, {
+          teamId,
+          from: "ASSEMBLY",
+          to: "CHARGING_PRACTICE",
+          endsAt: room.state.teams[teamId].phaseEndsAt,
+        }),
+      );
+    }
   }
-  broadcastRoomState(io, rooms, roomCode);
+
+  const practiceFinished = rooms.tickChargingPractice(room, now);
+  if (practiceFinished.length > 0) {
+    changed = true;
+    for (const teamId of practiceFinished) {
+      io.to(channel).emit(
+        "team:phaseChanged",
+        toServerEvent(roomCode, room.state.revision, {
+          teamId,
+          from: "CHARGING_PRACTICE",
+          to: "CHARGING",
+          endsAt: room.state.teams[teamId].phaseEndsAt,
+        }),
+      );
+    }
+  }
+
+  if (changed) broadcastRoomState(io, rooms, roomCode);
 }

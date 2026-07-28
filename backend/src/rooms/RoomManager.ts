@@ -2,7 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import {
-  CHARGING_DURATION_MS,
+  CHARGING_PRACTICE_DURATION_MS,
   DINO_RUN_DURATION_MS,
   DECORATION_VOTE_DURATION_MS,
   EXCAVATION_DRAW_WINDOW_MS,
@@ -45,6 +45,7 @@ import {
 import {
   applyDinoJump,
   checkDinoDeaths,
+  finishChargingPracticeIfNeeded,
   finishDinoRunIfNeeded,
   makeObstacleSchedule,
   type DinoFinishResult,
@@ -548,7 +549,7 @@ export class RoomManager {
     return { finished, teamResults };
   }
 
-  /** 두 팀 다 다이노런을 끝내고 대기 시간이 지나면, 함께 CHARGING으로 전환한다. */
+  /** 두 팀 다 다이노런을 끝내고 대기 시간이 지나면, 함께 CHARGING_PRACTICE(영점 조정 연습)로 전환한다. */
   tickDinoRunTransition(room: RoomRecord, now: number): boolean {
     if (room.dinoRunTransitionAt === null || now < room.dinoRunTransitionAt) return false;
 
@@ -560,14 +561,11 @@ export class RoomManager {
       team.dinoRun.result = null;
       team.dinoRun.performance = null;
       team.dinoRun.grade = null;
-      team.phase = "CHARGING";
+      team.phase = "CHARGING_PRACTICE";
       team.phaseStartedAt = now;
-      team.phaseEndsAt = now + CHARGING_DURATION_MS;
-      room.chargingStartedAt[teamId] = now;
-      // 공유 스켈레톤은 방에서 먼저 CHARGING에 들어간 팀 기준으로 한 번만 시작된다 (§2.3).
-      if (room.sharedTrexStartedAt === null) {
-        room.sharedTrexStartedAt = now;
-      }
+      team.phaseEndsAt = now + CHARGING_PRACTICE_DURATION_MS;
+      // chargingStartedAt/sharedTrexStartedAt은 실제 CHARGING 진입(연습 종료, tickChargingPractice)
+      // 시점으로 미룬다.
     }
     room.dinoRunTransitionAt = null;
     this.touch(room);
@@ -575,10 +573,23 @@ export class RoomManager {
     return true;
   }
 
-  /** §17.9. CHARGING 중에만 조준을 인정한다. 고빈도 이벤트라 revision을 올리지 않는다. */
+  /** 10초 영점 조정 연습이 끝난 팀을 실제 CHARGING으로 전환한다. 전환된 팀 목록을 돌려준다. */
+  tickChargingPractice(room: RoomRecord, now: number): TeamId[] {
+    const finished: TeamId[] = [];
+    for (const teamId of TEAM_IDS) {
+      if (finishChargingPracticeIfNeeded(room, teamId, now)) {
+        finished.push(teamId);
+        this.touch(room);
+        this.bumpRevision(room);
+      }
+    }
+    return finished;
+  }
+
+  /** §17.9. CHARGING과 연습(CHARGING_PRACTICE) 중에만 조준을 인정한다. 고빈도 이벤트라 revision을 올리지 않는다. */
   applyAim(room: RoomRecord, teamId: TeamId, playerId: PlayerId, input: AimUpdateInput, now: number): boolean {
     const phase = room.state.teams[teamId].phase;
-    if (phase !== "CHARGING") return false;
+    if (phase !== "CHARGING" && phase !== "CHARGING_PRACTICE") return false;
     const accepted = applyAimUpdate(room, playerId, input, now);
     if (accepted) this.touch(room);
     return accepted;

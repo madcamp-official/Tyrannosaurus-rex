@@ -157,7 +157,8 @@ export function MobileJoin(): JSX.Element {
         {team.phase === "ASSEMBLY" && socket && playerId && (
           <DinoRunControls socket={socket} team={team} playerId={playerId} result={team.dinoRun.result} />
         )}
-        {team.phase === "CHARGING" && socket && <AimControls socket={socket} />}
+        {team.phase === "CHARGING_PRACTICE" && socket && <AimControls socket={socket} team={team} practice />}
+        {team.phase === "CHARGING" && socket && <AimControls socket={socket} team={team} />}
         {team.phase === "REVIVED" && (
           <div className="mobile-game__revived">
             <p className="mobile-game__title">

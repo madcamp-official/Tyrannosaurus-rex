@@ -44,10 +44,15 @@ export function ResultView({
         <img className="lobby-header__logo lobby-header__logo--big" src="/images/logo.png" alt="내 티라노를 살려내!" />
       </header>
 
-      <h2>
-        {roomState.winner.teamId ? `${roomState.teamNames[roomState.winner.teamId]} 승리!` : "무승부"}
-        {roomState.winner.reason && <span className="result-view__reason"> ({describeReason(roomState.winner.reason)})</span>}
-      </h2>
+      <div className="result-view__score-header">
+        <span className="result-view__score-header-value">{formatScore(gameResult?.teams.find((t) => t.teamId === "A")?.totalScore)}</span>
+        <span className="result-view__score-header-team">{roomState.teamNames.A}</span>
+        <span className="result-view__score-header-sep">|</span>
+        <span className="result-view__score-header-team">{roomState.teamNames.B}</span>
+        <span className="result-view__score-header-value">{formatScore(gameResult?.teams.find((t) => t.teamId === "B")?.totalScore)}</span>
+      </div>
+
+      <h2>{roomState.winner.teamId ? `${roomState.teamNames[roomState.winner.teamId]} 승리!` : "무승부"}</h2>
 
       <div className="result-view__teams">
         {TEAM_IDS.map((teamId) => {
@@ -104,24 +109,9 @@ export function ResultView({
         </div>
       )}
 
-      <button type="button" onClick={handleRematch}>
+      <button type="button" className="lobby-start__button" onClick={handleRematch}>
         재경기
       </button>
     </section>
   );
-}
-
-function describeReason(reason: NonNullable<RoomState["winner"]["reason"]>): string {
-  switch (reason) {
-    case "SCORE_TOTAL":
-      return "누적 점수";
-    case "OPPONENT_DISCONNECTED":
-      return "상대 팀 연결 끊김";
-    case "TIME_LIMIT":
-      return "시간 종료";
-    case "DRAW":
-      return "무승부";
-    default:
-      return reason;
-  }
 }
