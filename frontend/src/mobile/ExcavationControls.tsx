@@ -4,7 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import { EXCAVATION_SHAKE_COOLDOWN_MS, MOBILE_INPUT_FLUSH_MS, type SensorPermission } from "@trex/shared";
 import type { AppSocket } from "../socket";
 
-const SHAKE_MAGNITUDE_THRESHOLD = 14; // m/s^2, accelerationIncludingGravity 크기 기준 경험적 임계값
+// 흔드는 방향 — 세로로 든 폰 기준 y=위아래(파는 동작에 가장 자연스러움), x=좌우, z=앞뒤.
+const SHAKE_AXIS: "x" | "y" | "z" = "y";
+// 방향을 구분할 땐 중력을 뺀 event.acceleration 기준(그래야 폰을 어떻게 들어도 기준이 같다).
+const SHAKE_AXIS_THRESHOLD = 10;
+// event.acceleration을 못 주는 기기용 폴백 — 중력 포함 벡터 크기(accelerationIncludingGravity) 기준이라 방향 구분은 없다.
+const SHAKE_MAGNITUDE_THRESHOLD = 14;
 const MAX_COUNT_PER_PACKET = 5;
 
 type MotionPermissionApi = { requestPermission?: () => Promise<"granted" | "denied"> };
@@ -32,12 +37,22 @@ export function ExcavationControls({
   useEffect(() => {
     if (motionPermission !== "GRANTED") return undefined;
     const handleMotion = (event: DeviceMotionEvent) => {
-      const acc = event.accelerationIncludingGravity;
-      if (!acc) return;
-      const magnitude = Math.sqrt((acc.x ?? 0) ** 2 + (acc.y ?? 0) ** 2 + (acc.z ?? 0) ** 2);
       const now = Date.now();
-      if (magnitude < SHAKE_MAGNITUDE_THRESHOLD) return;
       if (now - lastShakeAtRef.current < EXCAVATION_SHAKE_COOLDOWN_MS) return;
+
+      let triggered: boolean;
+      const pureAcc = event.acceleration;
+      if (pureAcc && pureAcc[SHAKE_AXIS] !== null) {
+        // 중력을 뺀 값이라 폰을 어느 각도로 들고 있든 SHAKE_AXIS 방향 흔들림만 잡아낸다.
+        triggered = Math.abs(pureAcc[SHAKE_AXIS]!) >= SHAKE_AXIS_THRESHOLD;
+      } else {
+        const acc = event.accelerationIncludingGravity;
+        if (!acc) return;
+        const magnitude = Math.sqrt((acc.x ?? 0) ** 2 + (acc.y ?? 0) ** 2 + (acc.z ?? 0) ** 2);
+        triggered = magnitude >= SHAKE_MAGNITUDE_THRESHOLD;
+      }
+      if (!triggered) return;
+
       lastShakeAtRef.current = now;
       motionCountRef.current += 1;
       setShakeFlash(true);
