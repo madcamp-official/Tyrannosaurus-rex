@@ -211,10 +211,8 @@ export function finishDinoRunIfNeeded(room: RoomRecord, teamId: TeamId, now: num
 
 /**
  * 영점 조정 연습(CHARGING_PRACTICE_DURATION_MS) 중인 팀을 실제 CHARGING으로 전환한다.
- * 팀원 전원이 영점을 잡았으면(aimState.calibrated) 연습 시간이 남았어도 곧바로 넘어가고,
- * 그렇지 않아도 CHARGING_PRACTICE_DURATION_MS가 지나면 안전장치로 넘어간다(자이로가 없거나
- * 권한을 거부한 플레이어 때문에 팀 전체가 무한 대기하지 않도록). 사격(energy:fire)은 이
- * 전환 이후에만 서버에서 인정된다.
+ * 팀원 전원이 영점을 먼저 잡더라도 안내된 연습 시간을 끝까지 유지한다.
+ * 사격(energy:fire)은 이 전환 이후에만 서버에서 인정된다.
  */
 export function finishChargingPracticeIfNeeded(room: RoomRecord, teamId: TeamId, now: number): boolean {
   const team = room.state.teams[teamId];
@@ -222,9 +220,8 @@ export function finishChargingPracticeIfNeeded(room: RoomRecord, teamId: TeamId,
   if (team.phaseEndsAt === null) return false;
   if (now < team.phaseStartedAt + PHASE_START_GRACE_MS) return false;
 
-  const allCalibrated =
-    team.playerIds.length > 0 && team.playerIds.every((playerId) => room.aimState.get(playerId)?.calibrated === true);
-  if (!allCalibrated && now < team.phaseEndsAt) return false;
+  // 모든 플레이어가 먼저 영점을 맞췄더라도 연습 화면은 정해진 15초 동안 유지한다.
+  if (now < team.phaseEndsAt) return false;
 
   team.phase = "CHARGING";
   team.phaseStartedAt = now;

@@ -251,7 +251,7 @@ describe("dino run (meteor dodge)", () => {
 
   it(
     "evaluates the run after 1 minute, decides WIN/LOSE by normalized score, and moves both teams to " +
-      "CHARGING_PRACTICE only after the wait",
+      "CHARGING_PRACTICE immediately without returning to the previous screen",
     () => {
       const { rooms, room, playerA, now } = setupAssemblyRoom();
       // A팀은 과일을 전부 잡고, B팀은 아무 것도 하지 않는다.
@@ -262,6 +262,7 @@ describe("dino run (meteor dodge)", () => {
         kind: "FRUIT" as const,
       }));
       room.state.teams.A.dinoRun.skyObjects = fruits;
+      room.state.teams.B.dinoRun.skyObjects = [];
       for (const fruit of fruits) {
         rooms.applyDinoPositionInput(room, "A", playerA, { seq: fruit.id + 1, x: fruit.x, clientTime: now }, now);
         rooms.tickDinoCollisions(room, now + fruit.hitAtMs + 1);
@@ -278,13 +279,11 @@ describe("dino run (meteor dodge)", () => {
       expect(b.grade).toBe("MESSY");
       expect(b.startStability).toBe(CHARGING_START_STABILITY_BASE);
 
-      // 두 팀 다 끝나 곧바로 승/패는 갈리지만, 대기 시간이 지나기 전엔 CHARGING_PRACTICE로 넘어가지 않는다.
+      // 두 팀 다 끝나 승/패가 갈리면 이전 화면을 다시 보여주지 않고 즉시 영점 연습으로 넘어간다.
       expect(teamResults).toContainEqual({ teamId: "A", result: "WIN", score: room.state.teams.A.scores.dinoRun });
       expect(teamResults).toContainEqual({ teamId: "B", result: "LOSE", score: room.state.teams.B.scores.dinoRun });
       expect(room.state.teams.A.phase).toBe("ASSEMBLY");
-      expect(rooms.tickDinoRunTransition(room, evalNow)).toBe(false);
-
-      const transitioned = rooms.tickDinoRunTransition(room, evalNow + ROUND_TRANSITION_MS + 1);
+      const transitioned = rooms.tickDinoRunTransition(room, evalNow);
       expect(transitioned).toBe(true);
 
       for (const teamId of ["A", "B"] as const) {
@@ -301,7 +300,7 @@ describe("dino run (meteor dodge)", () => {
 
       // 회귀 방지: 전환 직후 다음 틱에서 tickDinoRun을 다시 불러도 이미 넘어간 팀을 대상으로
       // WIN/LOSE 비교·재전환이 다시 예약되면 안 된다 (phaseEndsAt이 계속 밀리는 버그였다).
-      const rechecked = rooms.tickDinoRun(room, evalNow + ROUND_TRANSITION_MS + 200);
+      const rechecked = rooms.tickDinoRun(room, evalNow + 200);
       expect(rechecked.teamResults).toEqual([]);
       expect(room.dinoRunTransitionAt).toBeNull();
     },
@@ -315,7 +314,7 @@ describe("dino run (meteor dodge)", () => {
     expect(teamResults).toContainEqual({ teamId: "B", result: "DRAW", score: room.state.teams.B.scores.dinoRun });
   });
 
-  it("moves a team from CHARGING_PRACTICE to real CHARGING once the 10s practice window ends", () => {
+  it("moves a team from CHARGING_PRACTICE to real CHARGING once the 15s practice window ends", () => {
     const { rooms, room } = setupChargingPracticeRoom();
     expect(room.state.teams.A.phase).toBe("CHARGING_PRACTICE");
 
@@ -361,7 +360,7 @@ describe("dino run (meteor dodge)", () => {
     expect(room.state.teams.A.phase).toBe("CHARGING_PRACTICE");
   });
 
-  it("moves a team to CHARGING early once every player on it has calibrated, even before the practice window ends", () => {
+  it("keeps the full practice window even after every player has calibrated", () => {
     const { rooms, room, playerA } = setupChargingPracticeRoom();
     const practiceStart = room.state.teams.A.phaseStartedAt;
 
@@ -373,11 +372,10 @@ describe("dino run (meteor dodge)", () => {
       Date.now(),
     );
 
-    // 아직 CHARGING_PRACTICE_DURATION_MS가 다 지나지 않았지만, A팀은 전원(팀원 1명) 영점을
-    // 잡았으니 곧바로 CHARGING으로 넘어가고, 아무도 영점을 안 잡은 B팀은 계속 연습 중이다.
+    // 전원이 영점을 잡았더라도 안내된 연습 시간은 끝까지 보장한다.
     const finished = rooms.tickChargingPractice(room, practiceStart + CHARGING_PRACTICE_DURATION_MS - 1000);
-    expect(finished).toEqual(["A"]);
-    expect(room.state.teams.A.phase).toBe("CHARGING");
+    expect(finished).toEqual([]);
+    expect(room.state.teams.A.phase).toBe("CHARGING_PRACTICE");
     expect(room.state.teams.B.phase).toBe("CHARGING_PRACTICE");
   });
 

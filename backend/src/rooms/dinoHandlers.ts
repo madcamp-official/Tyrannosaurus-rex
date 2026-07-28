@@ -85,7 +85,7 @@ export function tickRoomDinoRun(io: AppServer, rooms: RoomManager, roomCode: str
     );
   }
   // 먼저 끝난 팀은 조용히 상대를 기다리고, 두 팀 다 끝나면 WIN/LOSE/DRAW를 함께 알린다.
-  // 실제 CHARGING_PRACTICE 전환은 tickDinoRunHandoff가 ROUND_TRANSITION_MS를 기다렸다가 처리한다.
+  // 실제 CHARGING_PRACTICE 전환은 tickDinoRunHandoff가 다음 배경 틱에서 즉시 처리한다.
   for (const teamResult of teamResults) {
     io.to(channel).emit("dino:teamResult", toServerEvent(roomCode, room.state.revision, teamResult));
   }
@@ -95,8 +95,8 @@ export function tickRoomDinoRun(io: AppServer, rooms: RoomManager, roomCode: str
 }
 
 /**
- * 100ms 배경 틱: 두 팀 다 운석 피하기를 끝내고 대기 시간이 지나면 함께 CHARGING_PRACTICE(영점
- * 조정 연습)로 전환한다. 연습 시간이 끝난 팀은 실제 CHARGING으로 전환한다.
+ * 100ms 배경 틱: 두 팀 다 운석 피하기를 끝내면 함께 CHARGING_PRACTICE(영점 조정 연습)로
+ * 즉시 전환한다. 연습 시간이 끝난 팀은 실제 CHARGING으로 전환한다.
  */
 export function tickDinoRunHandoff(io: AppServer, rooms: RoomManager, roomCode: string): void {
   const room = rooms.getRoom(roomCode);

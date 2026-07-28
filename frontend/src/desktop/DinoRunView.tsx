@@ -100,32 +100,11 @@ function PlayerLives({
  * 카운트다운은 모바일 SensorPermissionGate와 같은 phaseStartedAt/PHASE_START_GRACE_MS를 사용한다.
  */
 export function DinoRunOverlay({ roomState }: { roomState: RoomState }): JSX.Element {
-  const [nowMs, setNowMs] = useState(() => Date.now());
-
-  useEffect(() => {
-    const interval = window.setInterval(() => setNowMs(Date.now()), 100);
-    return () => window.clearInterval(interval);
-  }, []);
-
   const teamsInDinoRun = TEAM_IDS.filter((teamId) => roomState.teams[teamId].phase === "ASSEMBLY");
-  const countdownSec = teamsInDinoRun.reduce((remaining, teamId) => {
-    const teamRemaining = Math.max(
-      0,
-      Math.ceil((PHASE_START_GRACE_MS - (nowMs - roomState.teams[teamId].phaseStartedAt)) / 1000),
-    );
-    return Math.max(remaining, teamRemaining);
-  }, 0);
 
   return (
     <div className="dino-overlay">
       <div className="dino-overlay__content">
-        {countdownSec > 0 && (
-          <div className="dino-overlay__countdown" aria-live="polite">
-            <span>{countdownSec}</span>
-            <small>초 후 시작</small>
-          </div>
-        )}
-
         <div className="dino-overlay__meteor" aria-hidden="true">
           <span className="dino-overlay__meteor-glow" />
           <span className="dino-overlay__meteor-icon">☄️</span>

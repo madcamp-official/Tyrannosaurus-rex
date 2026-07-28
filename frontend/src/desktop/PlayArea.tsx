@@ -81,6 +81,8 @@ function PhaseTimer({ roomState }: { roomState: RoomState }): JSX.Element | null
   const activeTeams = TEAM_IDS.map((teamId) => roomState.teams[teamId]).filter((team) => team.phase !== "REVIVED");
   if (activeTeams.length === 0) return null;
   const primary = activeTeams[0]!;
+  const countdownEndsAt = Math.max(...activeTeams.map((team) => team.phaseStartedAt + PHASE_START_GRACE_MS));
+  if (nowMs < countdownEndsAt) return null;
   const isExcavation = primary.phase === "EXCAVATION";
   const fallbackDuration = primary.phase === "ASSEMBLY" ? DINO_RUN_DURATION_MS : CHARGING_PRACTICE_DURATION_MS;
   const clockMs = isExcavation
@@ -109,7 +111,7 @@ function ServerPhaseCountdown({ roomState }: { roomState: RoomState }): JSX.Elem
   }, []);
 
   const teams = TEAM_IDS.map((teamId) => roomState.teams[teamId]).filter((team) => team.phase !== "REVIVED");
-  if (teams.length === 0 || teams.some((team) => team.phase === "ASSEMBLY")) return null;
+  if (teams.length === 0) return null;
   const remainingSec = Math.max(
     ...teams.map((team) => Math.max(0, Math.ceil((team.phaseStartedAt + PHASE_START_GRACE_MS - nowMs) / 1000))),
   );
@@ -135,7 +137,6 @@ function PracticeAimOverlay({
     <div className="practice-aim">
       <div className="practice-aim__heading">
         <h2>영점 조정 연습 중</h2>
-        <p>휴대폰을 움직여 조준점이 과녁 중앙을 따라오는지 확인하세요</p>
       </div>
       <div className="practice-aim__target">
         <span className="practice-aim__ring practice-aim__ring--outer" />
@@ -156,6 +157,7 @@ function PracticeAimOverlay({
           );
         })}
       </div>
+      <p className="practice-aim__guide">휴대폰을 움직여 조준점이 과녁 중앙을 따라오는지 확인하세요</p>
       <div className="practice-aim__legend">
         {TEAM_IDS.map((teamId) => (
           <span key={teamId} className={`practice-aim__team practice-aim__team--${teamId.toLowerCase()}`}>

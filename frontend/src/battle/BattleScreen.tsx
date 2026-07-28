@@ -38,13 +38,7 @@ export function BattleScreen({
         <BattleArena battle={battle} shotEvents={shotEvents} aimPoints={aimPoints} />
 
         <div className="battle-topbar">
-          <div className="battle-chip battle-chip--left">
-            <span className="battle-chip__icon">🦖</span>
-            <div className="battle-chip__text">
-              <strong>부활 에너지 충전</strong>
-              <span>{battle.siteName}</span>
-            </div>
-          </div>
+          <div className="battle-topbar__spacer" aria-hidden="true" />
 
           <div className="battle-timer">
             <span className="battle-timer__label">남은 시간</span>

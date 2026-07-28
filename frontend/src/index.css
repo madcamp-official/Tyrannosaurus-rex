@@ -284,7 +284,7 @@ body {
 }
 
 .lobby-header--centered .lobby-header__logo--big {
-  margin-top: -6px;
+  margin-top: 14px;
 }
 
 .lobby-header__logo {
@@ -436,7 +436,7 @@ body {
 
 .lobby-connecting--create .lobby-header__logo--big {
   /* PNG 상단의 투명 여백(표시 높이 기준 약 33px)까지 상쇄해 로고가 화면 위에 붙어 보이게 한다. */
-  margin-top: -30px;
+  margin-top: 14px;
 }
 
 .lobby-spinner {
@@ -1030,6 +1030,103 @@ body {
   font-size: 21px;
   font-weight: 400;
   letter-spacing: 0.5px;
+}
+
+.exca-sidebar__header {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 2px;
+}
+
+.exca-sidebar--mirrored .exca-sidebar__header {
+  flex-direction: row-reverse;
+}
+
+.exca-sidebar__header strong {
+  color: #fff8ec;
+  font-size: 23px;
+  font-weight: 400;
+}
+
+.play-area__team--A .exca-sidebar__header strong {
+  color: #ffb877;
+}
+
+.play-area__team--B .exca-sidebar__header strong {
+  color: #9dd8f2;
+}
+
+.exca-sidebar__header span {
+  margin-left: auto;
+  color: rgba(255, 248, 236, 0.68);
+  font-size: 14px;
+}
+
+.exca-sidebar--mirrored .exca-sidebar__header span {
+  margin-right: auto;
+  margin-left: 0;
+}
+
+.exca-sidebar__table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+.exca-sidebar__table th {
+  padding: 5px 0 7px;
+  color: rgba(255, 248, 236, 0.55);
+  font-size: 13px;
+  font-weight: 400;
+  text-align: right;
+}
+
+.exca-sidebar__table th:first-child,
+.exca-sidebar--mirrored .exca-sidebar__table th:last-child {
+  text-align: left;
+}
+
+.exca-sidebar__table td {
+  padding: 7px 0;
+  color: #fff8ec;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 17px;
+  font-weight: 700;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.exca-sidebar__player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif !important;
+  font-weight: 400 !important;
+  text-align: left !important;
+}
+
+.exca-sidebar--mirrored .exca-sidebar__player {
+  flex-direction: row-reverse;
+}
+
+.play-area__team--A .exca-sidebar__row--top {
+  background: rgba(242, 153, 74, 0.18);
+}
+
+.play-area__team--B .exca-sidebar__row--top {
+  background: rgba(111, 195, 232, 0.18);
+}
+
+.exca-sidebar__footer {
+  margin-top: 3px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  color: rgba(255, 248, 236, 0.78);
+  font-size: 14px;
 }
 
 .exca-sidebar__row-head {
@@ -1949,6 +2046,15 @@ body {
   color: rgba(255, 248, 236, 0.72);
   font-size: clamp(16px, 1.6vw, 23px);
   font-weight: 400;
+}
+
+.practice-aim__guide {
+  margin: -8px 0 0;
+  color: rgba(255, 248, 236, 0.72);
+  font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
+  font-size: clamp(16px, 1.6vw, 23px);
+  font-weight: 400;
+  text-align: center;
 }
 
 .practice-aim__target {

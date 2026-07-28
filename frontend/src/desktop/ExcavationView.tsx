@@ -37,19 +37,37 @@ export function ExcavationTeamPanel({ team, players }: { team: TeamState; player
   return (
     <div className="exca-view">
       <div className={`exca-sidebar${team.id === "B" ? " exca-sidebar--mirrored" : ""}`}>
-        <span className="exca-sidebar__title">기여도</span>
-        {contributors.map((p) => (
-          <div key={p.id}>
-            <div className="exca-sidebar__row-head">
-              <span className="exca-sidebar__dot" style={{ background: p.color }} />
-              <span className="exca-sidebar__name">{p.name}</span>
-              <span className="exca-sidebar__count">{p.count}회</span>
-            </div>
-            <div className="exca-sidebar__bar">
-              <div className="exca-sidebar__bar-fill" style={{ width: `${p.pct}%`, background: p.color }} />
-            </div>
-          </div>
-        ))}
+        <div className="exca-sidebar__header">
+          <strong>{team.id === "A" ? "🔥" : "❄️"} {team.id}팀</strong>
+          <span>{players.length}명 · 총 {totalInputs}회</span>
+        </div>
+        <table className="exca-sidebar__table">
+          <thead>
+            <tr>
+              {(team.id === "A" ? ["플레이어", "흔들기", "기여도"] : ["기여도", "흔들기", "플레이어"]).map((label) => (
+                <th key={label}>{label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {contributors.map((player, index) => {
+              const cells = team.id === "A"
+                ? [player.name, `${player.count}회`, `${player.pct}%`]
+                : [`${player.pct}%`, `${player.count}회`, player.name];
+              return (
+                <tr key={player.id} className={index === 0 ? "exca-sidebar__row--top" : undefined}>
+                  {cells.map((cell, cellIndex) => (
+                    <td key={cellIndex} className={cell === player.name ? "exca-sidebar__player" : undefined}>
+                      {cell === player.name && <span className="exca-sidebar__dot" style={{ background: player.color }} />}
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        <div className="exca-sidebar__footer">발굴한 뼈 {team.excavation.discoveredBoneIds.length}개</div>
       </div>
 
       <div className="exca-progress">

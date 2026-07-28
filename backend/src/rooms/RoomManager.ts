@@ -585,7 +585,8 @@ export class RoomManager {
         { teamId: "A", result: teamA.dinoRun.result, score: teamA.scores.dinoRun ?? 0 },
         { teamId: "B", result: teamB.dinoRun.result, score: teamB.scores.dinoRun ?? 0 },
       );
-      room.dinoRunTransitionAt = now + ROUND_TRANSITION_MS;
+      // 결과 뒤에 이전 3D 화면을 다시 노출하지 않고 다음 틱에서 곧바로 영점 화면으로 간다.
+      room.dinoRunTransitionAt = now;
       this.touch(room);
       this.bumpRevision(room);
     }
@@ -617,7 +618,7 @@ export class RoomManager {
     return true;
   }
 
-  /** 10초 영점 조정 연습이 끝난 팀을 실제 CHARGING으로 전환한다. 전환된 팀 목록을 돌려준다. */
+  /** 15초 영점 조정 연습이 끝난 팀을 실제 CHARGING으로 전환한다. 전환된 팀 목록을 돌려준다. */
   tickChargingPractice(room: RoomRecord, now: number): TeamId[] {
     const finished: TeamId[] = [];
     for (const teamId of TEAM_IDS) {

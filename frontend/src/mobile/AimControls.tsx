@@ -1,7 +1,7 @@
 /** Plan.md §5.2, §6.3. 자이로 전용 조준 파이프라인 + 발사(터치패드 모드는 제거). */
 
 import { useEffect, useRef, useState } from "react";
-import { AIM_UPDATE_MAX_HZ, CHARGING_PRACTICE_DURATION_MS, SHOT_COOLDOWN_MS, type NormalizedPoint, type SensorPermission, type TeamState } from "@trex/shared";
+import { AIM_UPDATE_MAX_HZ, CHARGING_PRACTICE_DURATION_MS, PHASE_START_GRACE_MS, SHOT_COOLDOWN_MS, type NormalizedPoint, type SensorPermission, type TeamState } from "@trex/shared";
 import type { AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
 
@@ -38,7 +38,7 @@ function usePracticeCountdown(active: boolean, phaseStartedAt: number): number {
   }, [active]);
 
   if (!active) return 0;
-  const elapsed = nowMs - phaseStartedAt;
+  const elapsed = Math.max(0, nowMs - phaseStartedAt - PHASE_START_GRACE_MS);
   return Math.max(0, Math.ceil((CHARGING_PRACTICE_DURATION_MS - elapsed) / 1000));
 }
 
