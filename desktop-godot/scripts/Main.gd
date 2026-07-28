@@ -32,7 +32,9 @@ func _build_environment() -> void:
 	environment.background_mode = Environment.BG_SKY
 	environment.sky = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	environment.ambient_light_energy = 1.1
+	# 그림자를 뚜렷하게 보이게 하려면 그림자 진 곳을 채우는 주변광을 좀 줄여야 한다 —
+	# 너무 밝으면 그림자와 안 그림자 부분의 명암 차이가 흐릿해진다.
+	environment.ambient_light_energy = 0.55
 	var world := WorldEnvironment.new()
 	world.environment = environment
 	add_child(world)
@@ -40,6 +42,8 @@ func _build_environment() -> void:
 	var light := DirectionalLight3D.new()
 	light.rotation_degrees = Vector3(-55, -30, 0)
 	light.light_energy = 1.8
+	# 기본값이 꺼져 있어서 지금까지 땅/뼈 모델 모두 그림자를 전혀 드리우지 않았다.
+	light.shadow_enabled = true
 	add_child(light)
 
 ## 각 팀의 발굴 지형(GroundDig)은 16×16짜리 독립된 패치라, 그 바깥은 원래 아무것도 없어
