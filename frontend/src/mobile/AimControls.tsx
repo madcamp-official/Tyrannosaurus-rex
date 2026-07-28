@@ -53,6 +53,11 @@ export function AimControls({ socket, team, practice = false }: { socket: AppSoc
   pointRef.current = point;
   const zeroRef = useRef<{ beta: number; gamma: number } | null>(null);
   const filteredRef = useRef({ beta: 0, gamma: 0 });
+  // 튐 판정은 반드시 "직전 raw 값"과 비교해야 한다 — filteredRef(저역통과 필터를 거쳐 항상
+  // 한 박자 뒤처지는 값)와 비교하면, 한 방향으로 계속 빠르게 기울이는 정상적인 동작에서도
+  // raw와 filtered의 격차가 누적돼 결국 임계값을 넘어버리고, 그 뒤로는 filteredRef가 다시는
+  // 갱신되지 않아 조준점이 특정 각도에서 영원히 멈추는 버그가 있었다.
+  const lastRawRef = useRef({ beta: 0, gamma: 0 });
   const hasReadingRef = useRef(false);
   const seqRef = useRef(0);
 
@@ -82,11 +87,17 @@ export function AimControls({ socket, team, practice = false }: { socket: AppSoc
       if (event.beta === null || event.gamma === null) return;
       if (!hasReadingRef.current) {
         filteredRef.current = { beta: event.beta, gamma: event.gamma };
+        lastRawRef.current = { beta: event.beta, gamma: event.gamma };
         hasReadingRef.current = true;
       } else {
-        const rawDeltaBeta = Math.abs(event.beta - filteredRef.current.beta);
-        const rawDeltaGamma = Math.abs(event.gamma - filteredRef.current.gamma);
-        if (rawDeltaBeta > MAX_FRAME_DELTA_DEG || rawDeltaGamma > MAX_FRAME_DELTA_DEG) return;
+        const rawDeltaBeta = Math.abs(event.beta - lastRawRef.current.beta);
+        const rawDeltaGamma = Math.abs(event.gamma - lastRawRef.current.gamma);
+        const isGlitch = rawDeltaBeta > MAX_FRAME_DELTA_DEG || rawDeltaGamma > MAX_FRAME_DELTA_DEG;
+        // raw 추적값은 글리치 여부와 무관하게 항상 갱신한다 — 그래야 다음 프레임의 비교
+        // 기준이 실제 기기 자세를 계속 따라가고, 정상적인 빠른 움직임이 연쇄적으로 계속
+        // 걸러지는 일이 없다. 글리치로 판단된 딱 그 한 프레임만 필터 반영에서 제외한다.
+        lastRawRef.current = { beta: event.beta, gamma: event.gamma };
+        if (isGlitch) return;
         filteredRef.current = {
           beta: filteredRef.current.beta + (event.beta - filteredRef.current.beta) * LOW_PASS_ALPHA,
           gamma: filteredRef.current.gamma + (event.gamma - filteredRef.current.gamma) * LOW_PASS_ALPHA,
