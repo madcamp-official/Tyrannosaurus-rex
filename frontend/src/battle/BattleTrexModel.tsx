@@ -2,8 +2,8 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-const CANVAS_WIDTH = 460;
-const CANVAS_HEIGHT = 300;
+const CANVAS_WIDTH = 620;
+const CANVAS_HEIGHT = 360;
 
 export function BattleTrexModel(): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -51,34 +51,46 @@ export function BattleTrexModel(): JSX.Element {
           if ("color" in material) material.color.set(0xe8dfcf);
           if ("roughness" in material) material.roughness = 0.72;
           if ("metalness" in material) material.metalness = 0.04;
+          material.side = THREE.DoubleSide;
           material.needsUpdate = true;
           return material;
         });
       });
 
+      // 원본 모델의 긴 몸체 축은 Z축이다. Y축으로 90도 돌려 머리~꼬리
+      // 방향을 화면 가로축에 놓아 정면 카메라에서 전체 실루엣이 보이게 한다.
+      loadedModel.rotation.y = Math.PI / 2;
       const bounds = new THREE.Box3().setFromObject(loadedModel);
       const center = bounds.getCenter(new THREE.Vector3());
       const size = bounds.getSize(new THREE.Vector3());
       loadedModel.position.sub(center);
       motionRoot.add(loadedModel);
 
-      const radius = Math.max(size.x, size.y, size.z) * 0.56;
-      camera.position.set(0, radius * 0.08, radius * 3.4);
+      // 깊이 최댓값이 아니라 화면에 투영되는 가로·세로 크기로 거리를 맞춘다.
+      const verticalFov = THREE.MathUtils.degToRad(camera.fov);
+      const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
+      const distanceForHeight = size.y / (2 * Math.tan(verticalFov / 2));
+      const distanceForWidth = size.x / (2 * Math.tan(horizontalFov / 2));
+      const cameraDistance = Math.max(distanceForHeight, distanceForWidth) * 1.18 + size.z * 0.5;
+      const motionAmount = Math.max(size.x, size.y) * 0.018;
+      camera.position.set(0, size.y * 0.04, cameraDistance);
       camera.lookAt(0, 0, 0);
-      camera.near = Math.max(0.01, radius * 0.01);
-      camera.far = radius * 12;
+      camera.near = Math.max(0.01, cameraDistance - size.z * 1.5);
+      camera.far = cameraDistance + size.z * 2;
       camera.updateProjectionMatrix();
 
       const animate = () => {
         if (disposed) return;
         const elapsed = clock.getElapsedTime();
-        motionRoot.position.y = Math.sin(elapsed * 4.2) * radius * 0.018;
+        motionRoot.position.y = Math.sin(elapsed * 4.2) * motionAmount;
         motionRoot.rotation.y = Math.sin(elapsed * 1.7) * 0.045;
         motionRoot.rotation.z = Math.sin(elapsed * 4.2) * 0.012;
         renderer.render(scene, camera);
         frame = window.requestAnimationFrame(animate);
       };
       animate();
+    }, undefined, (error) => {
+      console.error("스켈레톤 티라노 모델을 불러오지 못했습니다.", error);
     });
 
     return () => {
