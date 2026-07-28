@@ -14,6 +14,7 @@ import { io, type Socket } from "socket.io-client";
 import { randomUUID } from "node:crypto";
 import {
   DECORATION_VOTE_DURATION_MS,
+  PHASE_START_GRACE_MS,
   type BoneId,
   type ClientToServerEvents,
   type CoreZone,
@@ -115,6 +116,13 @@ async function runBotLoop(bot: Bot, board: Blackboard, log: (msg: string) => voi
       continue;
     }
     const now = Date.now();
+
+    // 사람 플레이어도 phase가 바뀔 때마다 PHASE_START_GRACE_MS 동안은 준비 화면만 보고
+    // 조작을 못 하므로(§SensorPermissionGate), 봇도 같은 시간만큼 가만히 있어야 공정하다.
+    if (now - team.phaseStartedAt < PHASE_START_GRACE_MS) {
+      await sleep(200);
+      continue;
+    }
 
     if (team.phase === "EXCAVATION") {
       if (now - lastExcavateAt >= EXCAVATE_TICK_MS) {

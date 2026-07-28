@@ -1,13 +1,13 @@
 /**
- * Plan.md §5.2. 라운드가 시작되고 SENSOR_PERMISSION_GRACE_MS 동안은 실제 조작 화면(발굴 등)
- * 대신 짧은 준비 화면을 보여준다. 센서 권한은 입장 폼 제출 시 이미 요청해뒀으므로
- * (§sensorPermissions) 버튼 없이 그냥 대기만 한다.
+ * Plan.md §5.2. 팀 phase가 바뀔 때마다(발굴→조립→영점연습→사격) 시작 후 PHASE_START_GRACE_MS
+ * 동안은 실제 조작 화면 대신 짧은 준비 화면을 보여준다. 센서 권한은 입장 폼 제출 시 이미
+ * 요청해뒀으므로(§sensorPermissions) 버튼 없이 그냥 대기만 한다.
  */
 
 import { useEffect, useState, type ReactNode } from "react";
-import { SENSOR_PERMISSION_GRACE_MS } from "@trex/shared";
+import { PHASE_START_GRACE_MS } from "@trex/shared";
 
-export function SensorPermissionGate({ roundStartedAt, children }: { roundStartedAt: number; children: ReactNode }): JSX.Element {
+export function SensorPermissionGate({ phaseStartedAt, children }: { phaseStartedAt: number; children: ReactNode }): JSX.Element {
   const [nowMs, setNowMs] = useState(() => Date.now());
 
   useEffect(() => {
@@ -15,14 +15,14 @@ export function SensorPermissionGate({ roundStartedAt, children }: { roundStarte
     return () => window.clearInterval(interval);
   }, []);
 
-  const elapsed = nowMs - roundStartedAt;
-  if (elapsed >= SENSOR_PERMISSION_GRACE_MS) return <>{children}</>;
+  const elapsed = nowMs - phaseStartedAt;
+  if (elapsed >= PHASE_START_GRACE_MS) return <>{children}</>;
 
-  const remainingSec = Math.max(0, Math.ceil((SENSOR_PERMISSION_GRACE_MS - elapsed) / 1000));
+  const remainingSec = Math.max(0, Math.ceil((PHASE_START_GRACE_MS - elapsed) / 1000));
 
   return (
     <div className="sensor-gate">
-      <p className="mobile-game__title">🎮 게임 시작 준비 중…</p>
+      <p className="mobile-game__title">🎮 준비 중…</p>
       <p className="mobile-game__hint">잠시만 기다려주세요.</p>
       <p className="sensor-gate__countdown">{remainingSec}초 후 시작</p>
     </div>

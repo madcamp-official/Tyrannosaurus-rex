@@ -1,21 +1,12 @@
-/** Plan.md §5.2, §6.3. 자이로/터치패드 조준 공통 파이프라인 + 발사. */
+/** Plan.md §5.2, §6.3. 자이로 전용 조준 파이프라인 + 발사(터치패드 모드는 제거). */
 
-import { useEffect, useRef, useState, type PointerEvent } from "react";
-import {
-  AIM_UPDATE_MAX_HZ,
-  CHARGING_PRACTICE_DURATION_MS,
-  SHOT_COOLDOWN_MS,
-  type AimMode,
-  type NormalizedPoint,
-  type SensorPermission,
-  type TeamState,
-} from "@trex/shared";
+import { useEffect, useRef, useState } from "react";
+import { AIM_UPDATE_MAX_HZ, CHARGING_PRACTICE_DURATION_MS, SHOT_COOLDOWN_MS, type NormalizedPoint, type SensorPermission, type TeamState } from "@trex/shared";
 import type { AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
 
-const GYRO_SENSITIVITY_DEG = 160; // 이만큼 기울이면 화면 절반 끝까지 이동 — 값이 클수록 덜 민감하다
+const GYRO_SENSITIVITY_DEG = 130; // 이만큼 기울이면 화면 절반 끝까지 이동 — 값이 클수록 덜 민감하다
 const LOW_PASS_ALPHA = 0.25;
-const TOUCHPAD_SENSITIVITY = 1.4;
 
 type OrientationPermissionApi = { requestPermission?: () => Promise<"granted" | "denied"> };
 
@@ -44,7 +35,6 @@ function usePracticeCountdown(active: boolean, phaseStartedAt: number): number {
 }
 
 export function AimControls({ socket, team, practice = false }: { socket: AppSocket; team?: TeamState; practice?: boolean }): JSX.Element {
-  const [aimMode, setAimMode] = useState<AimMode>("TOUCHPAD");
   const [orientationPermission, setOrientationPermission] = useState<SensorPermission>("UNKNOWN");
   const [calibrated, setCalibrated] = useState(false);
   const [point, setPoint] = useState<NormalizedPoint>({ x: 0.5, y: 0.5 });
@@ -55,7 +45,6 @@ export function AimControls({ socket, team, practice = false }: { socket: AppSoc
   pointRef.current = point;
   const zeroRef = useRef<{ beta: number; gamma: number } | null>(null);
   const filteredRef = useRef({ beta: 0, gamma: 0 });
-  const dragOriginRef = useRef<{ x: number; y: number } | null>(null);
   const seqRef = useRef(0);
 
   const practiceRemainingSec = usePracticeCountdown(practice, team?.phaseStartedAt ?? Date.now());
@@ -79,7 +68,7 @@ export function AimControls({ socket, team, practice = false }: { socket: AppSoc
   }, []);
 
   useEffect(() => {
-    if (aimMode !== "GYRO" || orientationPermission !== "GRANTED") return undefined;
+    if (orientationPermission !== "GRANTED") return undefined;
     const handleOrientation = (event: DeviceOrientationEvent) => {
       if (event.beta === null || event.gamma === null) return;
       if (!zeroRef.current) {
@@ -105,7 +94,7 @@ export function AimControls({ socket, team, practice = false }: { socket: AppSoc
     };
     window.addEventListener("deviceorientation", handleOrientation);
     return () => window.removeEventListener("deviceorientation", handleOrientation);
-  }, [aimMode, orientationPermission]);
+  }, [orientationPermission]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
@@ -113,43 +102,18 @@ export function AimControls({ socket, team, practice = false }: { socket: AppSoc
       socket.emit("aim:update", {
         seq: seqRef.current,
         point: pointRef.current,
-        mode: aimMode,
-        calibrated: aimMode === "GYRO" ? calibrated : true,
+        mode: "GYRO",
+        calibrated,
         clientTime: Date.now(),
       });
     }, 1000 / AIM_UPDATE_MAX_HZ);
     return () => window.clearInterval(interval);
-  }, [socket, aimMode, calibrated]);
-
-  const switchMode = (mode: AimMode) => {
-    setAimMode(mode);
-    setPoint({ x: 0.5, y: 0.5 });
-  };
+  }, [socket, calibrated]);
 
   const calibrate = () => {
     zeroRef.current = { ...filteredRef.current };
     setCalibrated(true);
     setPoint({ x: 0.5, y: 0.5 });
-  };
-
-  const handlePointerDown = (event: PointerEvent<HTMLDivElement>) => {
-    if (aimMode !== "TOUCHPAD") return;
-    dragOriginRef.current = { x: event.clientX, y: event.clientY };
-    event.currentTarget.setPointerCapture(event.pointerId);
-  };
-  const handlePointerMove = (event: PointerEvent<HTMLDivElement>) => {
-    if (aimMode !== "TOUCHPAD" || !dragOriginRef.current) return;
-    const dx = event.clientX - dragOriginRef.current.x;
-    const dy = event.clientY - dragOriginRef.current.y;
-    dragOriginRef.current = { x: event.clientX, y: event.clientY };
-    const rect = event.currentTarget.getBoundingClientRect();
-    setPoint((prev) => ({
-      x: clamp01(prev.x + (dx / rect.width) * TOUCHPAD_SENSITIVITY),
-      y: clamp01(prev.y + (dy / rect.height) * TOUCHPAD_SENSITIVITY),
-    }));
-  };
-  const handlePointerUp = () => {
-    dragOriginRef.current = null;
   };
 
   const fire = () => {
@@ -169,33 +133,18 @@ export function AimControls({ socket, team, practice = false }: { socket: AppSoc
         <p className="aim-controls__practice-banner">🎯 영점 조정 연습 중 · {practiceRemainingSec}초 뒤 사격 시작</p>
       )}
 
-      <div className="aim-controls__mode">
-        <button type="button" className={aimMode === "TOUCHPAD" ? "active" : ""} onClick={() => switchMode("TOUCHPAD")}>
-          터치패드
-        </button>
-        <button type="button" className={aimMode === "GYRO" ? "active" : ""} onClick={() => switchMode("GYRO")}>
-          자이로
-        </button>
-      </div>
-
-      {aimMode === "GYRO" && orientationPermission !== "GRANTED" && (
+      {orientationPermission !== "GRANTED" && (
         <p className="mobile-game__hint">
           {orientationPermission === "UNSUPPORTED" ? "이 기기는 자이로를 지원하지 않아요." : "자이로 권한이 필요해요."}
         </p>
       )}
-      {aimMode === "GYRO" && orientationPermission === "GRANTED" && (
+      {orientationPermission === "GRANTED" && (
         <button type="button" className="mobile-game__button" onClick={calibrate}>
           {calibrated ? "다시 영점 잡기" : "화면 중앙을 겨눈 뒤 영점 잡기"}
         </button>
       )}
 
-      <div
-        className={`aim-pad${lastResult === "HIT" ? " aim-pad--hit" : ""}${lastResult === "MISS" ? " aim-pad--miss" : ""}`}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerCancel={handlePointerUp}
-      >
+      <div className={`aim-pad${lastResult === "HIT" ? " aim-pad--hit" : ""}${lastResult === "MISS" ? " aim-pad--miss" : ""}`}>
         <div className="aim-pad__crosshair" style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }} />
       </div>
 
