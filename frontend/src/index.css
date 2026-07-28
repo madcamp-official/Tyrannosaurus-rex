@@ -1402,7 +1402,9 @@ body {
   bottom: 16%;
   font-size: clamp(2.2rem, 8vh, 3rem);
   transform: translateX(-50%) scaleX(-1);
-  transition: left 0.08s linear;
+  /* 위치는 매 애니메이션 프레임마다 델타 타임 기준으로 갱신되므로(§DinoRunControls),
+     여기서 또 CSS 트랜지션을 걸면 오히려 갱신을 뒤쫓아가며 렉처럼 보인다 — 트랜지션 없이
+     즉시 반영해야 실제로 부드럽다. */
   z-index: 1;
 }
 
@@ -1457,6 +1459,12 @@ body {
 
 .dino-view__timer {
   font-weight: 700;
+}
+
+.dino-view__phone-hint {
+  font-weight: 700;
+  color: #f5c542;
+  margin: 4px 0 10px;
 }
 
 .dino-view__grade {

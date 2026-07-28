@@ -18,9 +18,9 @@ import {
 import type { AppSocket } from "../socket";
 
 const FLASH_MS = 350;
-/** 화면 좌/우를 누르고 있는 동안 한 틱마다 이동하는 비율(0~1 기준). */
-const TAP_MOVE_STEP = 0.026;
-const TAP_MOVE_INTERVAL_MS = 16;
+/** 화면 좌/우를 누르고 있는 동안 초당 이동하는 비율(0~1 기준) — 매 프레임(rAF) 델타 타임에
+ * 비례해 갱신해서 인터벌 틱 단위로 끊기지 않고 부드럽게 이동한다. */
+const MOVE_SPEED_PER_SEC = 1.6;
 /** 과일 종류를 오브젝트 id로 결정적으로 골라 시각적으로 다양하게 보이게 한다. */
 const FRUIT_EMOJIS = ["🍎", "🍇", "🍓", "🍑", "🍉"];
 /**
@@ -51,7 +51,8 @@ export function DinoRunControls({
   const xRef = useRef(x);
   xRef.current = x;
   const seqRef = useRef(0);
-  const moveIntervalRef = useRef<number | null>(null);
+  const moveDirRef = useRef<0 | 1 | -1>(0);
+  const lastFrameRef = useRef(0);
   // 운석이 낙하를 시작하는 순간(처음 화면에 나타나는 시점) 공룡의 위치를 그대로 목표로
   // 고정해 서버 판정(§dinoMeteorLockState)과 같은 지점에 떨어지는 것처럼 보이게 한다.
   const meteorLockRef = useRef<Map<number, number>>(new Map());
@@ -88,39 +89,31 @@ export function DinoRunControls({
 
   useEffect(() => {
     let raf = 0;
+    lastFrameRef.current = performance.now();
     const loop = () => {
+      const frameNow = performance.now();
+      const dt = (frameNow - lastFrameRef.current) / 1000;
+      lastFrameRef.current = frameNow;
       setNowMs(Date.now());
+      // 인터벌 틱이 아니라 매 프레임 델타 타임에 비례해 이동시켜 끊김 없이 부드럽게 움직인다.
+      if (moveDirRef.current !== 0) {
+        setX((prev) => clamp01(prev + moveDirRef.current * MOVE_SPEED_PER_SEC * dt));
+      }
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
     return () => cancelAnimationFrame(raf);
   }, []);
 
-  const startMove = (direction: 1 | -1) => {
-    if (moveIntervalRef.current !== null) window.clearInterval(moveIntervalRef.current);
-    setX((prev) => clamp01(prev + direction * TAP_MOVE_STEP));
-    moveIntervalRef.current = window.setInterval(() => {
-      setX((prev) => clamp01(prev + direction * TAP_MOVE_STEP));
-    }, TAP_MOVE_INTERVAL_MS);
-  };
   const stopMove = () => {
-    if (moveIntervalRef.current !== null) {
-      window.clearInterval(moveIntervalRef.current);
-      moveIntervalRef.current = null;
-    }
+    moveDirRef.current = 0;
   };
-  useEffect(() => {
-    return () => {
-      if (moveIntervalRef.current !== null) window.clearInterval(moveIntervalRef.current);
-    };
-  }, []);
 
   // 화면(트랙) 오른쪽을 누르면 오른쪽, 왼쪽을 누르면 왼쪽으로 누르고 있는 동안 이동한다.
   const handleTrackPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    const direction: 1 | -1 = event.clientX - rect.left > rect.width / 2 ? 1 : -1;
+    moveDirRef.current = event.clientX - rect.left > rect.width / 2 ? 1 : -1;
     event.currentTarget.setPointerCapture(event.pointerId);
-    startMove(direction);
   };
 
   // 서버 phaseStartedAt(서버 시계)과 로컬 시계의 오차는 연출용으로만 쓴다 — 실제 판정은
@@ -196,7 +189,7 @@ export function DinoRunControls({
         </div>
         <div className="dino-run__ground" />
       </div>
-      <p className="mobile-game__hint">📺 모니터 화면을 보면서 왼쪽/오른쪽을 눌러 운석☄️은 피하고 과일·하트❤️는 잡으세요!</p>
+      <p className="mobile-game__hint">화면 왼쪽/오른쪽을 눌러 운석☄️은 피하고 과일·하트❤️는 잡으세요!</p>
     </div>
   );
 }

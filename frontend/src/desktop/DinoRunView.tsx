@@ -39,6 +39,7 @@ export function DinoRunTeamPanel({ team, players }: { team: TeamState; players: 
   return (
     <div className="dino-view">
       <p className="dino-view__timer">☄️ 운석 피하기 진행 중 — {remainingSec}초 남음</p>
+      <p className="dino-view__phone-hint">📱 이제 폰을 봐주세요! 폰 화면에서 운석을 피해요.</p>
       <ul className="excavation-view__players">
         {players.map((p) => {
           const lives = team.dinoRun.livesByPlayer[p.id] ?? METEOR_DODGE_LIVES;
