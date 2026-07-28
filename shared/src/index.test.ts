@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { roomCodeSchema, roomJoinRequestSchema } from "./events.js";
-import { BONE_IDS, boneCountForTeam } from "./index.js";
+import { BONE_IDS, boneCountForTeam, boneWaveSizes } from "./index.js";
 
 describe("shared contracts", () => {
   it("accepts a valid 4-digit room code", () => {
@@ -34,5 +34,15 @@ describe("shared contracts", () => {
     expect(boneCountForTeam(3)).toBe(12);
     expect(boneCountForTeam(4)).toBe(BONE_IDS.length);
     expect(boneCountForTeam(10)).toBe(BONE_IDS.length);
+  });
+
+  it("splits BONE_IDS.length bones across waves as evenly as possible, always summing to the full set", () => {
+    expect(boneWaveSizes(4)).toEqual([3, 3, 3, 4]);
+    expect(boneWaveSizes(1)).toEqual([13]);
+    expect(boneWaveSizes(13)).toEqual(Array(13).fill(1));
+    for (const waveCount of [1, 2, 3, 4, 5, 8, 13, 20]) {
+      const sizes = boneWaveSizes(waveCount);
+      expect(sizes.reduce((sum, n) => sum + n, 0)).toBe(BONE_IDS.length);
+    }
   });
 });

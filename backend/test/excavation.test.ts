@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BONE_IDS, boneCountForTeam, EXCAVATION_MAX_INPUTS_PER_SECOND, EXCAVATION_POINTS_PER_BONE, ROUND_TRANSITION_MS } from "@trex/shared";
+import { BONE_IDS, EXCAVATION_MAX_INPUTS_PER_SECOND, EXCAVATION_POINTS_PER_BONE, ROUND_TRANSITION_MS } from "@trex/shared";
 import { RoomManager } from "../src/rooms/RoomManager.js";
 import { makeBoneOrder } from "../src/game/excavation.js";
 
@@ -24,10 +24,9 @@ function digUntilDone(
   playerId: string,
   startNow: number,
 ): number {
-  const targetBoneCount = boneCountForTeam(room.state.teams[teamId].playerIds.length);
   let seq = 1;
   let now = startNow;
-  for (let i = 0; i < 200 && room.state.teams[teamId].excavation.discoveredBoneIds.length < targetBoneCount; i += 1) {
+  for (let i = 0; i < 200 && room.state.teams[teamId].excavation.discoveredBoneIds.length < BONE_IDS.length; i += 1) {
     now += 1000;
     rooms.applyExcavation(room, teamId, playerId, { seq: seq++, count: 5, sourceCounts: { motion: 5, tap: 0 }, clientTime: now }, now);
   }
@@ -112,9 +111,30 @@ describe("applyExcavation via RoomManager", () => {
 
     digUntilDone(rooms, room, "A", playerA, Date.now());
 
-    const expectedAwarded = expectedOrder.slice(0, boneCountForTeam(room.state.teams.A.playerIds.length));
-    expect(room.state.teams.A.excavation.discoveredBoneIds).toEqual(expectedAwarded);
+    // 인원이 적어도(팀당 1명) 뼈는 항상 13개 전부 나온다 — 웨이브당 여러 개씩 몰아서 나올 뿐.
+    expect(room.state.teams.A.excavation.discoveredBoneIds).toEqual(expectedOrder);
     expect(room.phaseDurations.A.excavationMs).not.toBeNull();
+  });
+
+  it("팀당 1명이면 4웨이브(3,3,3,4개)로 나눠 발굴하지만 결국 뼈 13개를 전부 모은다", () => {
+    const { rooms, room, playerA } = setupStartedRoom();
+    let seq = 1;
+    let now = Date.now();
+
+    // 첫 웨이브(60점) 미만: 아직 아무 뼈도 안 나온다.
+    now += 1000;
+    rooms.applyExcavation(room, "A", playerA, { seq: seq++, count: 5, sourceCounts: { motion: 5, tap: 0 }, clientTime: now }, now);
+    expect(room.state.teams.A.excavation.discoveredBoneIds).toHaveLength(0);
+
+    // 60점을 채우는 즉시 첫 웨이브가 한 번에 3개를 내준다 (4웨이브: 3,3,3,4).
+    while (room.state.teams.A.excavation.points < EXCAVATION_POINTS_PER_BONE) {
+      now += 1000;
+      rooms.applyExcavation(room, "A", playerA, { seq: seq++, count: 5, sourceCounts: { motion: 5, tap: 0 }, clientTime: now }, now);
+    }
+    expect(room.state.teams.A.excavation.discoveredBoneIds).toHaveLength(3);
+
+    digUntilDone(rooms, room, "A", playerA, now);
+    expect(room.state.teams.A.excavation.discoveredBoneIds).toHaveLength(BONE_IDS.length);
   });
 
   it("먼저 끝난 팀은 WIN으로 상대를 기다리고, 상대도 끝나면 LOSE 뒤 대기 시간 후 둘 다 ASSEMBLY로 전환된다", () => {

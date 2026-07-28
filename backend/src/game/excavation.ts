@@ -3,6 +3,7 @@
 import {
   BONE_IDS,
   boneCountForTeam,
+  boneWaveSizes,
   EXCAVATION_EVENT_FOSSIL_CHANCE,
   EXCAVATION_EVENT_GOLD_BONE_CHANCE,
   EXCAVATION_GOLD_BONE_POINT_DISCOUNT,
@@ -119,14 +120,25 @@ export function applyExcavateInput(
   const pointsAdded = consumeTeamBucket(state.teamBucket, playerAccepted, now);
   team.excavation.points += pointsAdded;
 
+  // 발굴 웨이브(포인트 임계값 통과) 수는 인원수에 맞춰 줄어들지만, 뼈는 항상 BONE_IDS.length
+  // 전부 나온다 — 웨이브가 적으면(인원이 적으면) 한 웨이브에 여러 개씩 몰아서 나온다
+  // (예: 1인 팀은 4웨이브에 [3,3,3,4]개씩).
   const boneOrder = room.boneOrder;
-  const targetBoneCount = boneCountForTeam(team.playerIds.length);
+  const waveSizes = boneWaveSizes(boneCountForTeam(team.playerIds.length));
+  let wavesCompleted = 0;
+  for (let sum = 0; wavesCompleted < waveSizes.length && sum < team.excavation.discoveredBoneIds.length; wavesCompleted += 1) {
+    sum += waveSizes[wavesCompleted]!;
+  }
   const boneAwards: BoneId[] = [];
-  while (team.excavation.points >= team.excavation.nextBoneAt && team.excavation.discoveredBoneIds.length < targetBoneCount) {
-    const boneId = boneOrder[team.excavation.discoveredBoneIds.length]!;
-    team.excavation.discoveredBoneIds.push(boneId);
+  while (team.excavation.points >= team.excavation.nextBoneAt && wavesCompleted < waveSizes.length) {
+    const waveSize = waveSizes[wavesCompleted]!;
+    for (let i = 0; i < waveSize; i += 1) {
+      const boneId = boneOrder[team.excavation.discoveredBoneIds.length]!;
+      team.excavation.discoveredBoneIds.push(boneId);
+      boneAwards.push(boneId);
+    }
     team.excavation.nextBoneAt += EXCAVATION_POINTS_PER_BONE;
-    boneAwards.push(boneId);
+    wavesCompleted += 1;
   }
 
   state.tick += 1;
@@ -140,7 +152,7 @@ export function applyExcavateInput(
     event = { kind: "GOLD_BONE", endsAt: null };
   }
 
-  const phaseCompleted = team.excavation.discoveredBoneIds.length >= targetBoneCount;
+  const phaseCompleted = team.excavation.discoveredBoneIds.length >= BONE_IDS.length;
 
   return { accepted: true, pointsAdded, boneAwards, event, phaseCompleted };
 }
