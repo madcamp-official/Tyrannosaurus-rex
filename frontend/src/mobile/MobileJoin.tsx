@@ -6,6 +6,7 @@ import type { Ack, PlayerId, RoomJoinResponse, RoomState, TeamId } from "@trex/s
 import { connectSocket, type AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
 import { useWakeLock } from "../util/useWakeLock";
+import { describeAckError } from "../util/errorMessages";
 import { ExcavationControls } from "./ExcavationControls";
 import { DinoRunControls } from "./DinoRunControls";
 import { AimControls } from "./AimControls";
@@ -77,7 +78,7 @@ export function MobileJoin(): JSX.Element {
         (ack: Ack<RoomJoinResponse>) => {
           if (!ack.ok) {
             setStatus("ERROR");
-            setError(ack.error.message);
+            setError(describeAckError(ack.error.code));
             return;
           }
           setPlayerId(ack.data.playerId);

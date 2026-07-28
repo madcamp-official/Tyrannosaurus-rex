@@ -24,6 +24,7 @@ import { connectSocket, type AppSocket } from "../socket";
 import { GodotStage, useGodotBridge } from "../godot/GodotStage";
 import { DebugPanel } from "../DebugPanel";
 import { newRequestId } from "../util/requestId";
+import { describeAckError } from "../util/errorMessages";
 import { PlayArea, type ChargingEphemeral } from "./PlayArea";
 import { ResultView } from "./ResultView";
 import {
@@ -292,7 +293,7 @@ export function DesktopLobby(): JSX.Element {
       (ack: Ack<RoomCreateResponse>) => {
         setCreating(false);
         if (!ack.ok) {
-          setStartError(ack.error.message);
+          setStartError(describeAckError(ack.error.code));
           return;
         }
         setJoinUrl(ack.data.joinUrl);
@@ -319,7 +320,7 @@ export function DesktopLobby(): JSX.Element {
   const handleStart = () => {
     setStartError(null);
     socketRef.current?.emit("game:start", { requestId: newRequestId() }, (ack: Ack<GameStartResponse>) => {
-      if (!ack.ok) setStartError(ack.error.message);
+      if (!ack.ok) setStartError(describeAckError(ack.error.code));
     });
   };
 
