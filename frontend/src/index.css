@@ -1826,9 +1826,13 @@ body {
 
 .dino-overlay__team h2 {
   margin: 0 0 12px;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   color: #fff8ec;
   font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
-  font-size: clamp(22px, 2.2vw, 32px);
   font-weight: 400;
   text-align: center;
 }
@@ -1846,13 +1850,14 @@ body {
   display: flex;
   align-items: center;
   min-width: 0;
-  gap: 9px;
-  padding: 8px 10px;
+  gap: clamp(4px, 0.55vw, 8px);
+  padding: 8px clamp(7px, 0.7vw, 10px);
   border-radius: 12px;
   background: rgba(0, 0, 0, 0.24);
   color: #fff8ec;
   font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
-  font-size: clamp(16px, 1.5vw, 21px);
+  font-size: clamp(12px, 1.15vw, 17px);
+  white-space: nowrap;
 }
 
 .dino-overlay__player--dead {
@@ -1867,15 +1872,15 @@ body {
 }
 
 .dino-overlay__player-name {
+  flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%;
-  overflow-wrap: anywhere;
+  white-space: nowrap;
 }
 
 .dino-overlay__player-score {
-  margin-left: auto;
+  flex: 0 0 auto;
   color: #f5c542;
   font-family: "JetBrains Mono", monospace;
   font-size: 0.78em;
@@ -1883,8 +1888,9 @@ body {
 }
 
 .dino-overlay__lives {
+  flex: 0 0 auto;
   color: #ff6464;
-  letter-spacing: 2px;
+  letter-spacing: clamp(0px, 0.12vw, 2px);
   white-space: nowrap;
 }
 
