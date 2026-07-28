@@ -5,6 +5,9 @@ signal pieces_ready(piece_ids: Array[String])
 
 const SKELETON_SCENE: PackedScene = preload("res://assets/models/trex_skeleton/skeleton.gltf")
 const MODEL_SCALE := 0.01
+## 발굴돼 흩어져 있는 동안(scatter)만 조각을 실제 조립 크기보다 키워서 잘 보이게 한다 —
+## 조립(snap)될 때는 target transform의 scale(1.0)로 다시 자연스럽게 줄어든다.
+const SCATTER_PIECE_SCALE := 1.8
 
 ## 퍼즐용 대형 조각 13개.
 ## 작은 발가락/척추뼈를 하나씩 떼지 않고, 사람이 한눈에 구분할 수 있는
@@ -83,6 +86,7 @@ func show_only_piece(piece_id: String) -> void:
 			# 각 조각의 pivot이 자체 bounds 중심이므로 원점에 놓아도 자연스럽게 회전한다.
 			piece.position = Vector3.ZERO
 			piece.rotation = Vector3.ZERO
+			piece.scale = Vector3.ONE
 
 ## radius_meters 기본값(6.0)은 GroundDig.PILE_RING_OUTER(5.2)보다 바깥이라, 발굴된 뼈가
 ## 구덩이는 물론 그 주위에 쌓이는 흙 둔덕 너머 평평한 자리에 놓인다.
@@ -108,6 +112,7 @@ func scatter(seed_value: int = 0, radius_meters: float = 6.0) -> void:
 			rng.randf_range(-PI, PI),
 			rng.randf_range(-0.35, 0.35)
 		)
+		piece.scale = Vector3.ONE * SCATTER_PIECE_SCALE
 
 func set_piece_pose(piece_id: String, pose: Transform3D) -> void:
 	var piece := get_piece(piece_id)
