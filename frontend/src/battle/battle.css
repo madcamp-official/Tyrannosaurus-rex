@@ -198,6 +198,7 @@
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.5);
   color: var(--a-light);
+  white-space: nowrap;
 }
 
 .battle-crosshair--b .battle-crosshair__label {

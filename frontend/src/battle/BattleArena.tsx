@@ -25,6 +25,7 @@ function pct(n: number): string {
 
 interface AllPlayer {
   id: string;
+  name: string;
   team: TeamId;
   index: number;
 }
@@ -45,8 +46,8 @@ export function BattleArena({
 
   const allPlayers: AllPlayer[] = useMemo(
     () => [
-      ...battle.teamA.players.map((p, i) => ({ id: p.id, team: "A" as const, index: i })),
-      ...battle.teamB.players.map((p, i) => ({ id: p.id, team: "B" as const, index: i })),
+      ...battle.teamA.players.map((p, i) => ({ id: p.id, name: p.name, team: "A" as const, index: i })),
+      ...battle.teamB.players.map((p, i) => ({ id: p.id, name: p.name, team: "B" as const, index: i })),
     ],
     [battle.teamA.players, battle.teamB.players],
   );
@@ -100,7 +101,7 @@ export function BattleArena({
             style={{ left: pct(point[0]), top: pct(point[1]) }}
           >
             <span className="battle-crosshair__ring" />
-            <span className="battle-crosshair__label">P{p.index + 1}</span>
+            <span className="battle-crosshair__label">{p.name}</span>
           </div>
         );
       })}
