@@ -498,6 +498,8 @@ export class RoomManager {
     const teamB = room.state.teams.B;
     if (
       room.dinoRunTransitionAt === null &&
+      teamA.phase === "ASSEMBLY" &&
+      teamB.phase === "ASSEMBLY" &&
       teamA.dinoRun.result === null &&
       teamA.dinoRun.performance !== null &&
       teamB.dinoRun.performance !== null
@@ -530,7 +532,12 @@ export class RoomManager {
 
     for (const teamId of TEAM_IDS) {
       const team = room.state.teams[teamId];
+      // performance까지 같이 null로 되돌려야 한다 — result만 지우면 finishDinoRunIfNeeded의
+      // "이미 평가함" 가드(performance !== null)가 계속 참으로 남아, 바로 다음 틱에 tickDinoRun의
+      // WIN/LOSE 비교 블록이 phase 체크 없이 재실행되어 전환이 중복 발생했었다.
       team.dinoRun.result = null;
+      team.dinoRun.performance = null;
+      team.dinoRun.grade = null;
       team.phase = "CHARGING";
       team.phaseStartedAt = now;
       team.phaseEndsAt = now + CHARGING_DURATION_MS;

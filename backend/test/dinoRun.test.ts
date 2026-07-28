@@ -121,10 +121,18 @@ describe("dino run", () => {
       expect(room.state.teams[teamId].phase).toBe("CHARGING");
       expect(room.state.teams[teamId].phaseEndsAt).not.toBeNull();
       expect(room.state.teams[teamId].dinoRun.result).toBeNull();
+      expect(room.state.teams[teamId].dinoRun.performance).toBeNull();
     }
     expect(room.state.teams.A.charging.stability).toBe(100);
     expect(room.state.teams.B.charging.stability).toBe(CHARGING_START_STABILITY_BASE);
     expect(room.phaseDurations.A.assemblyMs).not.toBeNull();
+
+    // 회귀 방지: 전환 직후 다음 틱에서 tickDinoRun을 다시 불러도 이미 CHARGING으로 넘어간
+    // 팀을 대상으로 WIN/LOSE 비교·재전환이 다시 예약되면 안 된다 (phaseEndsAt이 계속
+    // 밀리는 버그였다).
+    const rechecked = rooms.tickDinoRun(room, evalNow + ROUND_TRANSITION_MS + 200);
+    expect(rechecked.teamResults).toEqual([]);
+    expect(room.dinoRunTransitionAt).toBeNull();
   });
 
   it("marks both teams DRAW when clear rates tie", () => {
