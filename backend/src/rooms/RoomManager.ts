@@ -8,6 +8,7 @@ import {
   EXCAVATION_DRAW_WINDOW_MS,
   EXCAVATION_POINTS_PER_BONE,
   GAME_SCORE_MAX,
+  METEOR_DODGE_LIVES,
   MIN_PLAYERS,
   NICKNAME_MAX_LENGTH,
   NICKNAME_MIN_LENGTH,
@@ -25,6 +26,7 @@ import {
   type BoneId,
   type CoreZone,
   type DecorationCategory,
+  type DinoPositionInput,
   type ExcavateInput,
   type PlayerId,
   type PublicPlayer,
@@ -43,13 +45,13 @@ import {
   type ExcavationRoomState,
 } from "../game/excavation.js";
 import {
-  applyDinoJump,
-  checkDinoDeaths,
+  applyDinoPosition,
   finishChargingPracticeIfNeeded,
   finishDinoRunIfNeeded,
-  makeObstacleSchedule,
+  makeSkyObjectSchedule,
+  tickSkyCollisions,
   type DinoFinishResult,
-  type DinoJumpOutcome,
+  type SkyCollisionEvent,
 } from "../game/dinoRun.js";
 import { applyAimUpdate, type AimState } from "../game/aim.js";
 import {
@@ -99,6 +101,8 @@ export type RoomRecord = {
   sharedTrexStartedAt: number | null;
   /** 플레이어별 최신 유효 조준 좌표 (§17.9). */
   aimState: Map<PlayerId, AimState>;
+  /** 플레이어별 최신 좌우 위치(운석 피하기, 0~1). */
+  dinoPositionState: Map<PlayerId, { x: number; lastSeq: number; receivedAt: number }>;
   /** 플레이어별 발사 쿨다운·shotId 중복 방지 상태 (§17.10). */
   shotTracking: Map<PlayerId, ShotTracking>;
   /** 결과 화면에서 박물관 저장까지의 대기 창. 투표 기능은 없고 시간 경과만 확인한다. */
@@ -119,7 +123,16 @@ function resetTeamGameplayState(team: TeamState, now: number): void {
     fossils: 0,
     result: null,
   };
-  team.dinoRun = { obstacleOffsetsMs: [], clearedByPlayer: {}, deadPlayerIds: [], performance: null, grade: null, result: null };
+  team.dinoRun = {
+    skyObjects: [],
+    livesByPlayer: {},
+    scoreByPlayer: {},
+    resolvedObjectIdsByPlayer: {},
+    deadPlayerIds: [],
+    performance: null,
+    grade: null,
+    result: null,
+  };
   team.charging = {
     energy: 0,
     stability: 100,
@@ -138,7 +151,16 @@ function makeEmptyTeamState(teamId: TeamId, now: number): TeamState {
     phaseEndsAt: null,
     playerIds: [],
     excavation: { points: 0, nextBoneAt: EXCAVATION_POINTS_PER_BONE, discoveredBoneIds: [], fossils: 0, result: null },
-    dinoRun: { obstacleOffsetsMs: [], clearedByPlayer: {}, deadPlayerIds: [], performance: null, grade: null, result: null },
+    dinoRun: {
+      skyObjects: [],
+      livesByPlayer: {},
+      scoreByPlayer: {},
+      resolvedObjectIdsByPlayer: {},
+      deadPlayerIds: [],
+      performance: null,
+      grade: null,
+      result: null,
+    },
     charging: { energy: 0, stability: 100, activeCore: "HEART", coreChangesAt: 0, form: "NONE" },
     scores: { excavation: null, dinoRun: null, charging: null },
   };
@@ -254,6 +276,7 @@ export class RoomManager {
       chargingStartedAt: { A: null, B: null },
       sharedTrexStartedAt: null,
       aimState: new Map(),
+      dinoPositionState: new Map(),
       shotTracking: new Map(),
       ...makeVoteState(),
     };
@@ -368,6 +391,7 @@ export class RoomManager {
     room.chargingStartedAt = { A: null, B: null };
     room.sharedTrexStartedAt = null;
     room.aimState = new Map();
+    room.dinoPositionState = new Map();
     room.shotTracking = new Map();
     Object.assign(room, makeVoteState());
     for (const teamId of TEAM_IDS) {
@@ -448,7 +472,7 @@ export class RoomManager {
     return { ...result, teamResults };
   }
 
-  /** 두 팀 다 발굴을 끝내고 대기 시간이 지나면, 함께 다이노런으로 전환한다. */
+  /** 두 팀 다 발굴을 끝내고 대기 시간이 지나면, 함께 운석 피하기(ASSEMBLY)로 전환한다. */
   tickExcavationTransition(room: RoomRecord, now: number): boolean {
     if (room.excavationTransitionAt === null || now < room.excavationTransitionAt) return false;
 
@@ -458,8 +482,11 @@ export class RoomManager {
       team.phase = "ASSEMBLY";
       team.phaseStartedAt = now;
       team.phaseEndsAt = now + DINO_RUN_DURATION_MS;
-      // 장애물 스케줄은 라운드 시드에서 파생되어 양 팀이 항상 동일하다 (§4).
-      team.dinoRun.obstacleOffsetsMs = makeObstacleSchedule(room.roundSeed ?? room.state.roomCode);
+      // 낙하 오브젝트 스케줄은 라운드 시드에서 파생되어 양 팀이 항상 동일하다 (§4).
+      team.dinoRun.skyObjects = makeSkyObjectSchedule(room.roundSeed ?? room.state.roomCode);
+      for (const playerId of team.playerIds) {
+        team.dinoRun.livesByPlayer[playerId] = METEOR_DODGE_LIVES;
+      }
     }
     room.excavationTransitionAt = null;
     this.touch(room);
@@ -474,22 +501,22 @@ export class RoomManager {
     return Math.round(GAME_SCORE_MAX * (1 - elapsedRatio));
   }
 
-  /** §17.6 다이노런 점프. 고빈도라 revision은 올리지 않는다 (클리어 현황은 델타 이벤트로 전파). */
-  applyDinoJumpInput(room: RoomRecord, teamId: TeamId, playerId: PlayerId, now: number): DinoJumpOutcome {
-    const outcome = applyDinoJump(room, teamId, playerId, now);
-    if (outcome.accepted) this.touch(room);
-    return outcome;
+  /** §17.6 운석 피하기 좌우 위치. 고빈도라 revision은 올리지 않는다 (판정 결과는 델타 이벤트로 전파). */
+  applyDinoPositionInput(room: RoomRecord, teamId: TeamId, playerId: PlayerId, input: DinoPositionInput, now: number): boolean {
+    const accepted = applyDinoPosition(room, teamId, playerId, input, now);
+    if (accepted) this.touch(room);
+    return accepted;
   }
 
-  /** 판정 창이 지나도록 못 넘은 장애물이 있으면 그 플레이어를 탈락시킨다. 새로 탈락한 목록을 돌려준다. */
-  tickDinoDeaths(room: RoomRecord, now: number): Array<{ teamId: TeamId; playerId: PlayerId }> {
-    const died: Array<{ teamId: TeamId; playerId: PlayerId }> = [];
+  /** 낙하 시각이 지난 오브젝트를 판정한다(운석 명중/보너스 획득/탈락). 팀별 이벤트를 돌려준다. */
+  tickDinoCollisions(room: RoomRecord, now: number): Array<{ teamId: TeamId; event: SkyCollisionEvent }> {
+    const results: Array<{ teamId: TeamId; event: SkyCollisionEvent }> = [];
     for (const teamId of TEAM_IDS) {
-      const newlyDead = checkDinoDeaths(room, teamId, now);
-      for (const playerId of newlyDead) died.push({ teamId, playerId });
-      if (newlyDead.length > 0) this.touch(room);
+      const events = tickSkyCollisions(room, teamId, now);
+      for (const event of events) results.push({ teamId, event });
+      if (events.length > 0) this.touch(room);
     }
-    return died;
+    return results;
   }
 
   /**

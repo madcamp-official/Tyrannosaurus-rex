@@ -27,23 +27,31 @@ export const EXCAVATION_TEAM_OVERFLOW_EFFICIENCY = 0.5;
 export const EXCAVATION_EVENT_FOSSIL_CHANCE = 0.1;
 export const EXCAVATION_EVENT_GOLD_BONE_CHANCE = 0.05;
 
-// Plan.md §6.2 골격 조립 다이노런.
-export const DINO_RUN_DURATION_MS = 30_000;
-export const DINO_OBSTACLE_COUNT = 18;
-export const DINO_JUMP_WINDOW_MS = 450; // 장애물 시각 ±이 값 안의 점프만 클리어
-// 탈락 판정은 클리어 판정 창이 닫힌 뒤에도 이 시간만큼 더 기다린다 — 네트워크 지연으로
-// 창 끝자락에 보낸 점프가 늦게 도착해도 억울하게 죽지 않도록 하는 유예 시간.
-export const DINO_DEATH_GRACE_MS = 500;
-export const DINO_JUMP_MAX_PER_SECOND = 3;
-export const DINO_OBSTACLE_MIN_OFFSET_MS = 5_000; // 시작 5초는 장애물 없이 몸풀기 구간
-// 18개 장애물을 더 좁은 구간에 더 촘촘한 간격으로 몰아넣어 전체 페이스를 빠르게 한다.
-export const DINO_OBSTACLE_MAX_OFFSET_MS = 21_000;
-export const DINO_OBSTACLE_MIN_GAP_MS = 900;
-// 조립 평가 등급 경계 (클리어율)
+// Plan.md §6.2 골격 조립 단계 — 다이노런(장애물 점프) 대신 하늘에서 떨어지는 운석을
+// 피하는 미니게임으로 바뀌었다. phase 이름(ASSEMBLY)·타입 이름(DinoRunState 등)은
+// 리네임 범위를 줄이기 위해 그대로 두고 내부 메커닉만 교체했다.
+export const DINO_RUN_DURATION_MS = 60_000; // 1분
+export const METEOR_DODGE_LIVES = 3; // 운석에 3번 맞으면 탈락
+export const METEOR_HIT_SCORE_PENALTY = 15; // 운석에 맞을 때마다 깎이는 점수
+export const METEOR_BONUS_SCORE_REWARD = 20; // 보너스 아이템을 잡으면 얻는 점수
+// 좌우 위치(0~1) 기준 충돌 판정 반경 — 이 안에 있으면 맞은(또는 잡은) 것으로 인정한다.
+export const SKY_OBJECT_COLLISION_RADIUS = 0.09;
+export const SKY_OBJECT_COUNT = 24; // 1분 동안 떨어지는 운석+아이템 총 개수
+export const SKY_OBJECT_BONUS_CHANCE = 0.18; // 이 중 보너스 아이템일 확률
+export const SKY_OBJECT_MIN_OFFSET_MS = 3_000; // 시작 3초는 아무것도 안 떨어지는 몸풀기 구간
+export const SKY_OBJECT_MAX_OFFSET_MS = 57_000;
+export const SKY_OBJECT_MIN_GAP_MS = 1_200;
+// 오브젝트가 화면 위에서 판정 지점까지 떨어지는 데 걸리는 시간(연출용).
+export const SKY_OBJECT_FALL_MS = 1_800;
+// 좌우 위치 보고 빈도 상한(자이로 기울임 → 서버 전송).
+export const DINO_POSITION_UPDATE_MAX_HZ = 20;
+// 팀 성능(0~1) 정규화 기준 — 팀원 1인이 이 점수를 내면 만점으로 친다.
+export const METEOR_DODGE_REFERENCE_SCORE_PER_PLAYER = 120;
+// 조립 평가 등급 경계 (팀 성능 0~1 기준)
 export const DINO_GRADE_PERFECT = 0.85;
 export const DINO_GRADE_GOOD = 0.6;
 export const DINO_GRADE_CLUMSY = 0.3;
-// 충전 시작 안정도 = BASE + RANGE × 클리어율
+// 충전 시작 안정도 = BASE + RANGE × 성능
 export const CHARGING_START_STABILITY_BASE = 40;
 export const CHARGING_START_STABILITY_RANGE = 60;
 

@@ -1,106 +1,133 @@
-/** Plan.md §6.2. 골격 조립 다이노런: 시드 기반 장애물 스케줄과 서버 권위 점프 판정. */
+/**
+ * Plan.md §6.2. 골격 조립 단계 — 다이노런(장애물 점프) 대신 하늘에서 떨어지는 운석을
+ * 피하고 보너스 아이템을 잡는 미니게임. phase 이름(ASSEMBLY)과 타입 이름(DinoRunState 등)은
+ * 리네임 범위를 줄이기 위해 그대로 두고 내부 메커닉만 교체했다.
+ */
 
 import {
   CHARGING_DURATION_MS,
-  CHARGING_PRACTICE_DURATION_MS,
   CHARGING_START_STABILITY_BASE,
   CHARGING_START_STABILITY_RANGE,
-  DINO_DEATH_GRACE_MS,
   DINO_GRADE_CLUMSY,
   DINO_GRADE_GOOD,
   DINO_GRADE_PERFECT,
-  DINO_JUMP_WINDOW_MS,
-  DINO_OBSTACLE_COUNT,
-  DINO_OBSTACLE_MAX_OFFSET_MS,
-  DINO_OBSTACLE_MIN_GAP_MS,
-  DINO_OBSTACLE_MIN_OFFSET_MS,
+  METEOR_BONUS_SCORE_REWARD,
+  METEOR_DODGE_LIVES,
+  METEOR_DODGE_REFERENCE_SCORE_PER_PLAYER,
+  METEOR_HIT_SCORE_PENALTY,
+  SKY_OBJECT_BONUS_CHANCE,
+  SKY_OBJECT_COLLISION_RADIUS,
+  SKY_OBJECT_COUNT,
+  SKY_OBJECT_MAX_OFFSET_MS,
+  SKY_OBJECT_MIN_GAP_MS,
+  SKY_OBJECT_MIN_OFFSET_MS,
+  type DinoPositionInput,
   type DinoRunGrade,
   type PlayerId,
+  type SkyObject,
   type TeamId,
 } from "@trex/shared";
 import type { RoomRecord } from "../rooms/RoomManager.js";
 import { seededRandom01 } from "./seededRandom.js";
 
-/** 1보다 작을수록 뒤로 갈수록 장애물 간격이 좁아져 "점점 빨라지는" 느낌을 준다. */
-const DINO_SPEEDUP_CURVE = 0.35;
-
 /**
- * 라운드 시드로 장애물 오프셋을 생성한다. 양 팀이 같은 스케줄을 공유한다(§4 공정성).
- * [MIN, MAX] 구간을 지수 곡선(<1승)으로 나눠 초반엔 널널하고 후반으로 갈수록 장애물이
- * 촘촘해지게 만든 뒤 시드 지터를 더하고, 최소 간격 미만이면 뒤로 밀어 보정한다.
- * 지터 폭도 진행률에 비례해 커지게 해서, 후반부일수록 간격이 더 불규칙해지게 한다.
+ * 라운드 시드로 낙하 오브젝트 스케줄을 생성한다. 양 팀이 같은 스케줄을 공유한다(§4 공정성).
+ * [MIN, MAX] 구간에 균등 간격 + 지터로 뿌린 뒤 최소 간격 미만이면 뒤로 밀어 보정하고,
+ * 각 오브젝트의 좌우 위치·종류(운석/보너스)를 시드 기반으로 정한다.
  */
-export function makeObstacleSchedule(seed: string): number[] {
-  const span = DINO_OBSTACLE_MAX_OFFSET_MS - DINO_OBSTACLE_MIN_OFFSET_MS;
+export function makeSkyObjectSchedule(seed: string): SkyObject[] {
+  const span = SKY_OBJECT_MAX_OFFSET_MS - SKY_OBJECT_MIN_OFFSET_MS;
   const offsets: number[] = [];
-  for (let i = 0; i < DINO_OBSTACLE_COUNT; i += 1) {
-    const t = i / (DINO_OBSTACLE_COUNT - 1);
-    const eased = Math.pow(t, DINO_SPEEDUP_CURVE);
-    const jitterMax = DINO_OBSTACLE_MIN_GAP_MS * (0.2 + 0.7 * t);
-    const jitter = (seededRandom01(`${seed}:dino`, i) - 0.5) * jitterMax;
-    offsets.push(Math.round(DINO_OBSTACLE_MIN_OFFSET_MS + span * eased + jitter));
+  for (let i = 0; i < SKY_OBJECT_COUNT; i += 1) {
+    const t = i / (SKY_OBJECT_COUNT - 1);
+    const jitter = (seededRandom01(`${seed}:sky`, i) - 0.5) * SKY_OBJECT_MIN_GAP_MS * 0.6;
+    offsets.push(Math.round(SKY_OBJECT_MIN_OFFSET_MS + span * t + jitter));
   }
   for (let i = 1; i < offsets.length; i += 1) {
-    if (offsets[i]! - offsets[i - 1]! < DINO_OBSTACLE_MIN_GAP_MS) {
-      offsets[i] = offsets[i - 1]! + DINO_OBSTACLE_MIN_GAP_MS;
+    if (offsets[i]! - offsets[i - 1]! < SKY_OBJECT_MIN_GAP_MS) {
+      offsets[i] = offsets[i - 1]! + SKY_OBJECT_MIN_GAP_MS;
     }
   }
-  return offsets;
+  return offsets.map((hitAtMs, i) => {
+    const x = seededRandom01(`${seed}:skyX`, i);
+    const kind = seededRandom01(`${seed}:skyKind`, i) < SKY_OBJECT_BONUS_CHANCE ? "BONUS" : "METEOR";
+    return { id: i, hitAtMs, x, kind };
+  });
 }
 
-export type DinoJumpOutcome =
-  | { accepted: false; reason: "WRONG_TEAM_PHASE" | "PLAYER_DEAD" }
-  | { accepted: true; cleared: boolean; obstacleIndex: number | null; clearedCount: number };
-
-/** 점프 수신 시각이 판정 창 안의 미클리어 장애물과 겹치면 클리어로 기록한다. */
-export function applyDinoJump(room: RoomRecord, teamId: TeamId, playerId: PlayerId, now: number): DinoJumpOutcome {
+/** 플레이어의 좌우 위치를 최신값으로 기록한다 (조준과 같은 패턴 — 고빈도, 상태만 갱신). */
+export function applyDinoPosition(
+  room: RoomRecord,
+  teamId: TeamId,
+  playerId: PlayerId,
+  input: DinoPositionInput,
+  now: number,
+): boolean {
   const team = room.state.teams[teamId];
-  if (team.phase !== "ASSEMBLY") return { accepted: false, reason: "WRONG_TEAM_PHASE" };
-  if (team.dinoRun.deadPlayerIds.includes(playerId)) return { accepted: false, reason: "PLAYER_DEAD" };
-
-  const cleared = team.dinoRun.clearedByPlayer[playerId] ?? (team.dinoRun.clearedByPlayer[playerId] = []);
-  const elapsed = now - team.phaseStartedAt;
-
-  let hitIndex: number | null = null;
-  for (let i = 0; i < team.dinoRun.obstacleOffsetsMs.length; i += 1) {
-    if (cleared.includes(i)) continue;
-    if (Math.abs(elapsed - team.dinoRun.obstacleOffsetsMs[i]!) <= DINO_JUMP_WINDOW_MS) {
-      hitIndex = i;
-      break;
-    }
-  }
-
-  if (hitIndex !== null) {
-    cleared.push(hitIndex);
-    const player = room.state.players.find((p) => p.id === playerId);
-    if (player) player.stats.dinoCleared += 1;
-  }
-  return { accepted: true, cleared: hitIndex !== null, obstacleIndex: hitIndex, clearedCount: cleared.length };
+  if (team.phase !== "ASSEMBLY") return false;
+  if (team.dinoRun.deadPlayerIds.includes(playerId)) return false;
+  const existing = room.dinoPositionState.get(playerId);
+  if (existing && input.seq <= existing.lastSeq) return false;
+  room.dinoPositionState.set(playerId, { x: input.x, lastSeq: input.seq, receivedAt: now });
+  return true;
 }
+
+export type SkyCollisionEvent =
+  | { kind: "HIT"; playerId: PlayerId; objectId: number; livesLeft: number; score: number; x: number }
+  | { kind: "BONUS"; playerId: PlayerId; objectId: number; score: number; x: number }
+  | { kind: "DEATH"; playerId: PlayerId };
 
 /**
- * 판정 창이 완전히 지났는데 클리어 못한 장애물이 하나라도 있으면 그 플레이어를 탈락시킨다
- * (1회 피격 = 탈락). 탈락한 플레이어는 이후 점프해도 인정되지 않지만, 남은 팀원과 30초
- * 타이머는 계속 진행된다.
+ * 낙하 시각이 지났지만 아직 판정 안 한 오브젝트를 팀원별로 판정한다. 운석에 맞으면 목숨을
+ * 깎고 점수를 감점, 목숨이 0이 되면 탈락시킨다(§METEOR_DODGE_LIVES). 보너스를 잡으면
+ * 점수를 더한다. 판정은 플레이어의 가장 최근 위치(dino:position) 기준이며, 위치를 한
+ * 번도 안 보낸 플레이어는 화면 중앙(0.5)에 있다고 본다.
  */
-export function checkDinoDeaths(room: RoomRecord, teamId: TeamId, now: number): PlayerId[] {
+export function tickSkyCollisions(room: RoomRecord, teamId: TeamId, now: number): SkyCollisionEvent[] {
   const team = room.state.teams[teamId];
   if (team.phase !== "ASSEMBLY") return [];
 
   const elapsed = now - team.phaseStartedAt;
-  const newlyDead: PlayerId[] = [];
-  for (const playerId of team.playerIds) {
-    if (team.dinoRun.deadPlayerIds.includes(playerId)) continue;
-    const cleared = team.dinoRun.clearedByPlayer[playerId] ?? [];
-    const missedAnObstacle = team.dinoRun.obstacleOffsetsMs.some(
-      (offsetMs, index) => !cleared.includes(index) && elapsed > offsetMs + DINO_JUMP_WINDOW_MS + DINO_DEATH_GRACE_MS,
-    );
-    if (missedAnObstacle) {
-      team.dinoRun.deadPlayerIds.push(playerId);
-      newlyDead.push(playerId);
+  const events: SkyCollisionEvent[] = [];
+
+  for (const obj of team.dinoRun.skyObjects) {
+    if (elapsed < obj.hitAtMs) continue;
+    for (const playerId of team.playerIds) {
+      if (team.dinoRun.deadPlayerIds.includes(playerId)) continue;
+      const resolved =
+        team.dinoRun.resolvedObjectIdsByPlayer[playerId] ?? (team.dinoRun.resolvedObjectIdsByPlayer[playerId] = []);
+      if (resolved.includes(obj.id)) continue;
+      resolved.push(obj.id);
+
+      const playerX = room.dinoPositionState.get(playerId)?.x ?? 0.5;
+      const overlap = Math.abs(playerX - obj.x) <= SKY_OBJECT_COLLISION_RADIUS;
+      const player = room.state.players.find((p) => p.id === playerId);
+
+      if (obj.kind === "METEOR") {
+        if (!overlap) {
+          // 성공적으로 피함 — MVP 집계용 카운터만 올린다(브로드캐스트할 만한 이벤트는 아님).
+          if (player) player.stats.dinoCleared += 1;
+          continue;
+        }
+        const livesLeft = Math.max(0, (team.dinoRun.livesByPlayer[playerId] ?? METEOR_DODGE_LIVES) - 1);
+        team.dinoRun.livesByPlayer[playerId] = livesLeft;
+        const score = (team.dinoRun.scoreByPlayer[playerId] ?? 0) - METEOR_HIT_SCORE_PENALTY;
+        team.dinoRun.scoreByPlayer[playerId] = score;
+        events.push({ kind: "HIT", playerId, objectId: obj.id, livesLeft, score, x: obj.x });
+        if (livesLeft <= 0) {
+          team.dinoRun.deadPlayerIds.push(playerId);
+          events.push({ kind: "DEATH", playerId });
+        }
+      } else {
+        if (!overlap) continue; // 보너스는 못 잡아도 페널티 없음 — 조용히 지나간다.
+        if (player) player.stats.dinoCleared += 1;
+        const score = (team.dinoRun.scoreByPlayer[playerId] ?? 0) + METEOR_BONUS_SCORE_REWARD;
+        team.dinoRun.scoreByPlayer[playerId] = score;
+        events.push({ kind: "BONUS", playerId, objectId: obj.id, score, x: obj.x });
+      }
     }
   }
-  return newlyDead;
+  return events;
 }
 
 export function gradeForPerformance(performance: number): DinoRunGrade {
@@ -113,11 +140,11 @@ export function gradeForPerformance(performance: number): DinoRunGrade {
 export type DinoFinishResult = { performance: number; grade: DinoRunGrade; startStability: number };
 
 /**
- * 30초가 지났으면 팀 클리어율로 조립을 평가한다. 아직 CHARGING으로 넘기지는 않는다 —
- * 상대 팀도 끝나야 WIN/LOSE/DRAW가 정해지고, 그 뒤 대기 시간이 지나야 두 팀이 함께
- * CHARGING_PRACTICE(영점 조정 연습)로 전환된다 (실제 전환은 RoomManager.tickDinoRunTransition이 처리).
- * 클리어율 = 팀 전체 클리어 수 ÷ (장애물 수 × 팀원 수) — 인원과 무관하게 공정하다.
- * 실제 CHARGING(사격 유효)은 연습이 끝나는 시점에 finishChargingPracticeIfNeeded가 시작한다.
+ * 1분이 지났으면 팀 점수 합을 정규화해 성능(0~1)을 평가한다. 아직 CHARGING으로 넘기지는
+ * 않는다 — 상대 팀도 끝나야 WIN/LOSE/DRAW가 정해지고, 그 뒤 대기 시간이 지나야 두 팀이
+ * 함께 CHARGING_PRACTICE(영점 조정 연습)로 전환된다 (실제 전환은
+ * RoomManager.tickDinoRunTransition이 처리). 성능 = 팀 점수 합 ÷ (인원수 ×
+ * METEOR_DODGE_REFERENCE_SCORE_PER_PLAYER) — 인원과 무관하게 공정하다.
  */
 export function finishDinoRunIfNeeded(room: RoomRecord, teamId: TeamId, now: number): DinoFinishResult | null {
   const team = room.state.teams[teamId];
@@ -126,9 +153,9 @@ export function finishDinoRunIfNeeded(room: RoomRecord, teamId: TeamId, now: num
   // 이미 평가를 끝내고 상대 팀을 기다리는 중 — 매 틱마다 다시 평가하지 않는다.
   if (team.dinoRun.performance !== null) return null;
 
-  const totalCleared = Object.values(team.dinoRun.clearedByPlayer).reduce((sum, list) => sum + list.length, 0);
-  const possible = team.dinoRun.obstacleOffsetsMs.length * Math.max(1, team.playerIds.length);
-  const performance = Math.min(1, totalCleared / possible);
+  const totalScore = Object.values(team.dinoRun.scoreByPlayer).reduce((sum, score) => sum + score, 0);
+  const referenceMax = METEOR_DODGE_REFERENCE_SCORE_PER_PLAYER * Math.max(1, team.playerIds.length);
+  const performance = Math.min(1, Math.max(0, totalScore / referenceMax));
   const grade = gradeForPerformance(performance);
   const startStability = Math.round(CHARGING_START_STABILITY_BASE + CHARGING_START_STABILITY_RANGE * performance);
 
@@ -141,8 +168,8 @@ export function finishDinoRunIfNeeded(room: RoomRecord, teamId: TeamId, now: num
 }
 
 /**
- * 영점 조정 연습(10초)이 끝난 팀을 실제 CHARGING으로 전환한다. 사격(energy:fire)은 이
- * 전환 이후에만 서버에서 인정된다.
+ * 영점 조정 연습(CHARGING_PRACTICE_DURATION_MS)이 끝난 팀을 실제 CHARGING으로 전환한다.
+ * 사격(energy:fire)은 이 전환 이후에만 서버에서 인정된다.
  */
 export function finishChargingPracticeIfNeeded(room: RoomRecord, teamId: TeamId, now: number): boolean {
   const team = room.state.teams[teamId];

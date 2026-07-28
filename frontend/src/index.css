@@ -1305,7 +1305,7 @@ body {
 
 .dino-run__track {
   position: relative;
-  height: clamp(170px, 26vh, 220px);
+  height: clamp(220px, 42vh, 380px);
   background: rgba(15, 9, 4, 0.55);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 240, 220, 0.25);
@@ -1325,25 +1325,37 @@ body {
   position: absolute;
   bottom: 30px;
   font-size: 2.8rem;
-  transform: scaleX(-1);
-  transition: bottom 0.1s linear;
+  transform: translateX(-50%);
+  transition: left 0.08s linear;
   z-index: 1;
 }
 
-.dino-run__dino--jump {
-  animation: dino-jump 0.5s ease-out;
-}
-
-@keyframes dino-jump {
-  0% { bottom: 30px; }
-  50% { bottom: 110px; }
-  100% { bottom: 30px; }
-}
-
-.dino-run__obstacle {
+.dino-run__sky-object {
   position: absolute;
-  bottom: 30px;
-  font-size: 2.1rem;
+  transform: translateX(-50%);
+  font-size: 2rem;
+}
+
+.dino-run__sky-object--bonus {
+  font-size: 1.8rem;
+}
+
+.dino-run--flash-hit .dino-run__track {
+  animation: dino-flash-hit 0.35s ease-out;
+}
+
+.dino-run--flash-bonus .dino-run__track {
+  animation: dino-flash-bonus 0.35s ease-out;
+}
+
+@keyframes dino-flash-hit {
+  0% { box-shadow: inset 0 0 0 4px rgba(255, 80, 80, 0.9); }
+  100% { box-shadow: inset 0 0 0 0 rgba(255, 80, 80, 0); }
+}
+
+@keyframes dino-flash-bonus {
+  0% { box-shadow: inset 0 0 0 4px rgba(255, 209, 102, 0.9); }
+  100% { box-shadow: inset 0 0 0 0 rgba(255, 209, 102, 0); }
 }
 
 .dino-run--dead {

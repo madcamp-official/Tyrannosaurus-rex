@@ -4,7 +4,7 @@
  * 전용 이벤트로 온다. 데스크탑·모바일 모두 이 이벤트들을 로컬 RoomState에 합성해서 쓴다.
  */
 
-import type { BoneId, CoreZone, DinoRunGrade, PlayerId, RevivalForm, RoomState, TeamId } from "@trex/shared";
+import type { BoneId, CoreZone, DinoRunGrade, PlayerId, RevivalForm, RoomState, SkyObject, TeamId } from "@trex/shared";
 
 export function applyExcavationProgress(
   state: RoomState,
@@ -100,7 +100,7 @@ export function applyTeamPhaseChanged(
 
 export function applyDinoStarted(
   state: RoomState,
-  data: { teamId: TeamId; obstacleOffsetsMs: number[]; startedAt: number; endsAt: number },
+  data: { teamId: TeamId; skyObjects: SkyObject[]; startedAt: number; endsAt: number },
 ): RoomState {
   const team = state.teams[data.teamId];
   return {
@@ -112,19 +112,17 @@ export function applyDinoStarted(
         phase: "ASSEMBLY" as const,
         phaseStartedAt: data.startedAt,
         phaseEndsAt: data.endsAt,
-        dinoRun: { ...team.dinoRun, obstacleOffsetsMs: data.obstacleOffsetsMs },
+        dinoRun: { ...team.dinoRun, skyObjects: data.skyObjects },
       },
     },
   };
 }
 
-export function applyDinoProgress(
+export function applyDinoHit(
   state: RoomState,
-  data: { teamId: TeamId; playerId: PlayerId; obstacleIndex: number; clearedCount: number },
+  data: { teamId: TeamId; playerId: PlayerId; livesLeft: number; score: number },
 ): RoomState {
   const team = state.teams[data.teamId];
-  const prev = team.dinoRun.clearedByPlayer[data.playerId] ?? [];
-  if (prev.includes(data.obstacleIndex)) return state;
   return {
     ...state,
     teams: {
@@ -133,8 +131,23 @@ export function applyDinoProgress(
         ...team,
         dinoRun: {
           ...team.dinoRun,
-          clearedByPlayer: { ...team.dinoRun.clearedByPlayer, [data.playerId]: [...prev, data.obstacleIndex] },
+          livesByPlayer: { ...team.dinoRun.livesByPlayer, [data.playerId]: data.livesLeft },
+          scoreByPlayer: { ...team.dinoRun.scoreByPlayer, [data.playerId]: data.score },
         },
+      },
+    },
+  };
+}
+
+export function applyDinoBonus(state: RoomState, data: { teamId: TeamId; playerId: PlayerId; score: number }): RoomState {
+  const team = state.teams[data.teamId];
+  return {
+    ...state,
+    teams: {
+      ...state.teams,
+      [data.teamId]: {
+        ...team,
+        dinoRun: { ...team.dinoRun, scoreByPlayer: { ...team.dinoRun.scoreByPlayer, [data.playerId]: data.score } },
       },
     },
   };

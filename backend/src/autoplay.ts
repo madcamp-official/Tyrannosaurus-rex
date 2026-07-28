@@ -43,8 +43,11 @@ const REMATCH_GRACE_MS = 3 * 60_000;
  */
 type Skill = "GOOD" | "BAD";
 const BAD_AIM_ERROR_RADIUS = 0.16; // 정규화 좌표 기준 조준 오차 반경 — 코어(0.05)/몸통(0.18) 판정 다 흔든다.
-const BAD_JUMP_SKIP_CHANCE = 0.35; // 이 확률로 장애물을 보고도 아예 안 뛴다(탈락 유도).
-const BAD_JUMP_REACTION_DELAY_MS = 350; // 반응이 느려 판정 창(±450ms) 끝자락으로 밀린다.
+// 운석 피하기: 이 시간 안에 들어오는 오브젝트에 미리 반응해 좌우로 움직인다. BAD 봇은
+// 훨씬 늦게 반응하고(반응 폭이 좁음), 가끔 반대로(운석 쪽으로) 움직여 실제로 맞기도 한다.
+const DINO_LOOKAHEAD_MS = 900;
+const BAD_DINO_LOOKAHEAD_MS = 250;
+const BAD_DINO_WRONG_DODGE_CHANCE = 0.35;
 
 function parseArg(argv: string[], name: string): string | null {
   const index = argv.indexOf(name);
@@ -87,7 +90,7 @@ type Bot = {
   skill: Skill;
   excavateSeq: number;
   aimSeq: number;
-  jumpedObstacles: Set<number>;
+  dinoSeq: number;
 };
 
 function teamOf(board: Blackboard, teamId: TeamId): RoomState["teams"][TeamId] | null {
@@ -129,25 +132,26 @@ async function runBotLoop(bot: Bot, board: Blackboard, log: (msg: string) => voi
     }
 
     if (team.phase === "ASSEMBLY") {
-      // 다이노런: 장애물 오프셋 시각에 맞춰 점프한다 (판정 창 ±450ms 안).
-      // BAD 봇은 반응이 늦어 판정 창 끝자락이나 바깥으로 밀린다.
-      const offsets = team.dinoRun.obstacleOffsetsMs;
+      // 운석 피하기: 곧 떨어질 오브젝트를 보고 좌우로 움직인다 — 운석이면 반대쪽으로,
+      // 보너스면 그 자리로. BAD 봇은 훨씬 늦게 반응하고 가끔 반대로(운석 쪽으로) 움직인다.
       const elapsed = now - team.phaseStartedAt;
-      const reactionOffset = bot.skill === "BAD" ? BAD_JUMP_REACTION_DELAY_MS : 0;
-      const dueIndex = offsets.findIndex(
-        (offset, i) => !bot.jumpedObstacles.has(i) && Math.abs(elapsed - reactionOffset - offset) <= 200,
-      );
-      if (dueIndex !== -1) {
-        bot.jumpedObstacles.add(dueIndex);
-        // BAD 봇은 이 확률로 아예 뛰지 않는다 — 탈락 처리 경로를 실제로 타 보게 한다.
-        if (bot.skill !== "BAD" || Math.random() >= BAD_JUMP_SKIP_CHANCE) {
-          bot.aimSeq += 1;
-          const res = await ackEmit<{ cleared: boolean; clearedCount: number }>((ack) =>
-            bot.socket.emit("dino:jump", { requestId: randomUUID(), seq: bot.aimSeq, clientTime: now }, ack),
-          );
-          if (res.ok && res.data.cleared) log(`[${bot.nickname}] 장애물 클리어 (${res.data.clearedCount}/${offsets.length})`);
+      const lookahead = bot.skill === "BAD" ? BAD_DINO_LOOKAHEAD_MS : DINO_LOOKAHEAD_MS;
+      const upcoming = team.dinoRun.skyObjects.find((o) => o.hitAtMs >= elapsed && o.hitAtMs - elapsed <= lookahead);
+      let targetX = 0.5;
+      if (upcoming) {
+        if (upcoming.kind === "BONUS") {
+          targetX = upcoming.x;
+        } else {
+          const wrongWay = bot.skill === "BAD" && Math.random() < BAD_DINO_WRONG_DODGE_CHANCE;
+          targetX = wrongWay ? upcoming.x : upcoming.x > 0.5 ? 0.12 : 0.88;
         }
       }
+      bot.dinoSeq += 1;
+      bot.socket.emit("dino:position", {
+        seq: bot.dinoSeq,
+        x: Math.min(1, Math.max(0, targetX)),
+        clientTime: now,
+      });
       await sleep(DINO_POLL_MS);
       continue;
     }
@@ -202,7 +206,7 @@ async function playOneRound(bots: Bot[], board: Blackboard, log: (msg: string) =
   for (const bot of bots) {
     bot.excavateSeq = 0;
     bot.aimSeq = 0;
-    bot.jumpedObstacles = new Set();
+    bot.dinoSeq = 0;
   }
 
   const resultPromise = new Promise<void>((resolve) => {
@@ -335,7 +339,7 @@ async function main(): Promise<void> {
       skill,
       excavateSeq: 0,
       aimSeq: 0,
-      jumpedObstacles: new Set(),
+      dinoSeq: 0,
     };
     bots.push(bot);
     log(`${nickname}(${skill}) → ${bot.teamId}팀 입장`);
@@ -374,6 +378,18 @@ async function main(): Promise<void> {
     // room:state가 항상 뒤따르지 않으므로 칠판의 팀 페이즈도 직접 갱신한다.
     if (board.state) board.state.teams[evt.data.teamId].phase = evt.data.to;
     log(`${evt.data.teamId}팀 페이즈: ${evt.data.from} → ${evt.data.to}`);
+  });
+  bots[0]!.socket.on("dino:hit", (evt) => {
+    const nickname = bots.find((b) => b.playerId === evt.data.playerId)?.nickname ?? evt.data.playerId;
+    log(`[${nickname}] 운석 맞음 (남은 목숨 ${evt.data.livesLeft}, 점수 ${evt.data.score})`);
+  });
+  bots[0]!.socket.on("dino:bonus", (evt) => {
+    const nickname = bots.find((b) => b.playerId === evt.data.playerId)?.nickname ?? evt.data.playerId;
+    log(`[${nickname}] 보너스 획득 (점수 ${evt.data.score})`);
+  });
+  bots[0]!.socket.on("dino:playerDied", (evt) => {
+    const nickname = bots.find((b) => b.playerId === evt.data.playerId)?.nickname ?? evt.data.playerId;
+    log(`[${nickname}] 목숨 소진 — 탈락`);
   });
 
   // Plan.md §2.2: 전원 준비 완료 시 서버가 자동으로 게임을 시작한다 — 별도의 game:start 호출이 필요 없다.

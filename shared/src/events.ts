@@ -21,6 +21,7 @@ import type {
   RoomCode,
   RoomState,
   SensorPermission,
+  SkyObject,
   TeamId,
   TeamPhase,
   Transform2D,
@@ -121,17 +122,13 @@ export const excavateInputSchema = z.object({
 });
 export type ExcavateInput = z.infer<typeof excavateInputSchema>;
 
-export const dinoJumpRequestSchema = z.object({
-  requestId: requestIdSchema,
+// 운석 피하기: 조준(aim:update)과 같은 패턴 — 고빈도, acknowledgement 없이 보낸다.
+export const dinoPositionInputSchema = z.object({
   seq: z.number().int().nonnegative(),
+  x: z.number().min(0).max(1),
   clientTime: z.number(),
 });
-export type DinoJumpRequest = z.infer<typeof dinoJumpRequestSchema>;
-export type DinoJumpResponse = {
-  cleared: boolean;
-  obstacleIndex: number | null;
-  clearedCount: number;
-};
+export type DinoPositionInput = z.infer<typeof dinoPositionInputSchema>;
 
 export const aimUpdateInputSchema = z.object({
   seq: z.number().int().nonnegative(),
@@ -243,7 +240,7 @@ export interface ClientToServerEvents {
   "player:setReady": (req: PlayerSetReadyRequest, ack: (res: Ack<PlayerSetReadyResponse>) => void) => void;
   "game:start": (req: GameStartRequest, ack: (res: Ack<GameStartResponse>) => void) => void;
   "excavate:input": (input: ExcavateInput) => void;
-  "dino:jump": (req: DinoJumpRequest, ack: (res: Ack<DinoJumpResponse>) => void) => void;
+  "dino:position": (input: DinoPositionInput) => void;
   "aim:update": (input: AimUpdateInput) => void;
   "energy:fire": (req: EnergyFireRequest, ack: (res: Ack<EnergyFireResponse>) => void) => void;
   "sensor:status": (req: SensorStatusRequest, ack: (res: Ack<SensorStatusResponse>) => void) => void;
@@ -279,17 +276,20 @@ export interface ServerToClientEvents {
     evt: ServerEvent<{ teamId: TeamId; result: "WIN" | "LOSE" | "DRAW"; score: number }>,
   ) => void;
   "dino:started": (
-    evt: ServerEvent<{ teamId: TeamId; obstacleOffsetsMs: number[]; startedAt: number; endsAt: number }>,
+    evt: ServerEvent<{ teamId: TeamId; skyObjects: SkyObject[]; startedAt: number; endsAt: number }>,
   ) => void;
-  "dino:progress": (
-    evt: ServerEvent<{ teamId: TeamId; playerId: PlayerId; obstacleIndex: number; clearedCount: number }>,
+  "dino:hit": (
+    evt: ServerEvent<{ teamId: TeamId; playerId: PlayerId; objectId: number; livesLeft: number; score: number; x: number }>,
+  ) => void;
+  "dino:bonus": (
+    evt: ServerEvent<{ teamId: TeamId; playerId: PlayerId; objectId: number; score: number; x: number }>,
   ) => void;
   "dino:playerDied": (evt: ServerEvent<{ teamId: TeamId; playerId: PlayerId }>) => void;
   "dino:finished": (
     evt: ServerEvent<{ teamId: TeamId; performance: number; grade: DinoRunGrade; startStability: number }>,
   ) => void;
-  // 두 팀 다 다이노런을 끝내면 클리어율 비교로 WIN/LOSE/DRAW를 정하고, 잠시 뒤(§ROUND_TRANSITION_MS)
-  // team:phaseChanged(ASSEMBLY→CHARGING)가 두 팀 동시에 온다.
+  // 두 팀 다 운석 피하기를 끝내면 팀 성능 비교로 WIN/LOSE/DRAW를 정하고, 잠시 뒤(§ROUND_TRANSITION_MS)
+  // team:phaseChanged(ASSEMBLY→CHARGING_PRACTICE)가 두 팀 동시에 온다.
   "dino:teamResult": (
     evt: ServerEvent<{ teamId: TeamId; result: "WIN" | "LOSE" | "DRAW"; score: number }>,
   ) => void;
