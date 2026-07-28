@@ -9,6 +9,15 @@
   font-display: swap;
 }
 
+/* 산돌 삼립호빵체 Basic (SPC삼립 x 산돌, 상업용 무료 — https://noonnu.cc/font_page/507) */
+@font-face {
+  font-family: "SandollSamlipHobbangBasic";
+  src: url("https://cdn.jsdelivr.net/gh/projectnoonnu/noonfonts-20-12@1.0/SDSamliphopangche_Basic.woff") format("woff");
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 :root {
   color-scheme: dark;
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -92,8 +101,9 @@ body {
 }
 
 .mobile-join__subtitle {
+  font-family: "SandollSamlipHobbangBasic", "Nunito", sans-serif;
   font-size: 17px;
-  font-weight: 700;
+  font-weight: 400;
   color: rgba(255, 248, 236, 0.9);
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
   margin: 0 0 12px;
@@ -280,6 +290,7 @@ body {
 }
 
 .lobby-header__subtitle {
+  font-family: "SandollSamlipHobbangBasic", system-ui, sans-serif;
   font-size: clamp(16px, 1.6vw, 21px);
   font-weight: 400;
   color: rgba(255, 248, 236, 0.85);
@@ -469,11 +480,22 @@ body {
   max-width: min(1500px, 94vw);
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
+  /* stretch: QR 카드와 팀 카드가 항상 같은 세로 길이가 되도록 — 내용 길이에 따라
+     따로 맞추지 않아도 셋 중 가장 큰 높이로 자동 정렬된다. */
+  align-items: stretch;
   justify-content: center;
   flex-wrap: wrap;
   gap: clamp(24px, 6vw, 100px);
   padding: clamp(8px, 1.5vh, 16px) 0 40px;
+}
+
+.lobby-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  margin-top: 8px;
+  padding-bottom: 24px;
 }
 
 .lobby-main__center {
@@ -484,9 +506,10 @@ body {
   flex-shrink: 0;
 }
 
-/* 창이 좁아 세로로 쌓이면(QR 카드가 팀 카드 사이에 끼는 대신) QR/버튼 열이 맨 위로 오게 한다. */
+/* 창이 좁아 세로로 쌓이면(QR 카드가 팀 카드 사이에 끼는 대신) QR 카드가 맨 위로 오게 한다. */
 @media (orientation: portrait) {
-  .lobby-main__center {
+  .lobby-main__center,
+  .lobby-code-card--qr-only {
     order: -1;
   }
 }
@@ -527,7 +550,6 @@ body {
 
 .lobby-code-card--qr-only {
   padding: 20px 32px;
-  min-height: 320px;
   box-sizing: border-box;
 }
 
@@ -550,7 +572,6 @@ body {
 .lobby-team-card {
   flex: 1 1 300px;
   max-width: 400px;
-  min-height: 320px;
   border-radius: 20px;
   padding: 20px 26px;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
