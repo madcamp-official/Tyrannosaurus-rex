@@ -152,3 +152,13 @@
 - API/Socket.IO/Shared 계약 변경: 없음. `CHARGING_PRACTICE_DURATION_MS` 값만 15초로 변경.
 - 환경 변수 변경: 없음.
 - 검증 결과: `npm run typecheck`, `npm test`(72개), `npm run build`, `git diff --check` 통과.
+## 2026-07-28 - 영점 제목 제거 및 발굴 HUD 백엔드 팀명 연동
+
+- 구현 목적: 영점 화면을 과녁 중심으로 단순화하고 발굴 화면의 중복 상단 HUD와 프런트 고정 팀명을 제거한다.
+- 주요 변경 사항:
+  - 영점 화면의 `영점 조정 연습 중` 제목을 제거하고 과녁·안내·팀 범례만 유지했다.
+  - 발굴 페이즈에서는 좌우 팀 상단 바를 렌더링하지 않는다.
+  - 발굴 기여도 카드의 팀 이름은 `A팀/B팀` 고정 문자열 대신 서버 `RoomState.teamNames` 값을 사용한다.
+- API/Socket.IO/Shared 계약 변경: 없음.
+- 환경 변수 변경: 없음.
+- 검증 결과: `npm run typecheck`, `npm test`(72개), `npm run build`, `git diff --check` 통과.

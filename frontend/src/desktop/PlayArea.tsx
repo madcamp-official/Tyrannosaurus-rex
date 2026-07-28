@@ -135,9 +135,6 @@ function PracticeAimOverlay({
   const playersById = new Map(roomState.players.map((player) => [player.id, player]));
   return (
     <div className="practice-aim">
-      <div className="practice-aim__heading">
-        <h2>영점 조정 연습 중</h2>
-      </div>
       <div className="practice-aim__target">
         <span className="practice-aim__ring practice-aim__ring--outer" />
         <span className="practice-aim__ring practice-aim__ring--middle" />
@@ -240,7 +237,7 @@ function TeamPhaseContent({ team, roomState }: { team: TeamState; roomState: Roo
 
   switch (team.phase) {
     case "EXCAVATION":
-      return <ExcavationTeamPanel team={team} players={players} />;
+      return <ExcavationTeamPanel team={team} teamName={roomState.teamNames[team.id]} players={players} />;
     case "ASSEMBLY":
       return <DinoRunTeamPanel team={team} players={players} />;
     case "CHARGING_PRACTICE":
@@ -298,7 +295,9 @@ export function PlayArea({ roomState, ephemeral }: { roomState: RoomState; ephem
         key={teamId}
         className={`play-area__team play-area__team--${teamId}${hasSharedArena ? " play-area__team--sidebar" : ""}`}
       >
-        <TeamHeader teamId={teamId} teamName={roomState.teamNames[teamId]} players={players} team={team} />
+        {team.phase !== "EXCAVATION" && (
+          <TeamHeader teamId={teamId} teamName={roomState.teamNames[teamId]} players={players} team={team} />
+        )}
         <div className="play-area__team-body">
           <TeamPhaseContent team={team} roomState={roomState} />
         </div>

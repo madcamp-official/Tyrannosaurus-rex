@@ -2,7 +2,15 @@
 
 import { EXCAVATION_POINTS_PER_BONE, type PublicPlayer, type TeamState } from "@trex/shared";
 
-export function ExcavationTeamPanel({ team, players }: { team: TeamState; players: PublicPlayer[] }): JSX.Element {
+export function ExcavationTeamPanel({
+  team,
+  teamName,
+  players,
+}: {
+  team: TeamState;
+  teamName: string;
+  players: PublicPlayer[];
+}): JSX.Element {
   const totalInputs = players.reduce((sum, p) => sum + p.stats.excavationInputs, 0);
   const contributors = [...players]
     .sort((a, b) => b.stats.excavationInputs - a.stats.excavationInputs)
@@ -38,7 +46,7 @@ export function ExcavationTeamPanel({ team, players }: { team: TeamState; player
     <div className="exca-view">
       <div className={`exca-sidebar${team.id === "B" ? " exca-sidebar--mirrored" : ""}`}>
         <div className="exca-sidebar__header">
-          <strong>{team.id === "A" ? "🔥" : "❄️"} {team.id}팀</strong>
+          <strong>{team.id === "A" ? "🔥" : "❄️"} {teamName}</strong>
           <span>{players.length}명 · 총 {totalInputs}회</span>
         </div>
         <table className="exca-sidebar__table">
