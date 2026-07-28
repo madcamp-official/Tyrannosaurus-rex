@@ -8,6 +8,7 @@ import {
   METEOR_HEART_LIVES_RESTORED,
   METEOR_HEART_SCORE_REWARD,
   METEOR_HIT_SCORE_PENALTY,
+  PHASE_START_GRACE_MS,
   ROUND_TRANSITION_MS,
   SKY_OBJECT_COUNT,
   SKY_OBJECT_FALL_MS,
@@ -92,9 +93,27 @@ describe("dino run (meteor dodge)", () => {
     expect(accepted).toBe(false);
   });
 
+  it(
+    "regression: never judges collisions before PHASE_START_GRACE_MS, even if a meteor's " +
+      "hitAtMs has already passed (mobile controls aren't mounted yet, so a player's position " +
+      "is always the 0.5 default and would otherwise be a guaranteed hit)",
+    () => {
+      const { rooms, room, playerA, now } = setupAssemblyRoom();
+      const meteor = { id: 0, hitAtMs: 1000, x: 0.5, kind: "METEOR" as const };
+      room.state.teams.A.dinoRun.skyObjects = [meteor];
+      // 플레이어는 아직 위치를 한 번도 보고하지 않았다(모바일 화면이 아직 "준비 중").
+
+      const events = rooms.tickDinoCollisions(room, now + PHASE_START_GRACE_MS - 1);
+      expect(events).toEqual([]);
+      expect(room.state.teams.A.dinoRun.livesByPlayer[playerA]).toBe(METEOR_DODGE_LIVES);
+      expect(room.state.teams.A.dinoRun.scoreByPlayer[playerA] ?? 0).toBe(0);
+      expect(room.dinoMeteorLockState.has(`${playerA}:0`)).toBe(false);
+    },
+  );
+
   it("hits a player standing under a meteor: loses a life, loses score, and is judged only once", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
-    const meteor = { id: 0, hitAtMs: 5000, x: 0.5, kind: "METEOR" as const };
+    const meteor = { id: 0, hitAtMs: 8000, x: 0.5, kind: "METEOR" as const };
     room.state.teams.A.dinoRun.skyObjects = [meteor];
     rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: meteor.x, clientTime: now }, now);
 
@@ -116,7 +135,7 @@ describe("dino run (meteor dodge)", () => {
 
   it("dodging a meteor (moving away after it locks onto your spawn-time position) costs no life and counts toward MVP stats", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
-    const meteor = { id: 0, hitAtMs: 5000, x: 0.5, kind: "METEOR" as const };
+    const meteor = { id: 0, hitAtMs: 8000, x: 0.5, kind: "METEOR" as const };
     room.state.teams.A.dinoRun.skyObjects = [meteor];
 
     // 운석이 낙하를 시작하는 순간(스폰 시각) 있던 자리(0)로 목표가 고정된다.
@@ -135,7 +154,7 @@ describe("dino run (meteor dodge)", () => {
 
   it("locks a meteor's target to the player's position at spawn time, not at judgment time", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
-    const meteor = { id: 0, hitAtMs: 5000, x: 0.5, kind: "METEOR" as const };
+    const meteor = { id: 0, hitAtMs: 8000, x: 0.5, kind: "METEOR" as const };
     room.state.teams.A.dinoRun.skyObjects = [meteor];
 
     // 스폰 전에는 아직 고정되지 않는다.
@@ -155,7 +174,7 @@ describe("dino run (meteor dodge)", () => {
 
   it("catching a fruit adds score without costing a life; missing one has no penalty", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
-    const fruit = { id: 0, hitAtMs: 5000, x: 0.5, kind: "FRUIT" as const };
+    const fruit = { id: 0, hitAtMs: 8000, x: 0.5, kind: "FRUIT" as const };
     room.state.teams.A.dinoRun.skyObjects = [fruit];
     rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: fruit.x, clientTime: now }, now);
 
@@ -174,7 +193,7 @@ describe("dino run (meteor dodge)", () => {
   it("catching a heart restores a life (capped at the max) and adds score", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
     room.state.teams.A.dinoRun.livesByPlayer[playerA] = METEOR_DODGE_LIVES - 1;
-    const heart = { id: 0, hitAtMs: 5000, x: 0.5, kind: "HEART" as const };
+    const heart = { id: 0, hitAtMs: 8000, x: 0.5, kind: "HEART" as const };
     room.state.teams.A.dinoRun.skyObjects = [heart];
     rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: heart.x, clientTime: now }, now);
 
@@ -191,7 +210,7 @@ describe("dino run (meteor dodge)", () => {
 
   it("catching a heart at full lives does not exceed the max life cap", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
-    const heart = { id: 0, hitAtMs: 5000, x: 0.5, kind: "HEART" as const };
+    const heart = { id: 0, hitAtMs: 8000, x: 0.5, kind: "HEART" as const };
     room.state.teams.A.dinoRun.skyObjects = [heart];
     rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: heart.x, clientTime: now }, now);
 
@@ -203,7 +222,7 @@ describe("dino run (meteor dodge)", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
     const meteors = Array.from({ length: METEOR_DODGE_LIVES }, (_, i) => ({
       id: i,
-      hitAtMs: 5000 + i * 1000,
+      hitAtMs: 8000 + i * 1000,
       x: 0.5,
       kind: "METEOR" as const,
     }));
@@ -232,7 +251,7 @@ describe("dino run (meteor dodge)", () => {
       // A팀은 과일을 전부 잡고, B팀은 아무 것도 하지 않는다.
       const fruits = Array.from({ length: 3 }, (_, i) => ({
         id: i,
-        hitAtMs: 5000 + i * 1000,
+        hitAtMs: 8000 + i * 1000,
         x: 0.5,
         kind: "FRUIT" as const,
       }));

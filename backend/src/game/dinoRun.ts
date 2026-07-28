@@ -17,6 +17,7 @@ import {
   METEOR_HEART_LIVES_RESTORED,
   METEOR_HEART_SCORE_REWARD,
   METEOR_HIT_SCORE_PENALTY,
+  PHASE_START_GRACE_MS,
   SKY_OBJECT_COLLISION_RADIUS,
   SKY_OBJECT_COUNT,
   SKY_OBJECT_DENSITY_CURVE_EXPONENT,
@@ -110,6 +111,11 @@ export function tickSkyCollisions(room: RoomRecord, teamId: TeamId, now: number)
   if (team.phase !== "ASSEMBLY") return [];
 
   const elapsed = now - team.phaseStartedAt;
+  // 모바일 화면은 phase 시작 후 PHASE_START_GRACE_MS 동안 "준비 중" 화면만 보여주고 조작
+  // 화면을 아직 마운트하지 않는다(§SensorPermissionGate) — 그 사이엔 플레이어가 좌우 위치를
+  // 한 번도 보고할 수 없어 항상 기본값(화면 중앙)으로 취급된다. SKY_OBJECT_MIN_OFFSET_MS가
+  // 이 여유보다 커야 정상이지만, 상수가 어긋나더라도 이 시점 이전엔 절대 판정하지 않는다.
+  if (elapsed < PHASE_START_GRACE_MS) return [];
   const events: SkyCollisionEvent[] = [];
 
   for (const obj of team.dinoRun.skyObjects) {
