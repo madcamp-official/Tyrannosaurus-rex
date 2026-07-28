@@ -83,6 +83,9 @@ export function ExcavationControls({
 
   const handleTap = () => {
     tapCountRef.current += 1;
+    // 탭도 흔들기와 똑같이 삽 모션을 재생해서, 어느 방식으로 파든 파는 동작이 눈에 보이게 한다.
+    setShakeFlash(true);
+    window.setTimeout(() => setShakeFlash(false), 150);
   };
 
   if (result) {
@@ -106,6 +109,9 @@ export function ExcavationControls({
       {motionPermission === "DENIED" && <p className="mobile-game__hint">센서 권한이 꺼져 있어요. 아래 버튼으로 발굴하세요.</p>}
       {motionPermission === "UNSUPPORTED" && <p className="mobile-game__hint">이 기기는 흔들기를 지원하지 않아요. 아래 버튼으로 발굴하세요.</p>}
       {motionPermission === "GRANTED" && <p className="mobile-game__hint">흔드는 대로 자동으로 인식돼요.</p>}
+      <div className={`excavation-controls__shovel${shakeFlash ? " excavation-controls__shovel--dig" : ""}`} aria-hidden="true">
+        🪏
+      </div>
       <button type="button" className={`dig-button${shakeFlash ? " dig-button--flash" : ""}`} onClick={handleTap}>
         🦴 파기
       </button>

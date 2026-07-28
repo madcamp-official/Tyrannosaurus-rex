@@ -1164,6 +1164,29 @@ body {
   background: #f5d873;
 }
 
+.excavation-controls__shovel {
+  font-size: clamp(2.4rem, 12vw, 3.4rem);
+  line-height: 1;
+  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.35));
+  transform: rotate(-18deg);
+}
+
+.excavation-controls__shovel--dig {
+  animation: excavation-shovel-dig 0.3s ease-out;
+}
+
+@keyframes excavation-shovel-dig {
+  0% {
+    transform: rotate(-18deg);
+  }
+  40% {
+    transform: rotate(32deg) translateY(6px);
+  }
+  100% {
+    transform: rotate(-18deg);
+  }
+}
+
 .puzzle-view__canvas {
   position: relative;
   width: 100%;
