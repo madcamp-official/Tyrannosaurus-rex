@@ -7,7 +7,7 @@ import { newRequestId } from "../util/requestId";
 
 const JUMP_ANIM_MS = 500;
 /** 장애물이 화면 오른쪽 끝에서 공룡까지 오는 데 걸리는 시간(연출용) — 전체 페이스를 빠르게 하려고 줄임. */
-const OBSTACLE_TRAVEL_MS = 1_100;
+const OBSTACLE_TRAVEL_MS = 850;
 /** 공룡이 서 있는 지점의 가로 위치 (0=왼쪽, 1=오른쪽). */
 const DINO_X = 0.18;
 
