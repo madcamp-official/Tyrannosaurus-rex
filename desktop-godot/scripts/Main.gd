@@ -37,19 +37,21 @@ func _build_environment() -> void:
 	sky.sky_material = sky_material
 	environment.background_mode = Environment.BG_SKY
 	environment.sky = sky
-	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	# "여전히 어둡다"는 피드백이 계속돼 대폭 올렸다.
-	environment.ambient_light_energy = 1.9
+	# bb4a86b의 발굴 화면 색감: 밝기는 노출과 따뜻한 중성광으로 확보하면서
+	# 과도한 주변광이 구덩이 그림자를 지우지 않게 한다.
+	environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	environment.ambient_light_color = Color(1.0, 0.88, 0.70)
+	environment.ambient_light_energy = 0.70
+	environment.tonemap_exposure = 1.15
 	var world := WorldEnvironment.new()
 	world.environment = environment
 	add_child(world)
 
 	var light := DirectionalLight3D.new()
-	light.rotation_degrees = Vector3(-55, -30, 0)
-	light.light_energy = 2.7
-	# 방향광도 순백색 대신 살짝 노란빛이 도는 따뜻한 색으로 — 하늘 톤과 어우러져 전체
-	# 분위기가 따뜻하게 느껴지게 한다.
-	light.light_color = Color(1.0, 0.93, 0.80)
+	# bb4a86b 값에서 방향만 조금 더 대각선으로 조정한다.
+	light.rotation_degrees = Vector3(-50, -35, 0)
+	light.light_energy = 2.2
+	light.light_color = Color(1.0, 0.92, 0.78)
 	# 기본값이 꺼져 있어서 지금까지 땅/뼈 모델 모두 그림자를 전혀 드리우지 않았다.
 	light.shadow_enabled = true
 	add_child(light)
