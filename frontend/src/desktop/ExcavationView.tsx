@@ -11,6 +11,8 @@ export function ExcavationTeamPanel({
   teamName: string;
   players: PublicPlayer[];
 }): JSX.Element {
+  // excavationInputs는 초당 입력 상한을 넘긴 분량을 절반 효율로 인정하는 레이트리밋 때문에
+  // 소수로 누적될 수 있다 — 비율(pct) 계산은 원래 값으로 하고, 화면에 보이는 "횟수"만 반올림한다.
   const totalInputs = players.reduce((sum, p) => sum + p.stats.excavationInputs, 0);
   const contributors = [...players]
     .sort((a, b) => b.stats.excavationInputs - a.stats.excavationInputs)
@@ -18,7 +20,7 @@ export function ExcavationTeamPanel({
       id: p.id,
       name: p.nickname,
       color: p.color,
-      count: p.stats.excavationInputs,
+      count: Math.round(p.stats.excavationInputs),
       pct: totalInputs > 0 ? Math.round((p.stats.excavationInputs / totalInputs) * 100) : 0,
     }));
 
@@ -47,7 +49,7 @@ export function ExcavationTeamPanel({
       <div className={`exca-sidebar${team.id === "B" ? " exca-sidebar--mirrored" : ""}`}>
         <div className="exca-sidebar__header">
           <strong>{team.id === "A" ? "🔥" : "❄️"} {teamName}</strong>
-          <span>{players.length}명 · 총 {totalInputs}회</span>
+          <span>{players.length}명 · 총 {Math.round(totalInputs)}회</span>
         </div>
         <table className="exca-sidebar__table">
           <thead>

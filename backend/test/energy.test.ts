@@ -105,7 +105,7 @@ describe("energy:fire", () => {
     let now = Date.now();
     let outcome;
     let guard = 0;
-    while (room.state.teams.A.charging.energy < ENERGY_TARGET && guard < 50) {
+    while (room.state.teams.A.charging.energy < ENERGY_TARGET && guard < 100) {
       now += SHOT_COOLDOWN_MS + 10;
       room.aimState.set(playerA, { point: aimAtCore(room, now), mode: "TOUCHPAD", calibrated: true, receivedAt: now, lastSeq: guard + 2 });
       outcome = rooms.fireEnergy(room, "A", playerA, randomUUID(), now);

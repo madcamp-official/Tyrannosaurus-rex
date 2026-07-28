@@ -82,7 +82,9 @@ export const AIM_STALE_MS = 500;
 export const ENERGY_HIT_BONE = 1;
 export const ENERGY_HIT_CORE = 3;
 export const STABILITY_HIT_CORE = 2;
-export const ENERGY_TARGET = 100;
+// 명중당 에너지는 이미 낮춰뒀는데도, 인원이 여럿이 동시에 쏘면 팀 합산 속도가 빨라 목표에
+// 금방 도달해 사격 단계가 너무 빨리 끝난다는 피드백에 따라 목표치 자체를 크게 올렸다.
+export const ENERGY_TARGET = 240;
 export const STABILITY_TARGET = 100;
 // Plan.md §6.3은 "단순 히트박스"만 요구하고 정확한 반경/이동 공식은 없다. 정규화 좌표 기준
 // MVP 기본값이며, 실제 3D 히트박스가 생기면 Godot 쪽과 맞춰 조정한다.
