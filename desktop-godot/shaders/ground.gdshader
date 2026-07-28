@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode unshaded, cull_back;
+render_mode cull_back;
 
 uniform sampler2D grass_tex : source_color;
 uniform sampler2D dirt_tex : source_color;
@@ -42,6 +42,10 @@ void fragment() {
 	dirt_color *= mix(1.08, 0.72, deep_mix * 0.80 + wall_factor * 0.22);
 
 	vec3 col = mix(grass_color, dirt_color, grass_to_dirt);
-	float lighting = clamp(dot(n, normalize(vec3(0.35, 1.0, 0.28))), 0.67, 1.0);
-	ALBEDO = col * lighting;
+	// 예전엔 unshaded라 씬 조명/그림자를 아예 안 받고 법선 방향으로 흉내만 낸 명암을 썼다.
+	// 이제 실제 DirectionalLight3D(그림자 포함)가 셰이딩을 맡으므로, 여기서는 흙/잔디처럼
+	// 광택 없는 재질로 보이게 거칠기·반사만 잡아주고 명암 계산 자체는 엔진에 맡긴다.
+	ALBEDO = col;
+	ROUGHNESS = 1.0;
+	SPECULAR = 0.0;
 }
