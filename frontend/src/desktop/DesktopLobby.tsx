@@ -377,31 +377,30 @@ export function DesktopLobby(): JSX.Element {
             <section className="lobby-main">
               <TeamCard roomState={roomState} teamId="A" />
 
-              <div className="lobby-main__center">
-                <div className="lobby-code-card lobby-code-card--qr-only">
-                  <div className="lobby-code-card__qr">
-                    <h2 className="lobby-room-name">{roomState.roomName}</h2>
-                    {qrDataUrl && <img src={qrDataUrl} alt="입장 QR 코드" width={220} height={220} />}
-                    <span>📱 스캔해서 입장</span>
-                    <span className="lobby-code-card__code">코드 {roomState.roomCode}</span>
-                  </div>
+              <div className="lobby-code-card lobby-code-card--qr-only">
+                <div className="lobby-code-card__qr">
+                  <h2 className="lobby-room-name">{roomState.roomName}</h2>
+                  {qrDataUrl && <img src={qrDataUrl} alt="입장 QR 코드" width={220} height={220} />}
+                  <span className="lobby-code-card__code">코드 {roomState.roomCode}</span>
                 </div>
-
-                {startError && (
-                  <div className="lobby-error-banner lobby-error-banner--inline">
-                    <span className="lobby-error-banner__icon">⚠</span>
-                    <span>{startError}</span>
-                  </div>
-                )}
-
-                <button type="button" className="lobby-start__button" onClick={handleStart}>
-                  게임 시작
-                </button>
-                <p className="lobby-start__hint">전원 준비되면 자동으로 시작됩니다</p>
               </div>
 
               <TeamCard roomState={roomState} teamId="B" />
             </section>
+
+            <div className="lobby-actions">
+              {startError && (
+                <div className="lobby-error-banner lobby-error-banner--inline">
+                  <span className="lobby-error-banner__icon">⚠</span>
+                  <span>{startError}</span>
+                </div>
+              )}
+
+              <button type="button" className="lobby-start__button" onClick={handleStart}>
+                게임 시작
+              </button>
+              <p className="lobby-start__hint">전원 준비되면 자동으로 시작됩니다</p>
+            </div>
           </>
         )}
 

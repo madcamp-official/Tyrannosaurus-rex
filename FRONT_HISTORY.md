@@ -91,3 +91,16 @@
 - API/Socket.IO/Shared 계약 변경: 없음.
 - 환경 변수 변경: 없음.
 - 검증 결과: `npm run build -w shared`(stale artifact 재빌드 필요했음) 후 `npm run typecheck -w frontend`, `npm run test -w frontend`, `npm run build -w frontend` 통과.
+
+## 2026-07-28 - QR/팀 카드 세로 길이 stretch로 확실히 맞춤, "스캔해서 입장" 제거, 서브타이틀 폰트 교체 (`frontend/lobby-qr-height-and-font` 브랜치)
+
+- 구현 목적: `min-height` 값을 추측해서 맞추는 방식이 방 이름을 QR 카드 안으로 옮긴 뒤로 다시 어긋났다는 피드백에 따라, 값 추측이 아니라 flexbox가 스스로 맞추는 방식으로 바꿨다. QR 안내 문구 "📱 스캔해서 입장"도 제거했다.
+- 주요 변경 사항:
+  - `.lobby-main`을 `align-items: flex-start` → `stretch`로 바꾸고, QR 카드(`.lobby-code-card--qr-only`)를 `.lobby-main__center` 래퍼에서 꺼내 `TeamCard A / QR / TeamCard B`와 같은 레벨의 flex item으로 만들었다. 셋 다 스스로 가장 큰 높이에 맞춰 늘어나므로, 이후 어느 쪽 내용이 늘어나도(방 이름, 인원수 등) 다시 어긋나지 않는다.
+  - "게임 시작" 버튼·오류 배너·안내 문구는 `.lobby-main` 아래 새 `.lobby-actions` 섹션으로 분리했다(기존엔 QR 카드와 같은 열에 있어서 그 열 전체 높이가 늘어나 있었다).
+  - 세로/좁은 창에서 QR 카드가 맨 위로 오는 `order: -1` 규칙을 새 위치(`.lobby-code-card--qr-only`)에 맞춰 갱신했다.
+  - QR 안내의 "📱 스캔해서 입장" span을 제거했다.
+  - "죽은 티라노, 정말 살려드립니다" 서브타이틀(데스크탑 `lobby-header__subtitle`, 모바일 `mobile-join__subtitle` 둘 다)에 산돌 삼립호빵체 Basic(SPC삼립 x 산돌, 상업용 무료, 눈누 배포)을 적용했다.
+- API/Socket.IO/Shared 계약 변경: 없음.
+- 환경 변수 변경: 없음.
+- 검증 결과: `npm run build -w shared`(stale artifact) 후 `npm run typecheck -w frontend`, `npm run test -w frontend`, `npm run build -w frontend` 통과. 폰트 CDN URL은 curl로 200 확인.
