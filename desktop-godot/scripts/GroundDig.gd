@@ -11,6 +11,11 @@ const SCOOP_DEPTH_MAX := 0.95
 # 같은 지점이 여러 번 겹쳐 파여도 이 이상 깊어지지 않게 막아, 한 곳만 뾰족하게
 # 깊어지는 대신 구덩이 전체가 고르게 울퉁불퉁한 깊이를 유지하게 한다.
 const MAX_DIG_DEPTH := 1.9
+# 바닥이 이 최대 깊이를 "하나의 평평한 값"으로 막으면, 삽질이 계속 쌓일수록 점점 더 많은
+# 정점이 똑같은 값에 눌러붙어 결국 넓은 구간이 판판해진다 — 발굴이 진행될수록 오히려
+# 매끈해지던 원인이 이것이다. 막는 깊이 자체를 위치별로 들쭉날쭉하게 만들어, 다 파여
+# 눌러붙은 바닥도 평평한 바닥이 아니라 울퉁불퉁한 "암반"처럼 보이게 한다.
+const FLOOR_NOISE_AMPLITUDE := 0.65
 # 매번 완전히 새 위치를 뽑는 대신, 이 확률로만 최근 삽질 근처에 이어 파서 뼈 하나짜리
 # 매끈한 원이 아니라 군데군데 붙어있는 불규칙한 구멍 뭉치처럼 보이게 한다.
 const SCOOP_CLUSTER_CHANCE := 0.15
@@ -104,6 +109,15 @@ func _wall_noise(x: float, z: float) -> float:
 		+ 0.05 * sin(x * 5.3 - z * 2.9) \
 		+ 0.04 * sin((x + z) * 4.4)
 
+## 위치에 고정으로 묶인(스쿱마다 안 변하는) 저주파+고주파 혼합 노이즈. 같은 정점은 몇 번을
+## 다시 파도 항상 같은 값으로 수렴하므로, "다 파여 막힌" 바닥이 매번 다른 임의의 평평한
+## 값이 아니라 하나의 고정된 울퉁불퉁한 모양으로 안정적으로 남는다.
+func _floor_noise(x: float, z: float) -> float:
+	return 0.28 * sin(x * 1.3 + z * 0.7) \
+		+ 0.22 * sin(x * 2.6 - z * 1.9) \
+		+ 0.16 * sin((x - z) * 2.1 + 3.7) \
+		+ 0.14 * sin(x * 4.4 + z * 3.3)
+
 func _keep_inside_radius(x: float, z: float, radius: float, margin: float = 0.04) -> Vector2:
 	var r := Vector2(x, z).length()
 	var max_r := radius - margin
@@ -160,9 +174,11 @@ func apply_scoop(scoop_x: float, scoop_z: float, scoop_radius: float, scoop_dept
 			var jagged := clampf(1.0 + edge_noise * (0.16 + roughness * 0.30) + ripple, 0.80, 1.26)
 			var shoulder_spread := 1.0 + smoothstep(0.42, 0.78, t) * (1.0 - smoothstep(0.88, 1.0, t)) * 0.10
 			var dig := scoop_depth * profile * jagged * shoulder_spread
-			# 겹쳐 파도 한 지점만 계속 깊어지지 않도록 최대 깊이에서 막는다 — 안 그러면
-			# 뼈 개수만큼 반복되는 삽질이 같은 자리에 계속 쌓여 뾰족한 깔때기가 됐다.
-			_height_field[i] = maxf(_height_field[i] - dig, -MAX_DIG_DEPTH)
+			# 겹쳐 파도 한 지점만 계속 깊어지지 않도록 막되, 막는 깊이("바닥") 자체를
+			# 위치별로 들쭉날쭉하게 둔다 — 하나의 평평한 값으로 막으면 삽질이 쌓일수록
+			# 점점 더 많은 정점이 그 값에 눌러붙어 발굴이 진행될수록 오히려 매끈해졌다.
+			var local_floor := -(MAX_DIG_DEPTH + _floor_noise(x, z) * FLOOR_NOISE_AMPLITUDE)
+			_height_field[i] = maxf(_height_field[i] - dig, local_floor)
 			if -_height_field[i] > _tracked_max_depth:
 				_tracked_max_depth = -_height_field[i]
 
