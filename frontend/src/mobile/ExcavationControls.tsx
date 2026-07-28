@@ -14,7 +14,7 @@ export function ExcavationControls({
   result,
 }: {
   socket: AppSocket;
-  result: "WIN" | "LOSE" | null;
+  result: "WIN" | "LOSE" | "DRAW" | null;
 }): JSX.Element {
   const [motionPermission, setMotionPermission] = useState<SensorPermission>("UNKNOWN");
   const [shakeFlash, setShakeFlash] = useState(false);
@@ -86,10 +86,11 @@ export function ExcavationControls({
   };
 
   if (result) {
+    const label = result === "WIN" ? "🏆 발굴 완료!" : result === "DRAW" ? "무승부" : "발굴 완료";
     return (
       <div className="excavation-controls">
-        <p className="excavation-controls__result">{result === "WIN" ? "🏆 발굴 완료!" : "발굴 완료"}</p>
-        <p className="hint">상대 팀을 기다리는 중…</p>
+        <p className="excavation-controls__result">{label}</p>
+        {result === "WIN" && <p className="hint">상대 팀을 기다리는 중…</p>}
       </div>
     );
   }

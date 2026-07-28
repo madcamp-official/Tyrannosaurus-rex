@@ -16,6 +16,10 @@ export const EXCAVATION_GOLD_BONE_POINT_DISCOUNT = 20;
 // 발굴→다이노런, 다이노런→사격 두 전환 모두 같은 패턴을 쓴다: 먼저 끝난 팀은 상대가 끝날 때까지
 // 기다렸다가, 승/패(무승부)가 갈리면 이 시간만큼 결과를 보여준 뒤 두 팀이 동시에 다음 단계로 넘어간다.
 export const ROUND_TRANSITION_MS = 3_000;
+// 발굴은 다이노런과 달리 "먼저 끝낸 팀이 WIN"인 경쟁 구조라 원칙적으로 무승부가 없다. 다만 모바일
+// 입력이 100ms(MOBILE_INPUT_FLUSH_MS) 단위로 배치 전송되다 보니 실력이 비슷하면 두 팀이 거의 동시에
+// 끝나는 일이 실제로 있다 — 그 체감을 살려 이 시간 안에 이어서 끝나면 둘 다 DRAW로 정정한다.
+export const EXCAVATION_DRAW_WINDOW_MS = 300;
 // Plan.md §4는 "완만한 효율 감소"라고만 서술하고 정확한 수치는 주지 않는다. 팀 합산 초당 입력이
 // EXCAVATION_MAX_INPUTS_PER_SECOND(1인분 최대치)를 넘는 초과분에 이 배율을 곱해 점수로 인정한다.
 export const EXCAVATION_TEAM_OVERFLOW_EFFICIENCY = 0.5;

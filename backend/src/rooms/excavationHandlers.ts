@@ -60,17 +60,13 @@ export function registerExcavationHandlers(io: AppServer, socket: AppSocket, roo
       );
     }
 
-    // 먼저 끝난 팀은 WIN, 나중에 끝난 팀은 LOSE만 알리고, 실제 다이노런 전환은
-    // tickExcavationHandoff가 두 팀 다 끝난 뒤 ROUND_TRANSITION_MS를 기다렸다가 함께 처리한다.
-    if (result.teamResult) {
-      io.to(channel).emit(
-        "excavation:teamFinished",
-        toServerEvent(roomCode, room.state.revision, {
-          teamId,
-          result: result.teamResult.result,
-          score: result.teamResult.score,
-        }),
-      );
+    // 먼저 끝난 팀은 WIN, 나중에 끝난 팀은 LOSE — 단 거의 동시에 끝나면 둘 다 DRAW로 정정되어
+    // 알림이 두 팀 몫으로 온다. 실제 다이노런 전환은 tickExcavationHandoff가 두 팀 다 끝난 뒤
+    // ROUND_TRANSITION_MS를 기다렸다가 함께 처리한다.
+    if (result.teamResults.length > 0) {
+      for (const teamResult of result.teamResults) {
+        io.to(channel).emit("excavation:teamFinished", toServerEvent(roomCode, room.state.revision, teamResult));
+      }
       io.to(channel).emit("room:state", toServerEvent(roomCode, room.state.revision, rooms.getPublicState(room)));
     }
   });
