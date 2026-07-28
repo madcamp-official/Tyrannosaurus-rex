@@ -206,7 +206,9 @@ function TeamHeader({
         <>
           <div className="play-area__team-stat" title="팀 전체 휴대폰 흔들기 횟수">
             <ShakeIcon />
-            <span className="play-area__team-count">{totalExcavationInputs}회</span>
+            {/* excavationInputs는 레이트리밋 초과분을 절반 효율로 인정해 소수로 누적될 수
+                있다 — 화면엔 항상 정수(횟수)로 보이게 반올림한다. */}
+            <span className="play-area__team-count">{Math.round(totalExcavationInputs)}회</span>
           </div>
           <div className="play-area__team-stat" title="발견한 뼈">
             <RingsIcon />

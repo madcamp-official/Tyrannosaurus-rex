@@ -32,7 +32,7 @@ function topPlayerBy(players: PublicPlayer[], teamId: TeamId, statKey: "excavati
 /** 점수 산출 방식이 잘 안 와닿는다는 피드백에 따라, 추상적인 "점" 대신 실제로 한 일을 보여준다. */
 function teamActionSummary(players: PublicPlayer[], teamId: TeamId) {
   const teamPlayers = players.filter((p) => p.teamId === teamId);
-  return teamPlayers.reduce(
+  const totals = teamPlayers.reduce(
     (acc, p) => ({
       digs: acc.digs + p.stats.excavationInputs,
       dodged: acc.dodged + p.stats.dinoCleared,
@@ -41,6 +41,9 @@ function teamActionSummary(players: PublicPlayer[], teamId: TeamId) {
     }),
     { digs: 0, dodged: 0, shots: 0, hits: 0 },
   );
+  // excavationInputs는 초당 입력 상한을 넘긴 분량을 절반 효율로 인정하는 레이트리밋 때문에
+  // 소수로 누적될 수 있다 — 표시는 항상 정수(횟수)로 보이게 반올림한다.
+  return { ...totals, digs: Math.round(totals.digs) };
 }
 
 function TeamStagePlaceholder({ teamId }: { teamId: TeamId }): JSX.Element {
