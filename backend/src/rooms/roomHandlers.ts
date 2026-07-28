@@ -131,7 +131,6 @@ export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: Ro
     }
     ack(ackOk(parsed.data.requestId, { playerId, ready: parsed.data.ready }));
     broadcastRoomState(io, rooms, roomCode);
-    maybeAutoStart(io, rooms, roomCode);
   });
 
   socket.on("game:start", (req, ack) => {
@@ -248,20 +247,6 @@ export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: Ro
     broadcastRoomState(io, rooms, found.room.state.roomCode);
     broadcastResultIfFinalized(io, rooms, found.room.state.roomCode, finalized);
   });
-}
-
-/** Plan.md §2.2: 전원(양 팀 모두) 준비 완료 시 호스트 버튼 없이 자동으로 게임을 시작한다. */
-function maybeAutoStart(io: AppServer, rooms: RoomManager, roomCode: string): void {
-  const room = rooms.getRoom(roomCode);
-  if (!room || rooms.canStart(room) !== null) return;
-
-  const { roundEndsAt } = rooms.startGame(room);
-  const state = rooms.getPublicState(room);
-  io.to(roomChannel(roomCode)).emit(
-    "room:phaseChanged",
-    toServerEvent(roomCode, state.revision, { from: "LOBBY", to: "PLAYING", endsAt: roundEndsAt }),
-  );
-  broadcastRoomState(io, rooms, roomCode);
 }
 
 function broadcastPlayerConnectionChanged(

@@ -99,6 +99,19 @@ export function MobileJoin(): JSX.Element {
     });
   };
 
+  // CHARGING_PRACTICE→CHARGING 전환도 team.phaseStartedAt이 바뀌므로, SensorPermissionGate에
+  // 그 값을 그대로 넘기면 그 순간 다시 5초짜리 "준비 중" 화면이 끼어들면서 <AimControls>가
+  // 잠깐 트리에서 빠졌다가 재마운트돼(§CHARGING_PRACTICE 병합 주석) 영점이 초기화돼버린다.
+  // 그래서 이 두 phase 동안은 CHARGING_PRACTICE가 처음 시작된 시각으로 고정해 게이트가
+  // 두 번째로 다시 끼어들지 않게 한다.
+  const aimPhaseAnchorRef = useRef<number | null>(null);
+  const currentTeam = teamId && roomState && roomState.roomPhase !== "LOBBY" ? roomState.teams[teamId] : null;
+  if (currentTeam && (currentTeam.phase === "CHARGING_PRACTICE" || currentTeam.phase === "CHARGING")) {
+    if (aimPhaseAnchorRef.current === null) aimPhaseAnchorRef.current = currentTeam.phaseStartedAt;
+  } else {
+    aimPhaseAnchorRef.current = null;
+  }
+
   const toggleReady = () => {
     const next = !ready;
     setReady(next);
@@ -165,8 +178,13 @@ export function MobileJoin(): JSX.Element {
         {team.phase === "ASSEMBLY" && socket && playerId && (
           <DinoRunControls socket={socket} team={team} playerId={playerId} result={team.dinoRun.result} />
         )}
-        {team.phase === "CHARGING_PRACTICE" && socket && <AimControls socket={socket} team={team} practice />}
-        {team.phase === "CHARGING" && socket && <AimControls socket={socket} team={team} />}
+        {(team.phase === "CHARGING_PRACTICE" || team.phase === "CHARGING") && socket && (
+          // 두 phase를 하나의 JSX 자리에서 렌더링해야 CHARGING_PRACTICE에서 잡은 영점
+          // (calibrated 등 내부 state)이 실제 CHARGING으로 넘어갈 때 유지된다 — 조건별로
+          // 서로 다른 자리에 <AimControls>를 두면 phase가 바뀌는 순간 컴포넌트가
+          // 통째로 마운트 해제·재마운트되어 영점이 초기화되는 버그가 있었다.
+          <AimControls socket={socket} team={team} practice={team.phase === "CHARGING_PRACTICE"} />
+        )}
         {team.phase === "REVIVED" && (
           <div className="mobile-game__revived">
             <p className="mobile-game__title">
@@ -176,11 +194,12 @@ export function MobileJoin(): JSX.Element {
         )}
       </>
     );
+    const gateAnchor = aimPhaseAnchorRef.current ?? team.phaseStartedAt;
     return (
       <main className={`mobile-join mobile-join--team-${teamId.toLowerCase()}`}>
         <div className="mobile-join__bg" />
         <div className="mobile-join__scrim" />
-        <SensorPermissionGate phaseStartedAt={team.phaseStartedAt}>{content}</SensorPermissionGate>
+        <SensorPermissionGate phaseStartedAt={gateAnchor}>{content}</SensorPermissionGate>
       </main>
     );
   }

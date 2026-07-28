@@ -32,7 +32,7 @@ export type TrexTransform = {
 
 const TREX_Y_CENTER = 0.55;
 // 좌우로만 흔들리는 느낌을 없애려고 세로 폭도 가로(TREX_MOVE_AMPLITUDE)에 준하게 키웠다.
-const TREX_Y_AMPLITUDE = 0.2;
+const TREX_Y_AMPLITUDE = 0.26;
 
 function smoothstep(t: number): number {
   return t * t * (3 - 2 * t);
