@@ -91,7 +91,7 @@ export const STABILITY_TARGET = 100;
 export const CORE_HIT_RADIUS = 0.05;
 export const BONE_HIT_RADIUS = 0.18;
 export const TREX_MOVE_AMPLITUDE = 0.36; // 중심(0.5)에서 좌우로 흔들리는 폭 — 더 넓게 돌아다니도록 확대
-export const TREX_MOVE_PERIOD_MS = 12_000;
+export const TREX_MOVE_PERIOD_MS = 7_000; // 웨이포인트 사이 이동 시간 — 짧을수록 더 빠르게 움직인다
 
 // Plan.md §2.3, §3 3경기 누적 점수제. 구체적 계수가 문서에 없어 MVP 기본값으로 정한다.
 export const GAME_SCORE_MAX = 100;
