@@ -116,9 +116,9 @@ func scatter(seed_value: int = 0, radius_meters: float = 6.5) -> void:
 			sin(angle) * radius_units
 		)
 		piece.rotation = Vector3(
-			rng.randf_range(-0.35, 0.35),
+			rng.randf_range(-1.1, 1.1),
 			rng.randf_range(-PI, PI),
-			rng.randf_range(-0.35, 0.35)
+			rng.randf_range(-1.1, 1.1)
 		)
 		piece.scale = Vector3.ONE * SCATTER_PIECE_SCALE
 
