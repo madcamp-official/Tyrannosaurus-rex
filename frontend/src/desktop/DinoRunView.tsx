@@ -121,9 +121,11 @@ export function DinoRunOverlay({ roomState }: { roomState: RoomState }): JSX.Ele
           {teamsInDinoRun.map((teamId) => {
             const team = roomState.teams[teamId];
             const players = roomState.players.filter((player) => player.teamId === teamId);
+            const teamName = roomState.teamNames[teamId];
+            const teamNameSize = Math.max(16, Math.min(32, 260 / Math.max(1, Array.from(teamName).length)));
             return (
               <section key={teamId} className={`dino-overlay__team dino-overlay__team--${teamId.toLowerCase()}`}>
-                <h2>{roomState.teamNames[teamId]}</h2>
+                <h2 style={{ fontSize: `${teamNameSize}px` }} title={teamName}>{teamName}</h2>
                 <ul>
                   {players.map((player) => (
                     <PlayerLives key={player.id} player={player} team={team} />
