@@ -1,7 +1,14 @@
 /** Plan.md §5.2, §6.1. 흔들기 센서 + 탭 폴백 발굴 컨트롤. */
 
 import { useEffect, useRef, useState } from "react";
-import { EXCAVATION_SHAKE_COOLDOWN_MS, MOBILE_INPUT_FLUSH_MS, type SensorPermission } from "@trex/shared";
+import {
+  EXCAVATION_SHAKE_COOLDOWN_MS,
+  MOBILE_INPUT_FLUSH_MS,
+  type BoneId,
+  type SensorPermission,
+  type ServerEvent,
+  type TeamId,
+} from "@trex/shared";
 import type { AppSocket } from "../socket";
 
 // 흔드는 방향 — 세로로 든 폰 기준 y=위아래(파는 동작에 가장 자연스러움), x=좌우, z=앞뒤.
@@ -16,9 +23,11 @@ type MotionPermissionApi = { requestPermission?: () => Promise<"granted" | "deni
 
 export function ExcavationControls({
   socket,
+  teamId,
   result,
 }: {
   socket: AppSocket;
+  teamId: TeamId;
   result: "WIN" | "LOSE" | "DRAW" | null;
 }): JSX.Element {
   const [motionPermission, setMotionPermission] = useState<SensorPermission>("UNKNOWN");
@@ -73,6 +82,19 @@ export function ExcavationControls({
     window.addEventListener("devicemotion", handleMotion);
     return () => window.removeEventListener("devicemotion", handleMotion);
   }, [motionPermission]);
+
+  useEffect(() => {
+    // 우리 팀이 뼈를 찾았을 때만 진동 — excavation:boneFound는 방 전체(양 팀)로 브로드캐스트되니
+    // teamId로 걸러야 상대 팀이 찾았을 때까지 울리지 않는다.
+    const onBoneFound = (evt: ServerEvent<{ teamId: TeamId; boneId: BoneId; index: number }>) => {
+      if (evt.data.teamId !== teamId) return;
+      navigator.vibrate?.([70, 40, 120]);
+    };
+    socket.on("excavation:boneFound", onBoneFound);
+    return () => {
+      socket.off("excavation:boneFound", onBoneFound);
+    };
+  }, [socket, teamId]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
