@@ -73,10 +73,10 @@ export const CHARGING_TREX_TRANSFORM_HZ = 10;
 export const SHOT_COOLDOWN_MS = 350;
 export const AIM_UPDATE_MAX_HZ = 30;
 export const AIM_STALE_MS = 500;
-// 명중당 부활 에너지를 낮췄다 — 목표(ENERGY_TARGET)까지 천천히, 더 많이 쏴야 채워지게
-// 난이도를 올렸다.
-export const ENERGY_HIT_BONE = 2;
-export const ENERGY_HIT_CORE = 4;
+// 명중당 부활 에너지를 더 낮췄다 — 목표(ENERGY_TARGET)까지 천천히, 훨씬 더 많이 쏴야
+// 채워지게 난이도를 올렸다.
+export const ENERGY_HIT_BONE = 1;
+export const ENERGY_HIT_CORE = 3;
 export const STABILITY_HIT_CORE = 2;
 export const ENERGY_TARGET = 100;
 export const STABILITY_TARGET = 100;

@@ -44,7 +44,7 @@ function initialBattle(): BattleState {
       coreHits: 0,
       players: [makePlayer("b1", "프로스트핀"), makePlayer("b2", "아이스팽"), makePlayer("b3", "글레이셔"), makePlayer("b4", "블루레이")],
     },
-    trex: { x: TREX_RANGE[0], facing: 1, corePos: corePosFor(TREX_RANGE[0], 1) },
+    trex: { x: TREX_RANGE[0], y: TREX_BASELINE_Y, facing: 1, corePos: corePosFor(TREX_RANGE[0], 1) },
   };
 }
 
@@ -84,7 +84,7 @@ export function useBattleDemo() {
           ...prev,
           remainingSec: nextRemaining,
           stage: stageFor(avgEnergy),
-          trex: { x, facing, corePos: corePosFor(x, facing) },
+          trex: { x, y: TREX_BASELINE_Y, facing, corePos: corePosFor(x, facing) },
         };
       });
     }, 200);

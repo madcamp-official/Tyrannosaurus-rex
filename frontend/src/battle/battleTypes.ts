@@ -20,6 +20,8 @@ export interface BattleTeam {
 export interface BattleTrex {
   /** 0..1, 무대 내 좌우 위치 */
   x: number;
+  /** 0..1, 무대 내 상하 위치 */
+  y: number;
   facing: 1 | -1;
   /** 0..1, 0..1 — 무대 내 코어(약점) 정규화 좌표 */
   corePos: [number, number];

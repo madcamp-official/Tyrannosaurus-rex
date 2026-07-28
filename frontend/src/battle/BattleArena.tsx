@@ -77,7 +77,7 @@ export function BattleArena({
         className="battle-trex"
         style={{
           left: pct(trex.x),
-          top: pct(0.56),
+          top: pct(trex.y),
           transform: `translate(-50%, -50%) scaleX(${trex.facing})`,
         }}
       >
