@@ -43,7 +43,7 @@ export const METEOR_HEART_SCORE_REWARD = 10; // 하트를 잡으면 얻는 점�
 export const METEOR_HEART_LIVES_RESTORED = 1; // 하트 하나당 회복되는 목숨 수(METEOR_DODGE_LIVES 초과로는 안 찬다)
 // 좌우 위치(0~1) 기준 충돌 판정 반경 — 이 안에 있으면 맞은(또는 잡은) 것으로 인정한다.
 export const SKY_OBJECT_COLLISION_RADIUS = 0.09;
-export const SKY_OBJECT_COUNT = 60; // 1분 동안 떨어지는 운석+아이템 총 개수
+export const SKY_OBJECT_COUNT = 110; // 1분 동안 떨어지는 운석+아이템 총 개수
 export const SKY_OBJECT_FRUIT_CHANCE = 0.15; // 이 중 과일일 확률
 export const SKY_OBJECT_HEART_CHANCE = 0.05; // 이 중 하트일 확률(나머지는 운석)
 // PHASE_START_GRACE_MS(5초) 동안은 모바일 화면이 "준비 중"이라 플레이어가 아직 좌우 위치를
@@ -52,7 +52,8 @@ export const SKY_OBJECT_HEART_CHANCE = 0.05; // 이 중 하트일 확률(나머�
 // 준비 시간 + 여유를 두고 그 뒤부터 떨어지기 시작한다.
 export const SKY_OBJECT_MIN_OFFSET_MS = 6_000;
 export const SKY_OBJECT_MAX_OFFSET_MS = 54_000;
-export const SKY_OBJECT_MIN_GAP_MS = 650;
+// 낙하 시간(800ms)보다 충분히 짧게 두어 후반에는 운석 여러 개가 동시에 화면에 나타난다.
+export const SKY_OBJECT_MIN_GAP_MS = 250;
 // 1보다 작을수록 초반엔 간격이 넓다가(뜸하게) 시간이 지날수록 간격이 좁아진다(점점 빽빽하게).
 export const SKY_OBJECT_DENSITY_CURVE_EXPONENT = 0.55;
 // 오브젝트가 화면 위에서 판정 지점까지 떨어지는 데 걸리는 시간(연출용) — 짧을수록 빠르게 떨어진다.
