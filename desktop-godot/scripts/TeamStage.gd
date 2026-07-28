@@ -9,6 +9,7 @@ const ARENA_WIDTH := 6.0
 const ARENA_DEPTH := 4.0
 const REVEAL_POP_DURATION := 0.6
 const SNAP_DURATION := 0.3
+const EXCAVATION_FOSSIL_SCALE := 2.5
 ## excavation:progress는 입력마다(초당 최대 12회) 오지만, 매번 파면 뼈 하나 찾는 사이에도
 ## 땅이 다 파여서 후반부에 시각적 변화가 없어진다. 진행도가 이만큼 움직일 때마다 한 번만 판다
 ## (뼈 하나당 0~100%를 대략 10번에 나눠 파는 셈).
@@ -21,6 +22,7 @@ var _model_ready := false
 var _pending_discovered: Array[String] = []
 var _phase: String = "EXCAVATION"
 var _hit_particles: CPUParticles3D
+var _dirt_particles: CPUParticles3D
 var _label: Label3D
 var _last_dig_progress := -EXCAVATION_DIG_STEP
 
@@ -29,6 +31,7 @@ func setup(id: String) -> void:
 	_build_ground()
 	_build_model()
 	_build_hit_particles()
+	_build_dirt_particles()
 	_build_label()
 
 func _build_ground() -> void:
@@ -61,6 +64,27 @@ func _build_hit_particles() -> void:
 	box.size = Vector3(0.06, 0.06, 0.06)
 	_hit_particles.mesh = box
 	add_child(_hit_particles)
+
+func _build_dirt_particles() -> void:
+	_dirt_particles = CPUParticles3D.new()
+	_dirt_particles.emitting = false
+	_dirt_particles.one_shot = true
+	_dirt_particles.amount = 42
+	_dirt_particles.lifetime = 1.05
+	_dirt_particles.explosiveness = 0.92
+	_dirt_particles.randomness = 0.38
+	_dirt_particles.direction = Vector3(0, 1, 0)
+	_dirt_particles.spread = 76.0
+	_dirt_particles.gravity = Vector3(0, -8.5, 0)
+	_dirt_particles.initial_velocity_min = 2.2
+	_dirt_particles.initial_velocity_max = 5.4
+	_dirt_particles.scale_amount_min = 0.65
+	_dirt_particles.scale_amount_max = 1.45
+	_dirt_particles.color = Color(0.34, 0.21, 0.11, 1.0)
+	var dirt_chunk := BoxMesh.new()
+	dirt_chunk.size = Vector3(0.09, 0.07, 0.09)
+	_dirt_particles.mesh = dirt_chunk
+	add_child(_dirt_particles)
 
 func _build_label() -> void:
 	_label = Label3D.new()
@@ -150,9 +174,11 @@ func _reveal_piece(bone_id: String, animate: bool) -> void:
 	var piece := _model.get_piece(bone_id)
 	if not piece or piece.visible:
 		return
+	piece.scale *= EXCAVATION_FOSSIL_SCALE
 	piece.visible = true
 	if not animate:
 		return
+	_burst_dirt_around(piece)
 	var original_scale := piece.scale
 	var original_rotation := piece.rotation
 	# 땅속에서 뽑혀 올라오는 대신, 발견 위치에서 먼지를 털어내듯 짧게 회전하며
@@ -165,6 +191,12 @@ func _reveal_piece(bone_id: String, animate: bool) -> void:
 	tween.parallel().tween_property(piece, "scale", original_scale * 1.04, REVEAL_POP_DURATION * 0.55)
 	tween.tween_property(piece, "rotation:y", original_rotation.y, REVEAL_POP_DURATION * 0.45)
 	tween.parallel().tween_property(piece, "scale", original_scale, REVEAL_POP_DURATION * 0.45)
+
+func _burst_dirt_around(piece: Node3D) -> void:
+	if not _dirt_particles:
+		return
+	_dirt_particles.position = to_local(piece.global_position) + Vector3(0, 0.08, 0)
+	_dirt_particles.restart()
 
 func on_puzzle_piece_moved(bone_id: String, _transform_2d: Dictionary) -> void:
 	# 서버의 0~1 정규화 좌표는 별도 2D 퍼즐 판정용이라 3D 모델 좌표와 직접 대응하지 않는다.

@@ -207,3 +207,14 @@
 - API/Socket.IO/Shared 계약 변경: 없음. 기존 `CHARGING_DURATION_MS`와 `remainingSec`를 사용한다.
 - 환경 변수 변경: 없음.
 - 검증 결과: `npm run typecheck`, `npm test`(72개), `npm run build`, production `dist`의 노을 이미지 포함 및 `git diff --check` 통과.
+
+## 2026-07-29 - 발굴 화석 확대 및 흙 파편 연출
+
+- 구현 목적: 화석 발견 순간의 시인성과 발굴 손맛을 강화하고 운석 안내 문구를 화면 기준 표현으로 통일한다.
+- 주요 변경 사항:
+  - 발굴 단계에 표시되는 각 화석 조각을 기존 대비 2.5배 확대한다. 조립 단계 진입 시에는 기존 조립 크기로 복귀한다.
+  - 화석 발견 순간 화석 중심에서 갈색 흙 파편 42개가 사방으로 튄 뒤 중력으로 떨어지는 일회성 Godot 파티클을 재생한다.
+  - 운석 안내의 `폰 화면에서 운석을 피해요!`를 `화면에서 운석을 피하세요!`로 변경한다.
+- API/Socket.IO/Shared 계약 변경: 없음.
+- 환경 변수 변경: 없음.
+- 검증 결과: `npm run typecheck`, `npm test`(72개), Godot 4.7.1 Web export, `npm run build`, `git diff --check` 통과.
