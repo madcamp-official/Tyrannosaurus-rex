@@ -215,6 +215,29 @@ describe("dino run (meteor dodge)", () => {
     expect(room.state.teams.A.dinoRun.livesByPlayer[playerA]).toBe(METEOR_DODGE_LIVES);
   });
 
+  it("does not count a hit if the player only walked back onto the spot after the meteor already landed (must be under it at the moment of impact, not merely at judgment time)", () => {
+    const { rooms, room, playerA, now } = setupAssemblyRoom();
+    const meteor = { id: 0, hitAtMs: 8000, x: 0.5, kind: "METEOR" as const };
+    room.state.teams.A.dinoRun.skyObjects = [meteor];
+    room.state.teams.B.dinoRun.skyObjects = [];
+
+    // 낙하 시작 시점엔 운석과 같은 자리(0.5)에 있어 그 자리로 고정된다.
+    rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: 0.5, clientTime: now }, now);
+    rooms.tickDinoCollisions(room, now + meteor.hitAtMs - SKY_OBJECT_FALL_MS + 1);
+    expect(room.dinoMeteorLockState.get(`${playerA}:0`)).toBe(0.5);
+
+    // 실제 착지 시각엔 이미 피해 있었다(0.9) — 이 보고가 착지 시각 부근에 도착한다.
+    rooms.applyDinoPositionInput(room, "A", playerA, { seq: 2, x: 0.9, clientTime: now }, now + meteor.hitAtMs);
+
+    // 그 뒤(유예 시간 안) 다시 그 자리로 걸어 들어왔다 — 이미 멈춰 선 운석 위로 들어간 것뿐,
+    // 위에서 떨어질 때 맞은 게 아니므로 맞은 것으로 처리되면 안 된다.
+    rooms.applyDinoPositionInput(room, "A", playerA, { seq: 3, x: 0.5, clientTime: now }, now + meteor.hitAtMs + 100);
+
+    const events = rooms.tickDinoCollisions(room, now + meteor.hitAtMs + SKY_OBJECT_COLLISION_GRACE_MS + 1);
+    expect(events.filter((e) => e.teamId === "A" && e.event.kind === "HIT")).toEqual([]);
+    expect(room.state.teams.A.dinoRun.livesByPlayer[playerA]).toBe(METEOR_DODGE_LIVES);
+  });
+
   it("dodging a meteor (moving away after it locks onto your spawn-time position) costs no life and counts toward MVP stats", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
     const meteor = { id: 0, hitAtMs: 8000, x: 0.5, kind: "METEOR" as const };

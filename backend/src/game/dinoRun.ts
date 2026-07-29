@@ -65,7 +65,11 @@ export function makeSkyObjectSchedule(seed: string): SkyObject[] {
   });
 }
 
-/** 플레이어의 좌우 위치를 최신값으로 기록한다 (조준과 같은 패턴 — 고빈도, 상태만 갱신). */
+// positionNearTime이 "낙하 순간의 위치"를 되짚어볼 수 있을 만큼만 이력을 들고 있는다 —
+// SKY_OBJECT_COLLISION_GRACE_MS(유예 판정 창)보다 넉넉히 길게 잡아 여유를 둔다.
+const POSITION_HISTORY_WINDOW_MS = 600;
+
+/** 플레이어의 좌우 위치를 최신값 + 짧은 이력으로 기록한다 (조준과 같은 패턴 — 고빈도, 상태만 갱신). */
 export function applyDinoPosition(
   room: RoomRecord,
   teamId: TeamId,
@@ -78,8 +82,34 @@ export function applyDinoPosition(
   if (team.dinoRun.deadPlayerIds.includes(playerId)) return false;
   const existing = room.dinoPositionState.get(playerId);
   if (existing && input.seq <= existing.lastSeq) return false;
-  room.dinoPositionState.set(playerId, { x: input.x, lastSeq: input.seq, receivedAt: now });
+  const history = existing?.history ?? [];
+  history.push({ x: input.x, receivedAt: now });
+  while (history.length > 1 && now - history[0]!.receivedAt > POSITION_HISTORY_WINDOW_MS) history.shift();
+  room.dinoPositionState.set(playerId, { x: input.x, lastSeq: input.seq, receivedAt: now, history });
   return true;
+}
+
+/**
+ * 운석 명중 판정은 "낙하 순간(targetTime)에 실제로 그 자리에 있었는가"를 물어야 한다 — 판정을
+ * 유예 시간만큼 늦춰서 그 시점의 "최신" 위치를 쓰면, 착지 순간엔 피했다가 유예 시간 안에 다시
+ * 그 자리로 걸어 들어온 경우까지 "위에서 맞은 것"으로 잘못 판정된다. 이력 중 targetTime과
+ * 가장 가까운 시각에 보고된 위치를 골라 그 문제를 없앤다(동률이면 더 최근 보고를 우선한다 —
+ * 네트워크 지연으로 착지 시각 직후에야 도착한 보고가 실제로는 착지 순간의 위치를 담고 있을 수
+ * 있기 때문이다).
+ */
+function positionNearTime(room: RoomRecord, playerId: PlayerId, targetTime: number): number {
+  const state = room.dinoPositionState.get(playerId);
+  if (!state || state.history.length === 0) return 0.5;
+  let best = state.history[0]!;
+  let bestDiff = Math.abs(best.receivedAt - targetTime);
+  for (const sample of state.history) {
+    const diff = Math.abs(sample.receivedAt - targetTime);
+    if (diff <= bestDiff) {
+      best = sample;
+      bestDiff = diff;
+    }
+  }
+  return best.x;
 }
 
 export type SkyCollisionEvent =
@@ -145,7 +175,13 @@ export function tickSkyCollisions(room: RoomRecord, teamId: TeamId, now: number)
       if (resolved.includes(obj.id)) continue;
       resolved.push(obj.id);
 
-      const playerX = room.dinoPositionState.get(playerId)?.x ?? 0.5;
+      // 운석은 "낙하 순간에 실제로 그 자리에 있었는지"로 판정한다(위에서 맞았을 때만 인정) —
+      // 유예 시간 동안 늦게 들어온 최신 위치를 그대로 쓰면, 착지 순간엔 피했다가 그 뒤 유예
+      // 시간 안에 다시 걸어 들어온 경우도 맞은 것으로 오판할 수 있다. 과일·하트는 그대로
+      // "판정 시점의 최신 위치"를 쓴다 — 보상이라 조금 늦게 자리를 잡아도 관대하게 인정한다.
+      const targetTime = team.phaseStartedAt + PHASE_START_GRACE_MS + obj.hitAtMs;
+      const playerX =
+        obj.kind === "METEOR" ? positionNearTime(room, playerId, targetTime) : (room.dinoPositionState.get(playerId)?.x ?? 0.5);
       const targetX = obj.kind === "METEOR" ? (room.dinoMeteorLockState.get(`${playerId}:${obj.id}`) ?? obj.x) : obj.x;
       const overlap = Math.abs(playerX - targetX) <= SKY_OBJECT_COLLISION_RADIUS;
       const player = room.state.players.find((p) => p.id === playerId);
