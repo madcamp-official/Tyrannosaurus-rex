@@ -90,12 +90,24 @@ export function DesktopLobby(): JSX.Element {
     audio.preload = "auto";
     audio.volume = LOBBY_BGM_VOLUME;
     lobbyBgmRef.current = audio;
+    const retryAutoplay = () => {
+      if (!bgmMuted && (!roomState || roomState.roomPhase === "LOBBY")) {
+        void audio.play().catch(() => undefined);
+      }
+    };
+    void audio.play().catch(() => undefined);
+    window.addEventListener("pointerdown", retryAutoplay, { once: true });
+    window.addEventListener("keydown", retryAutoplay, { once: true });
 
     return () => {
       if (lobbyBgmFadeRef.current !== null) window.clearInterval(lobbyBgmFadeRef.current);
+      window.removeEventListener("pointerdown", retryAutoplay);
+      window.removeEventListener("keydown", retryAutoplay);
       audio.pause();
       lobbyBgmRef.current = null;
     };
+    // 최초 마운트 시 자동재생을 한 번 시도하고, 최신 상태 반영은 아래 effect가 담당한다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -106,7 +118,7 @@ export function DesktopLobby(): JSX.Element {
       lobbyBgmFadeRef.current = null;
     }
 
-    const lobbyActive = homeStarted && (!roomState || roomState.roomPhase === "LOBBY");
+    const lobbyActive = !roomState || roomState.roomPhase === "LOBBY";
     audio.muted = bgmMuted;
     if (lobbyActive) {
       audio.volume = LOBBY_BGM_VOLUME;
@@ -128,7 +140,7 @@ export function DesktopLobby(): JSX.Element {
         audio.volume = LOBBY_BGM_VOLUME;
       }
     }, 50);
-  }, [bgmMuted, homeStarted, roomState?.roomPhase]);
+  }, [bgmMuted, roomState?.roomPhase]);
 
   useEffect(() => {
     const socket = connectSocket("HOST");
