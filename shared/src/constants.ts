@@ -76,7 +76,8 @@ export const CHARGING_PRACTICE_DURATION_MS = 15_000;
 export const CHARGING_DURATION_MS = 90_000;
 export const CHARGING_TREX_TRANSFORM_HZ = 10;
 export const SHOT_COOLDOWN_MS = 350;
-export const AIM_UPDATE_MAX_HZ = 30;
+// 여러 플레이어의 조준 이벤트가 데스크톱 사격 장면을 과도하게 재렌더링하지 않도록 제한한다.
+export const AIM_UPDATE_MAX_HZ = 15;
 export const AIM_STALE_MS = 500;
 // 명중당 부활 에너지를 더 낮췄다 — 목표(ENERGY_TARGET)까지 천천히, 훨씬 더 많이 쏴야
 // 채워지게 난이도를 올렸다.

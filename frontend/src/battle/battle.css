@@ -176,6 +176,7 @@
   align-items: center;
   gap: 4px;
   animation: battle-crosshair-jitter 0.9s ease-in-out infinite;
+  transition: left 70ms linear, top 70ms linear;
   pointer-events: none;
 }
 

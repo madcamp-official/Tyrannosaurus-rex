@@ -75,6 +75,9 @@ export function DesktopLobby(): JSX.Element {
   });
   const [gameResult, setGameResult] = useState<GameResultEvent | null>(null);
   const { bridge } = useGodotBridge();
+  const isChargingBattle =
+    roomState?.roomPhase === "PLAYING" &&
+    (roomState.teams.A.phase === "CHARGING" || roomState.teams.B.phase === "CHARGING");
 
   useEffect(() => {
     const socket = connectSocket("HOST");
@@ -359,7 +362,9 @@ export function DesktopLobby(): JSX.Element {
 
   return (
     <main className="desktop-lobby">
-      <GodotStage />
+      {/* 사격 화면은 별도 Three.js WebGL을 사용한다. 이때 Godot까지 뒤에서 계속 렌더링하면
+          GPU 컨텍스트 두 개가 경쟁하므로 사격 동안 iframe을 언마운트해 자원을 해제한다. */}
+      {!isChargingBattle && <GodotStage />}
       <div className="desktop-lobby__scrim" />
 
       <div className="desktop-lobby__overlay">
