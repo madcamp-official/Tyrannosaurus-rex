@@ -98,13 +98,14 @@ function LaserGunModel({ team }: { team: TeamId }): JSX.Element {
         const center = bounds.getCenter(new THREE.Vector3());
         const size = bounds.getSize(new THREE.Vector3());
         loaded.position.sub(center);
-        loaded.rotation.set(-0.26, team === "A" ? -0.48 : 0.48, team === "A" ? -0.1 : 0.1);
-        loaded.position.y -= size.y * 0.08;
+        loaded.rotation.set(0, team === "A" ? -0.48 : 0.48, 0);
         scene.add(loaded);
 
         const radius = Math.max(size.x, size.y, size.z) * 0.62;
-        camera.position.set(team === "A" ? radius * 0.12 : -radius * 0.12, radius * 0.12, radius * 2.25);
-        camera.lookAt(0, -radius * 0.06, 0);
+        // 총의 옆면이 아니라 위쪽 형태가 또렷하게 보이도록 수직에 가까운 상단 시점에서 렌더링한다.
+        camera.position.set(0, radius * 2.35, radius * 0.08);
+        camera.up.set(0, 0, -1);
+        camera.lookAt(0, 0, 0);
         camera.near = Math.max(0.01, radius * 0.01);
         camera.far = radius * 10;
         camera.updateProjectionMatrix();
