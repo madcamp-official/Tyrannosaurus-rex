@@ -2397,6 +2397,28 @@ body {
   padding: 12px 24px 24px;
   text-align: center;
   box-sizing: border-box;
+  position: relative;
+  isolation: isolate;
+}
+
+.result-view::before,
+.result-view::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+}
+
+.result-view::before {
+  z-index: -2;
+  background: #68412f url("/images/kaist_front_sunset.png") center center / cover no-repeat;
+  filter: blur(9px) saturate(85%) brightness(58%);
+  transform: scale(1.035);
+}
+
+.result-view::after {
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(20, 12, 9, 0.16), rgba(9, 8, 7, 0.48));
 }
 
 .result-view__top-logo {
@@ -2516,7 +2538,7 @@ body {
 }
 
 .result-view__trex--winner .battle-trex__model {
-  border-radius: 12px;
+  filter: drop-shadow(0 18px 18px rgba(0, 0, 0, 0.58));
 }
 
 .result-view__yranno-image {

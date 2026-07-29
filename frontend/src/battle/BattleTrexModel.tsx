@@ -7,27 +7,6 @@ const CANVAS_HEIGHT = 360;
 const BATTLE_WALK_FPS = 15;
 const RESULT_WALK_FPS = 15;
 
-function makeMeadowTexture(): THREE.CanvasTexture {
-  const canvas = document.createElement("canvas");
-  canvas.width = 96;
-  canvas.height = 96;
-  const context = canvas.getContext("2d")!;
-  context.fillStyle = "#517438";
-  context.fillRect(0, 0, 96, 96);
-  for (let i = 0; i < 380; i += 1) {
-    const lightness = 28 + ((i * 17) % 18);
-    context.fillStyle = `hsl(${92 + (i % 19)}, 38%, ${lightness}%)`;
-    context.fillRect((i * 37) % 96, (i * 61) % 96, 1 + (i % 2), 2 + (i % 3));
-  }
-  const texture = new THREE.CanvasTexture(canvas);
-  texture.wrapS = THREE.RepeatWrapping;
-  texture.wrapT = THREE.RepeatWrapping;
-  texture.repeat.set(14, 8);
-  texture.colorSpace = THREE.SRGBColorSpace;
-  texture.anisotropy = 2;
-  return texture;
-}
-
 type TrexModelMode = "battle" | "winner" | "yranno";
 
 export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): JSX.Element {
@@ -40,7 +19,7 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
     const isWinner = mode === "winner";
     const renderer = new THREE.WebGLRenderer({
       canvas,
-      alpha: !isWinner,
+      alpha: true,
       antialias: false,
       powerPreference: "high-performance",
     });
@@ -53,10 +32,6 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
     renderer.toneMappingExposure = 1.25;
 
     const scene = new THREE.Scene();
-    if (isWinner) {
-      scene.background = new THREE.Color(0xaedaf0);
-      scene.fog = new THREE.Fog(0xaedaf0, 16, 42);
-    }
     const camera = new THREE.PerspectiveCamera(30, CANVAS_WIDTH / CANVAS_HEIGHT, 0.01, 1000);
     scene.add(new THREE.HemisphereLight(0xfff7e7, 0x30475f, 3.1));
 
@@ -73,9 +48,6 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
 
     let disposed = false;
     let loadedModel: THREE.Group | null = null;
-    let meadowGeometry: THREE.PlaneGeometry | null = null;
-    let meadowMaterial: THREE.MeshStandardMaterial | null = null;
-    let meadowTexture: THREE.CanvasTexture | null = null;
     let animationFrame = 0;
     let animationStartedAt = 0;
     let previousRenderTime = 0;
@@ -128,22 +100,6 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
       const size = bounds.getSize(new THREE.Vector3());
       loadedModel.position.sub(center);
       motionRoot.add(loadedModel);
-
-      if (isWinner) {
-        meadowTexture = makeMeadowTexture();
-        meadowGeometry = new THREE.PlaneGeometry(size.x * 5.5, size.x * 2.8, 1, 1);
-        meadowMaterial = new THREE.MeshStandardMaterial({
-          map: meadowTexture,
-          color: 0xb5d58b,
-          roughness: 1,
-          metalness: 0,
-        });
-        const meadow = new THREE.Mesh(meadowGeometry, meadowMaterial);
-        meadow.rotation.x = -Math.PI / 2;
-        meadow.position.y = -size.y * 0.5;
-        meadow.position.z = -size.z * 0.22;
-        scene.add(meadow);
-      }
 
       // 깊이 최댓값이 아니라 화면에 투영되는 가로·세로 크기로 거리를 맞춘다.
       const verticalFov = THREE.MathUtils.degToRad(camera.fov);
@@ -232,9 +188,6 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
         });
       }
       renderer.dispose();
-      meadowGeometry?.dispose();
-      meadowMaterial?.dispose();
-      meadowTexture?.dispose();
     };
   }, [mode]);
 

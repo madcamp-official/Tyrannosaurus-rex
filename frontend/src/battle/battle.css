@@ -595,11 +595,11 @@
 }
 
 .battle-gun--a .battle-gun__body {
-  transform: rotate(16deg);
+  transform: rotate(28deg);
 }
 
 .battle-gun--b .battle-gun__body {
-  transform: rotate(-16deg);
+  transform: rotate(-28deg);
 }
 
 .battle-gun__model {
