@@ -207,7 +207,11 @@ export function DesktopLobby(): JSX.Element {
           const teamCrosshairs = Object.values(nextCrosshairsByPlayer)
             .filter((c) => c.teamId === evt.data.teamId)
             .map((c) => ({ playerId: c.playerId, color: c.color, point: c.point, active: true }));
-          bridge.send("CROSSHAIRS", { teamId: evt.data.teamId, crosshairs: teamCrosshairs });
+          // CHARGING에서는 React 배틀 화면이 조준점을 직접 표시한다. 뒤에 남아 있는 Godot에도
+          // 같은 고빈도 좌표를 중복 전송하면 두 렌더러가 동시에 갱신돼 프레임 드롭이 커진다.
+          if (prev.teams[evt.data.teamId].phase !== "CHARGING") {
+            bridge.send("CROSSHAIRS", { teamId: evt.data.teamId, crosshairs: teamCrosshairs });
+          }
           return { ...ePrev, crosshairsByPlayer: nextCrosshairsByPlayer };
         });
         return prev;

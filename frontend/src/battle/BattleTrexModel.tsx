@@ -4,6 +4,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 const CANVAS_WIDTH = 620;
 const CANVAS_HEIGHT = 360;
+const FRAME_INTERVAL_MS = 1000 / 30;
 
 export function BattleTrexModel(): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -12,8 +13,10 @@ export function BattleTrexModel(): JSX.Element {
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
 
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "high-performance" });
+    // 사격 화면 뒤에서 Godot WebGL도 함께 실행된다. DPR 2는 이 캔버스의 픽셀 수를 4배로
+    // 늘려 저사양 GPU에서 병목이 되므로 표시 크기와 같은 1배 해상도로 고정한다.
+    renderer.setPixelRatio(1);
     renderer.setSize(CANVAS_WIDTH, CANVAS_HEIGHT, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -37,6 +40,7 @@ export function BattleTrexModel(): JSX.Element {
     let disposed = false;
     let loadedModel: THREE.Group | null = null;
     let frame = 0;
+    let lastRenderAt = 0;
     const clock = new THREE.Clock();
 
     new GLTFLoader().load("/models/trex_skeleton/skeleton.gltf", (gltf) => {
@@ -79,16 +83,20 @@ export function BattleTrexModel(): JSX.Element {
       camera.far = cameraDistance + size.z * 2;
       camera.updateProjectionMatrix();
 
-      const animate = () => {
+      const animate = (frameTime: number) => {
         if (disposed) return;
+        frame = window.requestAnimationFrame(animate);
+        // 조준점과 서버 티라노 좌표는 별도 DOM으로 갱신되므로, 모델의 미세한 숨쉬기
+        // 애니메이션만 30fps로 제한해도 조작 반응성에는 영향이 없다.
+        if (frameTime - lastRenderAt < FRAME_INTERVAL_MS) return;
+        lastRenderAt = frameTime;
         const elapsed = clock.getElapsedTime();
         motionRoot.position.y = Math.sin(elapsed * 4.2) * motionAmount;
         motionRoot.rotation.y = Math.sin(elapsed * 1.7) * 0.045;
         motionRoot.rotation.z = Math.sin(elapsed * 4.2) * 0.012;
         renderer.render(scene, camera);
-        frame = window.requestAnimationFrame(animate);
       };
-      animate();
+      frame = window.requestAnimationFrame(animate);
     }, undefined, (error) => {
       console.error("스켈레톤 티라노 모델을 불러오지 못했습니다.", error);
     });

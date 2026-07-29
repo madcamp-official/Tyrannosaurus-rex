@@ -125,14 +125,12 @@
   width: 620px;
   height: 360px;
   transition: left 0.25s linear, top 0.25s linear;
-  filter: drop-shadow(0 18px 22px rgba(0, 0, 0, 0.55));
 }
 
 .battle-trex__model {
   display: block;
   width: 620px;
   height: 360px;
-  filter: drop-shadow(0 0 12px rgba(255, 246, 222, 0.18));
 }
 
 .battle-core {
