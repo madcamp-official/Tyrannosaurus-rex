@@ -253,8 +253,18 @@ function TeamPhaseContent({ team, roomState }: { team: TeamState; roomState: Roo
     case "CHARGING":
       return <ChargingTeamStats team={team} players={players} />;
     case "REVIVED":
+      // 부활 완료 여부·WIN/LOSE/DRAW는 다 같이 보는 공유 화면인 여기서만 보여준다(§모바일에는 안 띄움).
       return (
-        <p className="phase-placeholder">{team.charging.form === "NORMAL" ? "🦖 정상 부활 완료!" : "🦖 와이라노가 되어버렸어요."} 결과를 기다리는 중…</p>
+        <div className="phase-placeholder" style={{ flexDirection: "column", gap: "8px" }}>
+          <p>{team.charging.form === "NORMAL" ? "🦖 정상 부활 완료!" : "🦖 와이라노가 되어버렸어요."}</p>
+          {team.charging.result ? (
+            <p>
+              {team.charging.result === "WIN" ? "🏆 부활 성공! 먼저 채웠어요." : team.charging.result === "DRAW" ? "무승부예요." : "상대가 먼저 채웠어요."}
+            </p>
+          ) : (
+            <p>결과를 기다리는 중…</p>
+          )}
+        </div>
       );
     default:
       return <p className="phase-placeholder">대기 중…</p>;
