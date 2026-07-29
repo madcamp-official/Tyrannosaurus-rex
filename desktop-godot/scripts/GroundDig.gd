@@ -56,6 +56,11 @@ var _vertex_count := 0
 var _scoop_history: Array[Vector2] = []
 var _tracked_max_depth := 0.0
 var _rng := RandomNumberGenerator.new()
+# 여러 명이 동시에 흔들어 한 프레임 안에 삽질이 여러 번 몰리면, 전체 정점(65×65)을
+# 순회하고 SurfaceTool로 메시를 통째로 다시 짓는 _rebuild_geometry()가 그만큼 반복
+# 호출돼 프레임이 끊긴다 — 삽질마다 즉시 다시 짓는 대신, 같은 프레임에 몰린 삽질은
+# 높이 값만 먼저 다 반영해두고 리빌드는 프레임당 한 번으로 묶는다.
+var _rebuild_pending := false
 
 func _ready() -> void:
 	_rng.randomize()
@@ -183,6 +188,19 @@ func apply_scoop(scoop_x: float, scoop_z: float, scoop_radius: float, scoop_dept
 			if -_height_field[i] > _tracked_max_depth:
 				_tracked_max_depth = -_height_field[i]
 
+	_request_rebuild()
+
+## 이번 프레임에 이미 리빌드가 예약돼 있으면 다시 예약하지 않는다 — 같은 프레임 안에서
+## apply_scoop()이 여러 번 불려도(동시 다발 삽질) 실제 _rebuild_geometry()는 프레임이
+## 끝나기 직전 딱 한 번만 실행되어, 그사이 누적된 모든 높이 변화를 한 번에 반영한다.
+func _request_rebuild() -> void:
+	if _rebuild_pending:
+		return
+	_rebuild_pending = true
+	call_deferred("_flush_rebuild")
+
+func _flush_rebuild() -> void:
+	_rebuild_pending = false
 	_rebuild_geometry()
 
 func _rebuild_geometry() -> void:

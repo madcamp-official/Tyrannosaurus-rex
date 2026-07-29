@@ -156,6 +156,12 @@ describe("dino run (meteor dodge)", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
     const meteor = { id: 0, hitAtMs: 8000, x: 0.5, kind: "METEOR" as const };
     room.state.teams.A.dinoRun.skyObjects = [meteor];
+    // 이 테스트는 팀 A의 유예 시간 판정만 다룬다 — 팀 B는 setupAssemblyRoom()이 실제
+    // 시드 기반 스케줄을 그대로 넣어두는데, 팀 B 플레이어는 위치를 한 번도 보고하지
+    // 않아 기본값(0.5)에 머물러 있다. 스케줄 상수(간격/밀도 곡선)가 바뀔 때마다 팀 B가
+    // 우연히 그 기본 위치에서 맞아 죽는 일이 생겨 팀 A만 보는 아래 단언이 깨지는 걸
+    // 막기 위해 팀 B는 아예 빈 스케줄로 둔다.
+    room.state.teams.B.dinoRun.skyObjects = [];
 
     rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: 0.5, clientTime: now }, now);
     rooms.tickDinoCollisions(room, now + meteor.hitAtMs - SKY_OBJECT_FALL_MS + 1);
