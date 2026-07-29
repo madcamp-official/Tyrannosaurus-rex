@@ -147,9 +147,6 @@ export function ResultView({
 
       <div className="result-view__stage-row">
         <TeamResultTrex teamId="A" isWinner={roomState.winner.teamId === "A"} />
-        <div className="result-view__museum-slot">
-          <span className="result-view__stage-slot-label">최종 승부</span>
-        </div>
         <TeamResultTrex teamId="B" isWinner={roomState.winner.teamId === "B"} />
       </div>
 
