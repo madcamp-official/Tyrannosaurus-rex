@@ -2,6 +2,7 @@
 
 import { randomUUID } from "node:crypto";
 import {
+  CHARGING_DRAW_WINDOW_MS,
   CHARGING_PRACTICE_DURATION_MS,
   DINO_RUN_DURATION_MS,
   DECORATION_VOTE_DURATION_MS,
@@ -96,6 +97,8 @@ export type RoomRecord = {
   excavationFirstFinishAt: number | null;
   /** 두 팀 다 다이노런을 끝내면 이 시각에 함께 CHARGING으로 넘어간다 (§ROUND_TRANSITION_MS 대기). */
   dinoRunTransitionAt: number | null;
+  /** 먼저 부활 에너지를 채운 팀의 완료 시각. 상대가 CHARGING_DRAW_WINDOW_MS 안에 이어서 채우면 DRAW로 정정한다. */
+  chargingFirstFinishAt: number | null;
   phaseDurations: Record<TeamId, PhaseDurations>;
   /** CHARGING에 처음 진입한 시각. chargingMs 계산에 쓴다. */
   chargingStartedAt: Record<TeamId, number | null>;
@@ -147,6 +150,7 @@ function resetTeamGameplayState(team: TeamState, now: number): void {
     activeCore: "HEART",
     coreChangesAt: 0,
     form: "NONE",
+    result: null,
   };
   team.scores = { excavation: null, dinoRun: null, charging: null };
 }
@@ -169,7 +173,7 @@ function makeEmptyTeamState(teamId: TeamId, now: number): TeamState {
       grade: null,
       result: null,
     },
-    charging: { energy: 0, stability: 100, activeCore: "HEART", coreChangesAt: 0, form: "NONE" },
+    charging: { energy: 0, stability: 100, activeCore: "HEART", coreChangesAt: 0, form: "NONE", result: null },
     scores: { excavation: null, dinoRun: null, charging: null },
   };
   resetTeamGameplayState(team, now);
@@ -278,6 +282,7 @@ export class RoomManager {
       excavationTransitionAt: null,
       excavationFirstFinishAt: null,
       dinoRunTransitionAt: null,
+      chargingFirstFinishAt: null,
       phaseDurations: {
         A: { excavationMs: null, assemblyMs: null, chargingMs: null },
         B: { excavationMs: null, assemblyMs: null, chargingMs: null },
@@ -475,6 +480,7 @@ export class RoomManager {
     room.excavationTransitionAt = null;
     room.excavationFirstFinishAt = null;
     room.dinoRunTransitionAt = null;
+    room.chargingFirstFinishAt = null;
     Object.assign(room, makeVoteState());
     this.touch(room);
     this.bumpRevision(room);
@@ -710,6 +716,7 @@ export class RoomManager {
     if (outcome.justReachedRevived) {
       room.phaseDurations[teamId].chargingMs = room.chargingStartedAt[teamId] !== null ? now - room.chargingStartedAt[teamId]! : null;
       this.finalizeChargingScore(room, teamId);
+      this.applyChargingResult(room, teamId, now);
       roundFinalized = this.checkRoundCompletion(room, now);
     }
     this.bumpRevision(room);
@@ -727,6 +734,32 @@ export class RoomManager {
     room.state.teams[teamId].scores.charging = Math.round(
       SHOOTING_SCORE_ACCURACY_WEIGHT * accuracy + SHOOTING_SCORE_CORE_WEIGHT * coreFactor,
     );
+  }
+
+  /**
+   * 발굴과 같은 패턴(§applyExcavation) — 부활 에너지를 먼저 채운(NORMAL) 팀이 WIN, 상대도
+   * REVIVED에 도달하면 LOSE. 단 CHARGING_DRAW_WINDOW_MS 안에 이어서 채우면 둘 다 DRAW로
+   * 정정한다. 시간 초과로 와이라노(YRANNO)가 되면 순서와 무관하게 항상 LOSE다.
+   */
+  private applyChargingResult(room: RoomRecord, teamId: TeamId, now: number): void {
+    const team = room.state.teams[teamId];
+    const otherTeamId: TeamId = teamId === "A" ? "B" : "A";
+    const otherTeam = room.state.teams[otherTeamId];
+
+    if (team.charging.form === "NORMAL" && otherTeam.charging.result === null) {
+      team.charging.result = "WIN";
+      room.chargingFirstFinishAt = now;
+    } else if (
+      team.charging.form === "NORMAL" &&
+      otherTeam.charging.result === "WIN" &&
+      room.chargingFirstFinishAt !== null &&
+      now - room.chargingFirstFinishAt <= CHARGING_DRAW_WINDOW_MS
+    ) {
+      team.charging.result = "DRAW";
+      otherTeam.charging.result = "DRAW";
+    } else {
+      team.charging.result = "LOSE";
+    }
   }
 
   /** 배경 틱(§6.3 10Hz)에서 팀별 티라노 위치·코어 로테이션·시간 초과를 처리한다. */
@@ -763,6 +796,7 @@ export class RoomManager {
         if (transition === "TO_REVIVED_YRANNO") {
           room.phaseDurations[teamId].chargingMs = room.chargingStartedAt[teamId] !== null ? now - room.chargingStartedAt[teamId]! : null;
           this.finalizeChargingScore(room, teamId);
+          this.applyChargingResult(room, teamId, now);
           if (this.checkRoundCompletion(room, now)) roundFinalized = true;
         }
       }

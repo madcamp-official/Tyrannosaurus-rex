@@ -37,6 +37,7 @@ function initialBattle(): BattleState {
       energy: 0,
       totalHits: 0,
       coreHits: 0,
+      result: null,
       players: [makePlayer("a1", "화염랩터"), makePlayer("a2", "골드팽"), makePlayer("a3", "선라이더"), makePlayer("a4", "엠버울프")],
     },
     teamB: {
@@ -44,6 +45,7 @@ function initialBattle(): BattleState {
       energy: 0,
       totalHits: 0,
       coreHits: 0,
+      result: null,
       players: [makePlayer("b1", "프로스트핀"), makePlayer("b2", "아이스팽"), makePlayer("b3", "글레이셔"), makePlayer("b4", "블루레이")],
     },
     trex: { x: TREX_RANGE[0], y: TREX_BASELINE_Y, facing: 1, corePos: corePosFor(TREX_RANGE[0], 1) },

@@ -219,6 +219,10 @@ export type TeamState = {
     activeCore: CoreZone;
     coreChangesAt: number;
     form: RevivalForm;
+    /** 부활 에너지를 먼저 채우면(NORMAL) WIN, 상대도 REVIVED에 도달하면 LOSE — 단
+     * CHARGING_DRAW_WINDOW_MS 안에 거의 동시에 채우면 둘 다 DRAW로 정정한다. 시간 초과로
+     * 와이라노(YRANNO)가 되면 순서와 무관하게 항상 LOSE다. */
+    result: "WIN" | "LOSE" | "DRAW" | null;
   };
   scores: GameScores;
 };

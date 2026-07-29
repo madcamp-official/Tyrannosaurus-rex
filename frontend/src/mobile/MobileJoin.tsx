@@ -275,6 +275,11 @@ export function MobileJoin(): JSX.Element {
             <p className="mobile-game__title">
               {team.charging.form === "NORMAL" ? "🦖 부활 완료!" : "🦖 와이라노가 되어버렸어요."} 데스크탑 화면을 확인하세요.
             </p>
+            {team.charging.result && (
+              <p className="mobile-game__hint">
+                {team.charging.result === "WIN" ? "🏆 부활 성공! 먼저 채웠어요." : team.charging.result === "DRAW" ? "무승부예요." : "상대가 먼저 채웠어요."}
+              </p>
+            )}
           </div>
         )}
       </>

@@ -28,6 +28,7 @@ function teamFrom(allPlayers: PublicPlayer[], team: TeamState, teamName: string)
     energy: team.charging.energy,
     totalHits: teamPlayers.reduce((sum, p) => sum + p.stats.hits, 0),
     coreHits: teamPlayers.reduce((sum, p) => sum + p.stats.coreHits, 0),
+    result: team.charging.result,
   };
 }
 
