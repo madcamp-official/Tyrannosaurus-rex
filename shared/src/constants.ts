@@ -43,6 +43,9 @@ export const METEOR_HEART_SCORE_REWARD = 10; // 하트를 잡으면 얻는 점�
 export const METEOR_HEART_LIVES_RESTORED = 1; // 하트 하나당 회복되는 목숨 수(METEOR_DODGE_LIVES 초과로는 안 찬다)
 // 좌우 위치(0~1) 기준 충돌 판정 반경 — 이 안에 있으면 맞은(또는 잡은) 것으로 인정한다.
 export const SKY_OBJECT_COLLISION_RADIUS = 0.09;
+// 모바일 위치 전송·네트워크·서버 100ms 판정 틱의 지연을 흡수한다. 화면 착지 직후 이 시간만큼
+// 최신 위치를 더 받아 판정해, 이미 피한 공룡의 이전 좌표로 맞았다고 처리되는 일을 막는다.
+export const SKY_OBJECT_COLLISION_GRACE_MS = 150;
 export const SKY_OBJECT_COUNT = 110; // 1분 동안 떨어지는 운석+아이템 총 개수
 export const SKY_OBJECT_FRUIT_CHANCE = 0.15; // 이 중 과일일 확률
 export const SKY_OBJECT_HEART_CHANCE = 0.05; // 이 중 하트일 확률(나머지는 운석)

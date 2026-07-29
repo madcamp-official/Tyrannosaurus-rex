@@ -19,6 +19,7 @@ import {
   METEOR_HIT_SCORE_PENALTY,
   PHASE_START_GRACE_MS,
   SKY_OBJECT_COLLISION_RADIUS,
+  SKY_OBJECT_COLLISION_GRACE_MS,
   SKY_OBJECT_COUNT,
   SKY_OBJECT_DENSITY_CURVE_EXPONENT,
   SKY_OBJECT_FALL_MS,
@@ -128,7 +129,7 @@ export function tickSkyCollisions(room: RoomRecord, teamId: TeamId, now: number)
   }
 
   for (const obj of team.dinoRun.skyObjects) {
-    if (elapsed < obj.hitAtMs) continue;
+    if (elapsed < obj.hitAtMs + SKY_OBJECT_COLLISION_GRACE_MS) continue;
     for (const playerId of team.playerIds) {
       if (team.dinoRun.deadPlayerIds.includes(playerId)) continue;
       const resolved =
