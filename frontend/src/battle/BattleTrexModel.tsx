@@ -4,6 +4,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 const CANVAS_WIDTH = 620;
 const CANVAS_HEIGHT = 360;
+const BATTLE_WALK_FPS = 15;
 const RESULT_WALK_FPS = 15;
 
 function makeMeadowTexture(): THREE.CanvasTexture {
@@ -103,11 +104,27 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
         child.material = hadMultipleMaterials ? clonedMaterials : clonedMaterials[0]!;
       });
 
-      // 원본 모델의 긴 몸체 축은 Z축이다. Y축으로 90도 돌려 머리~꼬리
-      // 방향을 화면 가로축에 놓아 정면 카메라에서 전체 실루엣이 보이게 한다.
-      loadedModel.rotation.y = Math.PI / 2;
-      const bounds = new THREE.Box3().setFromObject(loadedModel);
-      const center = bounds.getCenter(new THREE.Vector3());
+      // 원본 모델의 긴 몸체 축은 Z축이다. 사격 화면에서는 회전하지 않은
+      // 정면 자세로 등장하고, 결과 화면만 가로로 걷기 위해 옆면으로 돌린다.
+      loadedModel.rotation.y = mode === "battle" ? 0 : Math.PI / 2;
+      let bounds = new THREE.Box3().setFromObject(loadedModel);
+      let center = bounds.getCenter(new THREE.Vector3());
+
+      if (mode === "battle") {
+        // 모델마다 원본 축이 조금씩 다르므로 이름이 지정된 머리 노드를 기준으로
+        // 머리 방향을 카메라(+Z) 쪽에 정확히 맞춘다.
+        loadedModel.position.sub(center);
+        loadedModel.updateMatrixWorld(true);
+        const headPosition = loadedModel.getObjectByName("Head")?.getWorldPosition(new THREE.Vector3());
+        if (headPosition) {
+          loadedModel.rotation.y = Math.atan2(-headPosition.x, headPosition.z);
+        }
+        loadedModel.position.set(0, 0, 0);
+        loadedModel.updateMatrixWorld(true);
+        bounds = new THREE.Box3().setFromObject(loadedModel);
+        center = bounds.getCenter(new THREE.Vector3());
+      }
+
       const size = bounds.getSize(new THREE.Vector3());
       loadedModel.position.sub(center);
       motionRoot.add(loadedModel);
@@ -144,9 +161,32 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
         motionRoot.rotation.z = -0.12;
       }
 
-      if (mode !== "winner" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-        // 사격 스켈레톤과 와이라노는 정지 화면이므로 한 번만 렌더링한다.
+      if (mode === "yranno" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        // 와이라노와 모션 감소 환경은 정지 화면으로 한 번만 렌더링한다.
         renderer.render(scene, camera);
+        return;
+      }
+
+      if (mode === "battle") {
+        // 정면으로 등장한 뒤 좌우 사선과 측면을 번갈아 보여 주며 걷는다.
+        // 매 프레임 렌더링하지 않고 15fps로 제한해 사격 중 GPU 부하를 억제한다.
+        renderer.render(scene, camera);
+        const animateBattle = (time: number) => {
+          if (disposed) return;
+          animationFrame = window.requestAnimationFrame(animateBattle);
+          if (animationStartedAt === 0) animationStartedAt = time;
+          const interval = 1000 / BATTLE_WALK_FPS;
+          if (document.hidden || time - previousRenderTime < interval) return;
+          previousRenderTime = time - ((time - previousRenderTime) % interval);
+
+          const elapsed = (time - animationStartedAt) / 1000;
+          const step = elapsed * 5.2;
+          motionRoot.rotation.y = Math.sin(elapsed * 0.72) * 1.18;
+          motionRoot.rotation.z = Math.sin(step) * 0.014;
+          motionRoot.position.y = Math.abs(Math.sin(step)) * size.y * 0.018;
+          renderer.render(scene, camera);
+        };
+        animationFrame = window.requestAnimationFrame(animateBattle);
         return;
       }
 
