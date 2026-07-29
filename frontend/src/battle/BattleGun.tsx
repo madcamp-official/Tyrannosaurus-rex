@@ -5,6 +5,9 @@ import * as THREE from "three";
 import { FBXLoader } from "three/examples/jsm/loaders/FBXLoader.js";
 import type { BattleShotEvent, TeamId } from "./battleTypes";
 
+const GUN_CANVAS_WIDTH = 440;
+const GUN_CANVAS_HEIGHT = 320;
+
 function LaserGunModel({ team }: { team: TeamId }): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -12,19 +15,27 @@ function LaserGunModel({ team }: { team: TeamId }): JSX.Element {
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
 
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.setSize(150, 190, false);
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      alpha: true,
+      antialias: false,
+      powerPreference: "high-performance",
+    });
+    renderer.setPixelRatio(1);
+    renderer.setSize(GUN_CANVAS_WIDTH, GUN_CANVAS_HEIGHT, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.35;
 
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(32, 150 / 190, 0.01, 100);
-    scene.add(new THREE.HemisphereLight(0xffffff, 0x24160f, 2.8));
-    const keyLight = new THREE.DirectionalLight(team === "A" ? 0xff9d55 : 0x71d2ff, 5);
+    const camera = new THREE.PerspectiveCamera(30, GUN_CANVAS_WIDTH / GUN_CANVAS_HEIGHT, 0.01, 100);
+    scene.add(new THREE.HemisphereLight(0xffffff, 0x28231f, 3.2));
+    const keyLight = new THREE.DirectionalLight(0xfff4e8, 4.5);
     keyLight.position.set(3, 4, 5);
     scene.add(keyLight);
+    const fillLight = new THREE.DirectionalLight(0xb8d8ff, 2.2);
+    fillLight.position.set(-4, 1, 2);
+    scene.add(fillLight);
 
     let disposed = false;
     let model: THREE.Group | null = null;
@@ -32,21 +43,11 @@ function LaserGunModel({ team }: { team: TeamId }): JSX.Element {
     loader.load("/models/LaserGun.fbx", (loaded) => {
       if (disposed) return;
       model = loaded;
-      const tint = new THREE.Color(team === "A" ? 0xf06c2e : 0x159bd0);
       loaded.traverse((child) => {
         if (!(child instanceof THREE.Mesh)) return;
         const hadMultipleMaterials = Array.isArray(child.material);
         const materials: THREE.Material[] = hadMultipleMaterials ? child.material : [child.material];
-        const clonedMaterials = materials.map((source) => {
-          const material = source.clone() as THREE.MeshStandardMaterial;
-          if ("color" in material) material.color.lerp(tint, 0.42);
-          if ("emissive" in material) {
-            material.emissive.copy(tint);
-            material.emissiveIntensity = 0.16;
-          }
-          material.needsUpdate = true;
-          return material;
-        });
+        const clonedMaterials = materials.map((source) => source.clone());
         child.material = hadMultipleMaterials ? clonedMaterials : clonedMaterials[0]!;
       });
 
@@ -54,12 +55,13 @@ function LaserGunModel({ team }: { team: TeamId }): JSX.Element {
       const center = bounds.getCenter(new THREE.Vector3());
       const size = bounds.getSize(new THREE.Vector3());
       loaded.position.sub(center);
-      loaded.rotation.set(-0.1, team === "A" ? -0.55 : 0.55, -0.12);
+      loaded.rotation.set(-0.26, team === "A" ? -0.48 : 0.48, team === "A" ? -0.1 : 0.1);
+      loaded.position.y -= size.y * 0.08;
       scene.add(loaded);
 
       const radius = Math.max(size.x, size.y, size.z) * 0.62;
-      camera.position.set(0, radius * 0.08, radius * 3.1);
-      camera.lookAt(0, 0, 0);
+      camera.position.set(team === "A" ? radius * 0.12 : -radius * 0.12, radius * 0.12, radius * 2.25);
+      camera.lookAt(0, -radius * 0.06, 0);
       camera.near = Math.max(0.01, radius * 0.01);
       camera.far = radius * 10;
       camera.updateProjectionMatrix();
@@ -81,7 +83,7 @@ function LaserGunModel({ team }: { team: TeamId }): JSX.Element {
     };
   }, [team]);
 
-  return <canvas ref={canvasRef} className="battle-gun__model" width={150} height={190} aria-label={`${team}팀 레이저건`} />;
+  return <canvas ref={canvasRef} className="battle-gun__model" width={GUN_CANVAS_WIDTH} height={GUN_CANVAS_HEIGHT} aria-label={`${team} team laser gun`} />;
 }
 
 export function BattleGun({ team, shotEvents }: { team: TeamId; shotEvents: BattleShotEvent[] }): JSX.Element {
