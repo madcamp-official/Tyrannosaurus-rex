@@ -1203,7 +1203,7 @@ body {
 
 .exca-progress {
   position: absolute;
-  top: 82px;
+  top: 16px;
   left: 50%;
   transform: translateX(-50%);
   width: min(520px, 60%);
