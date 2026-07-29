@@ -1,7 +1,12 @@
-T-Rex by Poly by Google
-Source: https://poly.pizza/m/9GyZw9gGPMq
-License: Creative Commons Attribution 3.0
-License URL: https://creativecommons.org/licenses/by/3.0/
+Project-supplied Tyrannosaurus model
+Original source: model/source/trex/Trex.gltf
+Original textures: model/source/trex/*.png
 
-The model is stored locally as trex.glb and is used for the final
-Tyrannosaurus / YRANNO result presentation.
+Web asset processing:
+- Geometry preserved at 16,129 vertices / 28,152 triangles.
+- Textures resized to 1024x1024 and embedded as WebP.
+- Geometry quantized and packaged as a single GLB.
+
+The original source directory does not contain license metadata.
+Confirm the model's distribution rights before redistributing it outside
+this project.
