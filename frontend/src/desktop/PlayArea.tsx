@@ -14,6 +14,7 @@ import {
   type TeamState,
 } from "@trex/shared";
 import { useEffect, useState } from "react";
+import { serverNow } from "../socket";
 import { ExcavationTeamPanel } from "./ExcavationView";
 import { DinoRunOverlay, DinoRunTeamPanel } from "./DinoRunView";
 import { ChargingSharedArena, ChargingTeamStats, type CrosshairDisplay, type TrexDisplay } from "./ChargingView";
@@ -72,9 +73,11 @@ function formatClock(ms: number): string {
 }
 
 function PhaseTimer({ roomState }: { roomState: RoomState }): JSX.Element | null {
-  const [nowMs, setNowMs] = useState(() => Date.now());
+  // 폰과 데스크탑의 시스템 시계가 서로 어긋나 있으면 같은 phaseStartedAt을 기준으로 해도
+  // 표시되는 시간이 달라진다 — raw Date.now() 대신 서버 기준으로 보정된 serverNow()를 쓴다.
+  const [nowMs, setNowMs] = useState(() => serverNow());
   useEffect(() => {
-    const interval = window.setInterval(() => setNowMs(Date.now()), 200);
+    const interval = window.setInterval(() => setNowMs(serverNow()), 200);
     return () => window.clearInterval(interval);
   }, []);
 
@@ -104,9 +107,11 @@ function PhaseTimer({ roomState }: { roomState: RoomState }): JSX.Element | null
 }
 
 function ServerPhaseCountdown({ roomState }: { roomState: RoomState }): JSX.Element | null {
-  const [nowMs, setNowMs] = useState(() => Date.now());
+  // 폰과 데스크탑의 시스템 시계가 서로 어긋나 있으면 같은 phaseStartedAt을 기준으로 해도
+  // 카운트다운이 서로 다르게 보인다 — raw Date.now() 대신 서버 기준으로 보정된 serverNow()를 쓴다.
+  const [nowMs, setNowMs] = useState(() => serverNow());
   useEffect(() => {
-    const interval = window.setInterval(() => setNowMs(Date.now()), 100);
+    const interval = window.setInterval(() => setNowMs(serverNow()), 100);
     return () => window.clearInterval(interval);
   }, []);
 
