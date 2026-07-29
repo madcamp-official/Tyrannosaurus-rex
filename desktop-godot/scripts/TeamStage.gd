@@ -23,15 +23,26 @@ var _phase: String = "EXCAVATION"
 var _hit_particles: CPUParticles3D
 var _dirt_particles: CPUParticles3D
 var _label: Label3D
+var _bone_highlight_material: StandardMaterial3D
 var _last_dig_progress := -EXCAVATION_DIG_STEP
 
 func setup(id: String) -> void:
 	team_id = id
+	_build_bone_highlight_material()
 	_build_ground()
 	_build_model()
 	_build_hit_particles()
 	_build_dirt_particles()
 	_build_label()
+
+func _build_bone_highlight_material() -> void:
+	_bone_highlight_material = StandardMaterial3D.new()
+	_bone_highlight_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	_bone_highlight_material.albedo_color = Color(1.0, 0.94, 0.78, 0.2)
+	_bone_highlight_material.emission_enabled = true
+	_bone_highlight_material.emission = Color(1.0, 0.9, 0.68)
+	_bone_highlight_material.emission_energy_multiplier = 0.32
+	_bone_highlight_material.shading_mode = BaseMaterial3D.SHADING_MODE_PER_PIXEL
 
 func _build_ground() -> void:
 	_ground = GroundDig.new()
@@ -143,6 +154,8 @@ func set_phase(phase: String) -> void:
 			_ground.reset()
 		_last_dig_progress = -EXCAVATION_DIG_STEP
 	if phase == "ASSEMBLY" and previous == "EXCAVATION" and _model_ready:
+		for piece_id in _model.get_piece_ids():
+			_set_piece_highlight(_model.get_piece(piece_id), false)
 		_model.scatter(team_id.hash())
 
 ## 발굴 지형은 항상 보여야 한다 — Main._build_ground_backdrop()이 이 패치 영역을 일부러
@@ -175,6 +188,7 @@ func _reveal_piece(bone_id: String, animate: bool) -> void:
 	if not piece or piece.visible:
 		return
 	piece.visible = true
+	_set_piece_highlight(piece, _phase == "EXCAVATION")
 	if not animate:
 		return
 	_burst_dirt_around(piece)
@@ -190,6 +204,12 @@ func _reveal_piece(bone_id: String, animate: bool) -> void:
 	tween.parallel().tween_property(piece, "scale", original_scale * 1.04, REVEAL_POP_DURATION * 0.55)
 	tween.tween_property(piece, "rotation:y", original_rotation.y, REVEAL_POP_DURATION * 0.45)
 	tween.parallel().tween_property(piece, "scale", original_scale, REVEAL_POP_DURATION * 0.45)
+
+func _set_piece_highlight(piece: Node3D, enabled: bool) -> void:
+	if not piece:
+		return
+	for mesh_instance in _mesh_descendants(piece):
+		mesh_instance.material_overlay = _bone_highlight_material if enabled else null
 
 func _burst_dirt_around(piece: Node3D) -> void:
 	if not _dirt_particles:
