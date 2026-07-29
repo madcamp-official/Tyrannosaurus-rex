@@ -2355,6 +2355,13 @@ body {
   padding: 12px;
 }
 
+.result-view__stage-slot {
+  position: relative;
+  min-height: 210px;
+  overflow: hidden;
+  flex-direction: column;
+}
+
 .result-view__stage-slot--a {
   border-color: rgba(255, 120, 60, 0.5);
   background: rgba(255, 120, 60, 0.06);
@@ -2412,6 +2419,65 @@ body {
   font-weight: 400;
   font-size: 1.6rem;
   margin: 0 0 6px;
+}
+
+.result-view__trex {
+  width: 310px;
+  height: 180px;
+  transform-origin: 50% 100%;
+}
+
+.result-view__trex .battle-trex__model {
+  width: 310px;
+  height: 180px;
+}
+
+.result-view__trex--winner {
+  animation: result-trex-hop 1.8s ease-in-out infinite;
+}
+
+.result-view__trex--yranno {
+  filter: grayscale(0.45) sepia(0.35);
+  opacity: 0.76;
+  transform: translateY(18px) rotate(-5deg);
+}
+
+.result-view__stage-result {
+  position: absolute;
+  left: 50%;
+  bottom: 12px;
+  transform: translateX(-50%);
+  z-index: 2;
+  white-space: nowrap;
+  font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
+  font-size: 1.2rem;
+  font-weight: 400;
+  text-shadow: 0 3px 8px rgba(0, 0, 0, 0.72);
+}
+
+.result-view__stage-slot--winner .result-view__stage-result {
+  color: #f5c542;
+}
+
+.result-view__stage-slot--yranno .result-view__stage-result {
+  color: #c87373;
+}
+
+@keyframes result-trex-hop {
+  0%, 100% { transform: translate(-64px, 8px) rotate(-2deg); }
+  12% { transform: translate(-42px, -24px) rotate(2deg); }
+  25% { transform: translate(-18px, 8px) rotate(-1deg); }
+  37% { transform: translate(8px, -27px) rotate(2deg); }
+  50% { transform: translate(34px, 8px) rotate(-1deg); }
+  62% { transform: translate(58px, -24px) rotate(2deg); }
+  75% { transform: translate(34px, 8px) rotate(-1deg); }
+  87% { transform: translate(-18px, -25px) rotate(2deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .result-view__trex--winner {
+    animation: none;
+  }
 }
 
 .result-view__team-summary {

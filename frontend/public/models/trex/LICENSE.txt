@@ -1,0 +1,7 @@
+T-Rex by Poly by Google
+Source: https://poly.pizza/m/9GyZw9gGPMq
+License: Creative Commons Attribution 3.0
+License URL: https://creativecommons.org/licenses/by/3.0/
+
+The model is stored locally as trex.glb and is used for the final
+Tyrannosaurus / YRANNO result presentation.

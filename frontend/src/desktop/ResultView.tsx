@@ -11,6 +11,7 @@ import {
 } from "@trex/shared";
 import type { AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
+import { BattleTrexModel } from "../battle/BattleTrexModel";
 
 const TEAM_EMBLEM: Record<TeamId, string> = { A: "🔥", B: "❄️" };
 
@@ -46,10 +47,15 @@ function teamActionSummary(players: PublicPlayer[], teamId: TeamId) {
   return { ...totals, digs: Math.round(totals.digs) };
 }
 
-function TeamStagePlaceholder({ teamId }: { teamId: TeamId }): JSX.Element {
+function TeamResultTrex({ teamId, isWinner }: { teamId: TeamId; isWinner: boolean }): JSX.Element {
   return (
-    <div className={`result-view__stage-slot result-view__stage-slot--${teamId.toLowerCase()}`}>
-      <span className="result-view__stage-slot-label">🦖 부활한 티라노 (준비 중)</span>
+    <div
+      className={`result-view__stage-slot result-view__stage-slot--${teamId.toLowerCase()} result-view__stage-slot--${isWinner ? "winner" : "yranno"}`}
+    >
+      <div className={`result-view__trex result-view__trex--${isWinner ? "winner" : "yranno"}`}>
+        <BattleTrexModel mode={isWinner ? "winner" : "yranno"} />
+      </div>
+      <strong className="result-view__stage-result">{isWinner ? "티라노사우루스!" : "와이라노..."}</strong>
     </div>
   );
 }
@@ -73,6 +79,7 @@ function TeamPanel({
   const assemblySec = formatSec(teamResult?.assemblyMs);
   const totalSec = (Number(excavationSec) + Number(assemblySec)).toFixed(1);
   const score = formatScore(teamResult?.totalScore);
+  const isWinner = roomState.winner.teamId === teamId;
 
   return (
     <div className={`result-view__team-panel result-view__team-panel--${teamId.toLowerCase()}`}>
@@ -81,7 +88,7 @@ function TeamPanel({
           <h3 className="result-view__team-name">
             {TEAM_EMBLEM[teamId]} {roomState.teamNames[teamId]}
           </h3>
-          <p className="result-view__form">{teamResult?.form === "YRANNO" ? "🦖 와이라노..." : "🦖 정상 부활"}</p>
+          <p className="result-view__form">{isWinner ? "🦖 티라노사우루스" : "🦖 와이라노..."}</p>
         </div>
         <div className="result-view__team-score">
           <strong>{score}</strong>
@@ -135,11 +142,11 @@ export function ResultView({
       <h2 className="result-view__title">{roomState.winner.teamId ? `${roomState.teamNames[roomState.winner.teamId]} 승리!` : "무승부"}</h2>
 
       <div className="result-view__stage-row">
-        <TeamStagePlaceholder teamId="A" />
+        <TeamResultTrex teamId="A" isWinner={roomState.winner.teamId === "A"} />
         <div className="result-view__museum-slot">
-          <span className="result-view__stage-slot-label">🏛 티꾸 완료 티라노 (준비 중)</span>
+          <span className="result-view__stage-slot-label">최종 승부</span>
         </div>
-        <TeamStagePlaceholder teamId="B" />
+        <TeamResultTrex teamId="B" isWinner={roomState.winner.teamId === "B"} />
       </div>
 
       <div className="result-view__header-row">
