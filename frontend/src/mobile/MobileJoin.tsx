@@ -70,6 +70,28 @@ export function MobileJoin(): JSX.Element {
     setDinoToast(message);
     dinoToastTimeoutRef.current = window.setTimeout(() => setDinoToast(null), 1800);
   };
+  // 운석 피하기는 각자 자기 폰에서 따로 진행하는 개인 플레이라(§발굴 파기 소리와 달리 다 같이
+  // 보는 화면이 아님), 명중·과일 효과음은 내 폰에서만, 내 이벤트일 때만 재생한다.
+  const meteorHitAudioRef = useRef<HTMLAudioElement | null>(null);
+  const fruitPickupAudioRef = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => {
+    meteorHitAudioRef.current = new Audio("/audio/meteor-hit.mp3");
+    meteorHitAudioRef.current.preload = "auto";
+    fruitPickupAudioRef.current = new Audio("/audio/fruit-pickup.mp3");
+    fruitPickupAudioRef.current.preload = "auto";
+  }, []);
+  const playMeteorHitSound = () => {
+    const audio = meteorHitAudioRef.current;
+    if (!audio) return;
+    audio.currentTime = 0;
+    void audio.play().catch(() => undefined);
+  };
+  const playFruitPickupSound = () => {
+    const audio = fruitPickupAudioRef.current;
+    if (!audio) return;
+    audio.currentTime = 0;
+    void audio.play().catch(() => undefined);
+  };
 
   // 흔들어서 발굴하는 동안 화면이 꺼져 입력이 끊기지 않도록, 입장한 뒤부터 계속 켜둔다.
   useWakeLock(status === "JOINED");
@@ -105,7 +127,10 @@ export function MobileJoin(): JSX.Element {
     });
     socket.on("dino:hit", (evt) => {
       setRoomState((prev) => (prev ? applyDinoHit(prev, evt.data) : prev));
-      if (evt.data.playerId === playerIdRef.current) showDinoToast(`💥 운석에 맞았어요! (-${METEOR_HIT_SCORE_PENALTY}점)`);
+      if (evt.data.playerId === playerIdRef.current) {
+        showDinoToast(`💥 운석에 맞았어요! (-${METEOR_HIT_SCORE_PENALTY}점)`);
+        playMeteorHitSound();
+      }
     });
     socket.on("dino:bonus", (evt) => {
       setRoomState((prev) => (prev ? applyDinoBonus(prev, evt.data) : prev));
@@ -115,6 +140,7 @@ export function MobileJoin(): JSX.Element {
             ? `❤️ 생명을 얻었어요! (+${METEOR_HEART_SCORE_REWARD}점)`
             : `🍎 과일을 먹었어요! (+${METEOR_FRUIT_SCORE_REWARD}점)`,
         );
+        if (evt.data.kind === "FRUIT") playFruitPickupSound();
       }
     });
     socket.on("dino:meteorLocked", (evt) => {

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
 import {
   BONE_IDS,
+  boneCountForTeam,
   DEFAULT_MAX_PLAYERS_PER_TEAM,
   EXCAVATION_POINTS_PER_BONE,
   MAX_PLAYERS_PER_TEAM_CAP,
@@ -54,6 +55,26 @@ const LOBBY_BGM_FADE_MS = 900;
 const DIG_SOUND_POOL_SIZE = 4;
 const DIG_SOUND_MIN_INTERVAL_MS = 90;
 const DIG_SOUND_VOLUME = 0.45;
+const DINO_RUN_BGM_VOLUME = 0.3;
+const DINO_RUN_BGM_FADE_MS = 900;
+
+/** 로비 BGM·운석 피하기 BGM이 공유하는 페이드아웃(볼륨 서서히 0으로 → 일시정지 → 볼륨 복원). */
+function fadeOutAndPause(audio: HTMLAudioElement, fadeRef: { current: number | null }, fadeMs: number, restoreVolume: number): void {
+  if (audio.paused) return;
+  const startVolume = audio.volume;
+  const startedAt = performance.now();
+  fadeRef.current = window.setInterval(() => {
+    const ratio = Math.min(1, (performance.now() - startedAt) / fadeMs);
+    audio.volume = startVolume * (1 - ratio);
+    if (ratio >= 1) {
+      if (fadeRef.current !== null) window.clearInterval(fadeRef.current);
+      fadeRef.current = null;
+      audio.pause();
+      audio.currentTime = 0;
+      audio.volume = restoreVolume;
+    }
+  }, 50);
+}
 
 function ReadyCheckIcon(): JSX.Element {
   return (
@@ -68,6 +89,8 @@ export function DesktopLobby(): JSX.Element {
   const socketRef = useRef<AppSocket | null>(null);
   const lobbyBgmRef = useRef<HTMLAudioElement | null>(null);
   const lobbyBgmFadeRef = useRef<number | null>(null);
+  const dinoRunBgmRef = useRef<HTMLAudioElement | null>(null);
+  const dinoRunBgmFadeRef = useRef<number | null>(null);
   const digSoundPoolRef = useRef<HTMLAudioElement[]>([]);
   const digSoundIndexRef = useRef(0);
   const lastDigSoundAtRef = useRef(0);
@@ -97,6 +120,9 @@ export function DesktopLobby(): JSX.Element {
   const isChargingBattle =
     roomState?.roomPhase === "PLAYING" &&
     (roomState.teams.A.phase === "CHARGING" || roomState.teams.B.phase === "CHARGING");
+  const isDinoRunActive =
+    roomState?.roomPhase === "PLAYING" &&
+    (roomState.teams.A.phase === "ASSEMBLY" || roomState.teams.B.phase === "ASSEMBLY");
 
   useEffect(() => {
     const audio = new Audio("/audio/lobby-bgm.mp3");
@@ -140,21 +166,39 @@ export function DesktopLobby(): JSX.Element {
       return;
     }
 
-    if (audio.paused) return;
-    const startVolume = audio.volume;
-    const startedAt = performance.now();
-    lobbyBgmFadeRef.current = window.setInterval(() => {
-      const ratio = Math.min(1, (performance.now() - startedAt) / LOBBY_BGM_FADE_MS);
-      audio.volume = startVolume * (1 - ratio);
-      if (ratio >= 1) {
-        if (lobbyBgmFadeRef.current !== null) window.clearInterval(lobbyBgmFadeRef.current);
-        lobbyBgmFadeRef.current = null;
-        audio.pause();
-        audio.currentTime = 0;
-        audio.volume = LOBBY_BGM_VOLUME;
-      }
-    }, 50);
+    fadeOutAndPause(audio, lobbyBgmFadeRef, LOBBY_BGM_FADE_MS, LOBBY_BGM_VOLUME);
   }, [bgmMuted, roomState?.roomPhase]);
+
+  useEffect(() => {
+    const audio = new Audio("/audio/dino-run-bgm.mp3");
+    audio.loop = true;
+    audio.preload = "auto";
+    audio.volume = DINO_RUN_BGM_VOLUME;
+    dinoRunBgmRef.current = audio;
+    return () => {
+      if (dinoRunBgmFadeRef.current !== null) window.clearInterval(dinoRunBgmFadeRef.current);
+      audio.pause();
+      dinoRunBgmRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const audio = dinoRunBgmRef.current;
+    if (!audio) return;
+    if (dinoRunBgmFadeRef.current !== null) {
+      window.clearInterval(dinoRunBgmFadeRef.current);
+      dinoRunBgmFadeRef.current = null;
+    }
+
+    audio.muted = bgmMuted;
+    if (isDinoRunActive) {
+      audio.volume = DINO_RUN_BGM_VOLUME;
+      if (!bgmMuted) void audio.play().catch(() => undefined);
+      return;
+    }
+
+    fadeOutAndPause(audio, dinoRunBgmFadeRef, DINO_RUN_BGM_FADE_MS, DINO_RUN_BGM_VOLUME);
+  }, [bgmMuted, isDinoRunActive]);
 
   useEffect(() => {
     digSoundPoolRef.current = Array.from({ length: DIG_SOUND_POOL_SIZE }, () => {
@@ -190,11 +234,13 @@ export function DesktopLobby(): JSX.Element {
     socket.on("excavation:progress", (evt) => {
       setRoomState((prev) => (prev ? applyExcavationProgress(prev, evt.data) : prev));
       playDigSound();
-      // 이번 뼈 구간(0~100%)만 잘라서 넘긴다 — nextBoneAt은 발굴 시작부터 누적된 목표치라
-      // 그대로 쓰면 골드 뼈 이벤트로 구간 폭이 줄어들 때만 오차가 생기고 그 외엔 정확하다.
-      const segmentStart = Math.max(0, evt.data.nextBoneAt - EXCAVATION_POINTS_PER_BONE);
-      const segmentSpan = Math.max(1, evt.data.nextBoneAt - segmentStart);
-      const progress = Math.min(100, Math.max(0, ((evt.data.points - segmentStart) / segmentSpan) * 100));
+      // 뼈 구간(0~100%)이 아니라 팀의 발굴 전체 목표치 대비 누적 진행도를 넘긴다 — 웨이브
+      // 수(=뼈 구간 개수)가 인원수에 비례해 줄어들다 보니(§boneCountForTeam), 구간 단위로
+      // 넘기면 인원이 적을수록 땅 파는 연출이 총 몇 번 안 일어나 같은 발굴지가 유독 조금만
+      // 파인 것처럼 보였다. 팀 전체 목표치 기준으로 바꾸면 인원수와 무관하게 땅이 고르게 파인다.
+      const playerCount = roomStateRef.current?.teams[evt.data.teamId]?.playerIds.length ?? 1;
+      const totalPointsNeeded = boneCountForTeam(playerCount) * EXCAVATION_POINTS_PER_BONE;
+      const progress = Math.min(100, Math.max(0, (evt.data.points / totalPointsNeeded) * 100));
       bridge.send("EXCAVATION_PROGRESS", { teamId: evt.data.teamId, progress });
     });
     socket.on("excavation:boneFound", (evt) => {
