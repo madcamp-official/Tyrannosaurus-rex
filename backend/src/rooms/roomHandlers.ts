@@ -79,7 +79,12 @@ export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: Ro
     const cached = idempotency.get<RoomJoinResponse>(socket.id, parsed.data.requestId);
     if (cached) return ack(cached);
 
-    const result = rooms.joinRoom(parsed.data.roomCode, parsed.data.nickname, socket.id);
+    const result = rooms.joinRoom(
+      parsed.data.roomCode,
+      parsed.data.nickname,
+      socket.id,
+      parsed.data.reconnectToken,
+    );
     if (!result.ok) {
       const retryable = result.error !== "ROOM_NOT_FOUND" && result.error !== "ROOM_ALREADY_STARTED";
       const res = ackErr(parsed.data.requestId, result.error, describeJoinError(result.error), retryable);
@@ -99,16 +104,22 @@ export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: Ro
       playerId: result.playerId,
       teamId: result.teamId,
       color: result.color,
+      reconnectToken: result.reconnectToken,
+      reconnected: result.reconnected,
       state: publicState,
     });
     idempotency.set(socket.id, parsed.data.requestId, res);
     ack(res);
 
     const joinedPlayer = publicState.players.find((p) => p.id === result.playerId)!;
-    io.to(roomChannel(result.room.state.roomCode)).emit(
-      "room:playerJoined",
-      toServerEvent(result.room.state.roomCode, publicState.revision, joinedPlayer),
-    );
+    if (result.reconnected) {
+      broadcastPlayerConnectionChanged(io, rooms, result.room.state.roomCode, result.playerId, true);
+    } else {
+      io.to(roomChannel(result.room.state.roomCode)).emit(
+        "room:playerJoined",
+        toServerEvent(result.room.state.roomCode, publicState.revision, joinedPlayer),
+      );
+    }
     broadcastRoomState(io, rooms, result.room.state.roomCode);
   });
 

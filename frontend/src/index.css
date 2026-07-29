@@ -1452,6 +1452,8 @@ body {
   border: none;
   color: #3d2a12;
   transition: transform 0.1s ease-out;
+  font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
+  font-weight: 400;
 }
 
 .dig-button:active,
@@ -1461,8 +1463,9 @@ body {
 }
 
 .excavation-controls__shovel {
-  font-size: clamp(2.4rem, 12vw, 3.4rem);
+  width: clamp(3.4rem, 16vw, 5rem);
   line-height: 1;
+  color: #f5c542;
   filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.35));
   transform: rotate(-18deg);
 }
@@ -1684,6 +1687,21 @@ body {
   font-size: 1.1rem;
   font-weight: 700;
   color: #90be6d;
+}
+
+.excavation-controls__shovel svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.excavation-controls__result {
+  margin: 0;
+  font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
+  font-size: clamp(2.5rem, 12vw, 4rem);
+  line-height: 1.25;
+  text-align: center;
+  text-shadow: 0 5px 18px rgba(0, 0, 0, 0.55);
 }
 
 .sensor-gate-shell {
@@ -2716,11 +2734,11 @@ body {
   }
 
   .mobile-join__card {
-    width: 100%;
-    max-width: none;
-    gap: 22px;
-    padding: clamp(24px, 7vw, 34px);
-    border-radius: 26px;
+    width: min(100%, 320px);
+    max-width: 320px;
+    gap: 14px;
+    padding: 20px;
+    border-radius: 20px;
   }
 
   .mobile-join__room-code {
@@ -2730,17 +2748,17 @@ body {
   .mobile-join__input,
   .mobile-join__button {
     width: 100%;
-    min-height: 70px;
+    min-height: 44px;
     box-sizing: border-box;
-    font-size: clamp(24px, 6.5vw, 30px);
+    font-size: clamp(16px, 4vw, 18px);
   }
 
   .mobile-join__input {
-    padding: 18px 20px;
+    padding: 10px 12px;
   }
 
   .mobile-join__button {
-    padding: 17px 20px;
+    padding: 10px 12px;
   }
 
   .mobile-join__error {
@@ -2802,7 +2820,7 @@ body {
   }
 
   .excavation-controls__shovel {
-    font-size: clamp(3.4rem, 17vw, 5rem);
+    width: clamp(4rem, 18vw, 5.5rem);
   }
 
   .dig-button {

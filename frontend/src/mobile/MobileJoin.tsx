@@ -24,6 +24,8 @@ import {
 
 type JoinStatus = "FORM" | "JOINING" | "JOINED" | "ERROR";
 const TEAM_EMBLEM: Record<TeamId, string> = { A: "🔥", B: "❄️" };
+const reconnectStorageKey = (roomCode: string) => `trex:player-session:${roomCode}`;
+type StoredPlayerSession = { nickname: string; reconnectToken: string };
 
 function describeConnectError(message: string): string {
   if (message.includes("timeout")) return "서버 연결 시간 초과 — Wi-Fi가 같은지 확인해주세요.";
@@ -56,15 +58,12 @@ export function MobileJoin(): JSX.Element {
     };
   }, []);
 
-  const handleJoin = (event: FormEvent) => {
-    event.preventDefault();
-    if (!code || nickname.trim().length === 0) return;
-    // 이 탭(제스처) 안에서 미리 센서 권한을 요청해둬야 이후 게임 화면에서 버튼 없이도
-    // 자이로/흔들기가 바로 동작한다 (iOS는 제스처 밖에서 요청하면 조용히 거부된다).
-    requestAllSensorPermissions();
+  const joinRoom = (joinNickname: string, reconnectToken?: string) => {
+    if (!code || joinNickname.trim().length === 0) return;
     setStatus("JOINING");
     setError(null);
 
+    socketRef.current?.close();
     const socket = connectSocket("PLAYER");
     socketRef.current = socket;
     socket.on("room:state", (evt) => setRoomState(evt.data));
@@ -79,16 +78,28 @@ export function MobileJoin(): JSX.Element {
     socket.on("connect", () => {
       socket.emit(
         "room:join",
-        { requestId: newRequestId(), roomCode: code, nickname: nickname.trim() },
+        {
+          requestId: newRequestId(),
+          roomCode: code,
+          nickname: joinNickname.trim(),
+          ...(reconnectToken ? { reconnectToken } : {}),
+        },
         (ack: Ack<RoomJoinResponse>) => {
           if (!ack.ok) {
+            if (reconnectToken) localStorage.removeItem(reconnectStorageKey(code));
             setStatus("ERROR");
             setError(describeAckError(ack.error.code));
             return;
           }
+          localStorage.setItem(
+            reconnectStorageKey(code),
+            JSON.stringify({ nickname: joinNickname.trim(), reconnectToken: ack.data.reconnectToken }),
+          );
+          setNickname(joinNickname.trim());
           setPlayerId(ack.data.playerId);
           setTeamId(ack.data.teamId);
           setRoomState(ack.data.state);
+          setReady(ack.data.state.players.find((player) => player.id === ack.data.playerId)?.ready ?? false);
           setStatus("JOINED");
         },
       );
@@ -97,6 +108,30 @@ export function MobileJoin(): JSX.Element {
       setStatus("ERROR");
       setError(describeConnectError(err.message));
     });
+  };
+
+  useEffect(() => {
+    if (!code) return;
+    const rawSession = localStorage.getItem(reconnectStorageKey(code));
+    if (!rawSession) return;
+    try {
+      const saved = JSON.parse(rawSession) as StoredPlayerSession;
+      if (!saved.nickname || !saved.reconnectToken) throw new Error("invalid session");
+      setNickname(saved.nickname);
+      joinRoom(saved.nickname, saved.reconnectToken);
+    } catch {
+      localStorage.removeItem(reconnectStorageKey(code));
+    }
+    // 방 코드가 바뀌었을 때만 저장된 참가자 세션 복구를 시도한다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [code]);
+
+  const handleJoin = (event: FormEvent) => {
+    event.preventDefault();
+    if (!code || nickname.trim().length === 0) return;
+    // 신규 입장은 사용자 제스처 안에서 센서 권한도 함께 요청한다.
+    requestAllSensorPermissions();
+    joinRoom(nickname);
   };
 
   const toggleReady = () => {

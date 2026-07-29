@@ -94,9 +94,17 @@ export const roomJoinRequestSchema = z.object({
   requestId: requestIdSchema,
   roomCode: roomCodeSchema,
   nickname: z.string().trim().min(1).max(8),
+  reconnectToken: z.string().uuid().optional(),
 });
 export type RoomJoinRequest = z.infer<typeof roomJoinRequestSchema>;
-export type RoomJoinResponse = { playerId: PlayerId; teamId: TeamId; color: string; state: RoomState };
+export type RoomJoinResponse = {
+  playerId: PlayerId;
+  teamId: TeamId;
+  color: string;
+  reconnectToken: string;
+  reconnected: boolean;
+  state: RoomState;
+};
 
 export const playerSetReadyRequestSchema = z.object({
   requestId: requestIdSchema,

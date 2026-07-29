@@ -145,10 +145,14 @@ export function ExcavationControls({
       {motionPermission === "UNSUPPORTED" && <p className="mobile-game__hint">이 기기는 흔들기를 지원하지 않아요. 아래 버튼으로 발굴하세요.</p>}
       {motionPermission === "GRANTED" && <p className="mobile-game__hint">흔드는 대로 자동으로 인식돼요.</p>}
       <div className={`excavation-controls__shovel${shakeFlash ? " excavation-controls__shovel--dig" : ""}`} aria-hidden="true">
-        🪏
+        <svg viewBox="0 0 64 64">
+          <path d="M38 6c2-4 8-5 11-2s2 9-2 11l-6 3-6-7 3-5Z" fill="currentColor" />
+          <path d="m39 14 7 7-24 29-8-8 25-28Z" fill="currentColor" />
+          <path d="M8 39c8-3 17 5 17 13 0 5-4 9-9 9S4 55 3 48c0-4 1-7 5-9Z" fill="currentColor" />
+        </svg>
       </div>
       <button type="button" className={`dig-button${shakeFlash ? " dig-button--flash" : ""}`} onClick={handleTap}>
-        🦴 파기
+        파기
       </button>
     </div>
   );

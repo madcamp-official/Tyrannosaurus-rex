@@ -83,6 +83,7 @@ export type RoomRecord = {
   state: RoomState;
   hostSocketId: string | null;
   playerSocketIds: Map<PlayerId, string>;
+  reconnectTokens: Map<PlayerId, string>;
   nextTeamForOddAssignment: TeamId;
   lastActivityAt: number;
   /** 라운드 시작 시 생성되는 결정론적 시드. 발굴 이벤트·뼈 순서·티라노 이동 패턴에 공유된다 (§6.1, §6.3). */
@@ -268,6 +269,7 @@ export class RoomManager {
       state,
       hostSocketId,
       playerSocketIds: new Map(),
+      reconnectTokens: new Map(),
       nextTeamForOddAssignment: "A",
       lastActivityAt: now,
       roundSeed: null,
@@ -310,9 +312,45 @@ export class RoomManager {
     roomCode: RoomCode,
     rawNickname: string,
     socketId: string,
-  ): { ok: true; playerId: PlayerId; teamId: TeamId; color: string; room: RoomRecord } | { ok: false; error: JoinRoomError } {
+    reconnectToken?: string,
+  ):
+    | {
+        ok: true;
+        playerId: PlayerId;
+        teamId: TeamId;
+        color: string;
+        reconnectToken: string;
+        reconnected: boolean;
+        room: RoomRecord;
+      }
+    | { ok: false; error: JoinRoomError } {
     const room = this.rooms.get(roomCode);
     if (!room) return { ok: false, error: "ROOM_NOT_FOUND" };
+
+    if (reconnectToken) {
+      const normalizedNickname = rawNickname.trim().toLowerCase();
+      const existing = room.state.players.find(
+        (player) =>
+          player.nickname.trim().toLowerCase() === normalizedNickname &&
+          room.reconnectTokens.get(player.id) === reconnectToken,
+      );
+      if (existing) {
+        room.playerSocketIds.set(existing.id, socketId);
+        existing.connected = true;
+        this.touch(room);
+        this.bumpRevision(room);
+        return {
+          ok: true,
+          playerId: existing.id,
+          teamId: existing.teamId,
+          color: existing.color,
+          reconnectToken,
+          reconnected: true,
+          room,
+        };
+      }
+    }
+
     if (room.state.roomPhase !== "LOBBY") return { ok: false, error: "ROOM_ALREADY_STARTED" };
     if (room.state.players.length >= room.state.maxPlayersPerTeam * 2) return { ok: false, error: "ROOM_FULL" };
 
@@ -358,10 +396,20 @@ export class RoomManager {
     room.state.players.push(player);
     room.state.teams[teamId].playerIds.push(playerId);
     room.playerSocketIds.set(playerId, socketId);
+    const issuedReconnectToken = randomUUID();
+    room.reconnectTokens.set(playerId, issuedReconnectToken);
     this.touch(room);
     this.bumpRevision(room);
 
-    return { ok: true, playerId, teamId, color, room };
+    return {
+      ok: true,
+      playerId,
+      teamId,
+      color,
+      reconnectToken: issuedReconnectToken,
+      reconnected: false,
+      room,
+    };
   }
 
   setReady(roomCode: RoomCode, playerId: PlayerId, ready: boolean): boolean {

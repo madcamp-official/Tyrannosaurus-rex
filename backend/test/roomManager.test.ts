@@ -41,6 +41,32 @@ describe("RoomManager", () => {
     if (!dup.ok) expect(dup.error).toBe("NICKNAME_TAKEN");
   });
 
+  it("reconnects only with the private token issued to the existing player", () => {
+    const rooms = makeManager();
+    const created = rooms.createRoom("host-reconnect", "재접속 방", 5)!;
+    const joined = rooms.joinRoom(created.room.state.roomCode, "Rex", "socket-old");
+    expect(joined.ok).toBe(true);
+    if (!joined.ok) return;
+
+    rooms.startGame(created.room);
+    rooms.setPlayerConnected(created.room, joined.playerId, false);
+
+    const rejected = rooms.joinRoom(created.room.state.roomCode, "Rex", "socket-attacker", crypto.randomUUID());
+    expect(rejected).toEqual({ ok: false, error: "ROOM_ALREADY_STARTED" });
+
+    const resumed = rooms.joinRoom(
+      created.room.state.roomCode,
+      "Rex",
+      "socket-new",
+      joined.reconnectToken,
+    );
+    expect(resumed.ok).toBe(true);
+    if (!resumed.ok) return;
+    expect(resumed.reconnected).toBe(true);
+    expect(resumed.playerId).toBe(joined.playerId);
+    expect(created.room.state.players.find((player) => player.id === joined.playerId)?.connected).toBe(true);
+  });
+
   it("only allows start once every connected player is ready", () => {
     const rooms = makeManager();
     const created = rooms.createRoom("host-socket-5", "테스트 방", 5)!;
