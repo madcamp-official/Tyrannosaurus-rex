@@ -2644,6 +2644,8 @@ body {
   border-radius: 16px;
   background: rgba(255, 250, 240, 0.08);
   backdrop-filter: blur(14px) saturate(140%);
+  font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
+  font-weight: 400;
 }
 
 .result-view__mvp-grid {
@@ -2661,7 +2663,14 @@ body {
   padding: 0 10px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
   font-size: clamp(0.78rem, 1.15vw, 1rem);
+  font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
+  font-weight: 400;
   text-align: center;
+}
+
+.result-view__mvp-row > span {
+  font-family: inherit;
+  font-weight: inherit;
 }
 
 .result-view__mvp-row--header {
@@ -2672,7 +2681,7 @@ body {
 }
 
 .result-view__mvp-rank {
-  font-weight: 800;
+  font-weight: 400;
   min-width: 1.6em;
   opacity: 0.7;
 }
@@ -2687,7 +2696,7 @@ body {
 }
 
 .result-view__mvp-score {
-  font-weight: 700;
+  font-weight: 400;
   color: #f5c542;
 }
 
