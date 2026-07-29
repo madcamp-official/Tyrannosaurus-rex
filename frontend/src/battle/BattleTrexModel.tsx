@@ -45,8 +45,9 @@ export function BattleTrexModel(): JSX.Element {
       loadedModel = gltf.scene;
       loadedModel.traverse((child) => {
         if (!(child instanceof THREE.Mesh)) return;
-        const sources = Array.isArray(child.material) ? child.material : [child.material];
-        child.material = sources.map((source) => {
+        const hadMultipleMaterials = Array.isArray(child.material);
+        const sources: THREE.Material[] = hadMultipleMaterials ? child.material : [child.material];
+        const clonedMaterials = sources.map((source) => {
           const material = source.clone() as THREE.MeshStandardMaterial;
           if ("color" in material) material.color.set(0xe8dfcf);
           if ("roughness" in material) material.roughness = 0.72;
@@ -55,6 +56,9 @@ export function BattleTrexModel(): JSX.Element {
           material.needsUpdate = true;
           return material;
         });
+        // 단일 재질 메시를 배열로 바꾸면 geometry group이 없는 GLTF 메시가
+        // draw call을 만들지 못한다. 원본 재질 형태를 그대로 유지해야 한다.
+        child.material = hadMultipleMaterials ? clonedMaterials : clonedMaterials[0]!;
       });
 
       // 원본 모델의 긴 몸체 축은 Z축이다. Y축으로 90도 돌려 머리~꼬리
