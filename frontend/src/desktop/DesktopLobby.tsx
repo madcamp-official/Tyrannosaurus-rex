@@ -55,6 +55,26 @@ const LOBBY_BGM_FADE_MS = 900;
 const DIG_SOUND_POOL_SIZE = 4;
 const DIG_SOUND_MIN_INTERVAL_MS = 90;
 const DIG_SOUND_VOLUME = 0.45;
+const DINO_RUN_BGM_VOLUME = 0.3;
+const DINO_RUN_BGM_FADE_MS = 900;
+
+/** 로비 BGM·운석 피하기 BGM이 공유하는 페이드아웃(볼륨 서서히 0으로 → 일시정지 → 볼륨 복원). */
+function fadeOutAndPause(audio: HTMLAudioElement, fadeRef: { current: number | null }, fadeMs: number, restoreVolume: number): void {
+  if (audio.paused) return;
+  const startVolume = audio.volume;
+  const startedAt = performance.now();
+  fadeRef.current = window.setInterval(() => {
+    const ratio = Math.min(1, (performance.now() - startedAt) / fadeMs);
+    audio.volume = startVolume * (1 - ratio);
+    if (ratio >= 1) {
+      if (fadeRef.current !== null) window.clearInterval(fadeRef.current);
+      fadeRef.current = null;
+      audio.pause();
+      audio.currentTime = 0;
+      audio.volume = restoreVolume;
+    }
+  }, 50);
+}
 
 function ReadyCheckIcon(): JSX.Element {
   return (
@@ -69,6 +89,8 @@ export function DesktopLobby(): JSX.Element {
   const socketRef = useRef<AppSocket | null>(null);
   const lobbyBgmRef = useRef<HTMLAudioElement | null>(null);
   const lobbyBgmFadeRef = useRef<number | null>(null);
+  const dinoRunBgmRef = useRef<HTMLAudioElement | null>(null);
+  const dinoRunBgmFadeRef = useRef<number | null>(null);
   const digSoundPoolRef = useRef<HTMLAudioElement[]>([]);
   const digSoundIndexRef = useRef(0);
   const lastDigSoundAtRef = useRef(0);
@@ -98,6 +120,9 @@ export function DesktopLobby(): JSX.Element {
   const isChargingBattle =
     roomState?.roomPhase === "PLAYING" &&
     (roomState.teams.A.phase === "CHARGING" || roomState.teams.B.phase === "CHARGING");
+  const isDinoRunActive =
+    roomState?.roomPhase === "PLAYING" &&
+    (roomState.teams.A.phase === "ASSEMBLY" || roomState.teams.B.phase === "ASSEMBLY");
 
   useEffect(() => {
     const audio = new Audio("/audio/lobby-bgm.mp3");
@@ -141,21 +166,39 @@ export function DesktopLobby(): JSX.Element {
       return;
     }
 
-    if (audio.paused) return;
-    const startVolume = audio.volume;
-    const startedAt = performance.now();
-    lobbyBgmFadeRef.current = window.setInterval(() => {
-      const ratio = Math.min(1, (performance.now() - startedAt) / LOBBY_BGM_FADE_MS);
-      audio.volume = startVolume * (1 - ratio);
-      if (ratio >= 1) {
-        if (lobbyBgmFadeRef.current !== null) window.clearInterval(lobbyBgmFadeRef.current);
-        lobbyBgmFadeRef.current = null;
-        audio.pause();
-        audio.currentTime = 0;
-        audio.volume = LOBBY_BGM_VOLUME;
-      }
-    }, 50);
+    fadeOutAndPause(audio, lobbyBgmFadeRef, LOBBY_BGM_FADE_MS, LOBBY_BGM_VOLUME);
   }, [bgmMuted, roomState?.roomPhase]);
+
+  useEffect(() => {
+    const audio = new Audio("/audio/dino-run-bgm.mp3");
+    audio.loop = true;
+    audio.preload = "auto";
+    audio.volume = DINO_RUN_BGM_VOLUME;
+    dinoRunBgmRef.current = audio;
+    return () => {
+      if (dinoRunBgmFadeRef.current !== null) window.clearInterval(dinoRunBgmFadeRef.current);
+      audio.pause();
+      dinoRunBgmRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const audio = dinoRunBgmRef.current;
+    if (!audio) return;
+    if (dinoRunBgmFadeRef.current !== null) {
+      window.clearInterval(dinoRunBgmFadeRef.current);
+      dinoRunBgmFadeRef.current = null;
+    }
+
+    audio.muted = bgmMuted;
+    if (isDinoRunActive) {
+      audio.volume = DINO_RUN_BGM_VOLUME;
+      if (!bgmMuted) void audio.play().catch(() => undefined);
+      return;
+    }
+
+    fadeOutAndPause(audio, dinoRunBgmFadeRef, DINO_RUN_BGM_FADE_MS, DINO_RUN_BGM_VOLUME);
+  }, [bgmMuted, isDinoRunActive]);
 
   useEffect(() => {
     digSoundPoolRef.current = Array.from({ length: DIG_SOUND_POOL_SIZE }, () => {
