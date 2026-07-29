@@ -158,16 +158,28 @@ export function ResultView({
       {gameResult && gameResult.mvp.length > 0 && (
         <div className="result-view__mvp">
           <h3>개인 MVP</h3>
+          <div className="result-view__mvp-row result-view__mvp-row--header" aria-hidden="true">
+            <span>순위</span>
+            <span>이름</span>
+            <span>땅 판 횟수</span>
+            <span>운석 피한 횟수</span>
+            <span>에너지 사격 적중 수</span>
+            <span>점수</span>
+          </div>
           <ol className="result-view__mvp-grid">
-            {gameResult.mvp.slice(0, 3).map((entry, i) => (
-              <li key={entry.playerId} className="result-view__mvp-row">
-                <span className="result-view__mvp-rank">{i + 1}</span>
-                <span className="result-view__mvp-name">
-                  {entry.nickname} ({roomState.teamNames[entry.teamId]})
-                </span>
-                <span className="result-view__mvp-score">{Math.round(entry.score)}점</span>
-              </li>
-            ))}
+            {gameResult.mvp.slice(0, 3).map((entry, i) => {
+              const player = gameResult.players.find((candidate) => candidate.id === entry.playerId);
+              return (
+                <li key={entry.playerId} className="result-view__mvp-row">
+                  <span className="result-view__mvp-rank">{i + 1}.</span>
+                  <span className="result-view__mvp-name">{entry.nickname}</span>
+                  <span>{Math.round(player?.stats.excavationInputs ?? 0)}회</span>
+                  <span>{player?.stats.dinoCleared ?? 0}회</span>
+                  <span>{player?.stats.hits ?? 0}회</span>
+                  <span className="result-view__mvp-score">{Math.round(entry.score)}점</span>
+                </li>
+              );
+            })}
           </ol>
         </div>
       )}

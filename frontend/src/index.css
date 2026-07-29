@@ -2678,29 +2678,27 @@ body {
 
 .result-view__mvp-grid {
   list-style: none;
-  margin: 8px 0 0;
+  margin: 0;
   padding: 0;
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px 24px;
 }
 
 .result-view__mvp-row {
-  display: flex;
-  align-items: baseline;
+  display: grid;
+  grid-template-columns: 54px minmax(140px, 1.35fr) repeat(3, minmax(130px, 1fr)) minmax(80px, 0.65fr);
+  align-items: center;
   gap: 12px;
+  min-height: 44px;
+  padding: 0 10px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: clamp(0.78rem, 1.15vw, 1rem);
+  text-align: center;
 }
 
-.result-view__mvp-row:first-child {
-  grid-column: 1 / -1;
-  width: calc(50% - 12px);
-  justify-self: center;
-}
-
-.result-view__mvp-row:nth-child(2):last-child {
-  grid-column: 1 / -1;
-  width: calc(50% - 12px);
-  justify-self: center;
+.result-view__mvp-row--header {
+  min-height: 36px;
+  color: rgba(255, 248, 236, 0.62);
+  font-size: clamp(0.7rem, 1vw, 0.88rem);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .result-view__mvp-rank {
@@ -2710,10 +2708,12 @@ body {
 }
 
 .result-view__mvp-name {
-  flex: 1;
   text-align: left;
   font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
   font-weight: 400;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .result-view__mvp-score {
