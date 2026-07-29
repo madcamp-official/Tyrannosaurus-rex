@@ -56,9 +56,12 @@ export const SKY_OBJECT_HEART_CHANCE = 0.05; // 이 중 하트일 확률(나머�
 export const SKY_OBJECT_MIN_OFFSET_MS = 6_000;
 export const SKY_OBJECT_MAX_OFFSET_MS = 54_000;
 // 낙하 시간(800ms)보다 충분히 짧게 두어 후반에는 운석 여러 개가 동시에 화면에 나타난다.
-export const SKY_OBJECT_MIN_GAP_MS = 250;
+export const SKY_OBJECT_MIN_GAP_MS = 300;
 // 1보다 작을수록 초반엔 간격이 넓다가(뜸하게) 시간이 지날수록 간격이 좁아진다(점점 빽빽하게).
-export const SKY_OBJECT_DENSITY_CURVE_EXPONENT = 0.55;
+// 0.55는 후반 6초 구간에 전체의 20%가 넘게 몰려(초반 대비 8배) 후반부가 너무 정신없다는
+// 피드백이 있어 0.85로 완만하게 조정했다 — 여전히 후반이 더 빽빽하긴 하지만 그 차이를
+// 8배에서 1.6배 수준으로 줄였다.
+export const SKY_OBJECT_DENSITY_CURVE_EXPONENT = 0.85;
 // 오브젝트가 화면 위에서 판정 지점까지 떨어지는 데 걸리는 시간(연출용) — 짧을수록 빠르게 떨어진다.
 export const SKY_OBJECT_FALL_MS = 800;
 // 좌우 위치 보고 빈도 상한(자이로 기울임 → 서버 전송).
