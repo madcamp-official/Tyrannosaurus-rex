@@ -142,6 +142,33 @@ describe("dino run (meteor dodge)", () => {
     },
   );
 
+  it("emits a LOCK event with the player's actual position once a meteor's fall window begins", () => {
+    const { rooms, room, playerA, now } = setupAssemblyRoom();
+    const meteor = { id: 0, hitAtMs: 8000, x: 0.5, kind: "METEOR" as const };
+    room.state.teams.A.dinoRun.skyObjects = [meteor];
+    room.state.teams.B.dinoRun.skyObjects = [];
+    rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: 0.73, clientTime: now }, now);
+
+    // 낙하 시작 전에는 아직 잠기지 않는다.
+    const beforeFall = rooms.tickDinoCollisions(room, now + meteor.hitAtMs - SKY_OBJECT_FALL_MS - 1);
+    expect(beforeFall.filter((e) => e.event.kind === "LOCK")).toEqual([]);
+
+    // 낙하가 시작되는 순간, 그때 플레이어가 있던 실제 위치(0.73)로 잠긴다 — obj.x(0.5)가 아니다.
+    const atFallStart = rooms.tickDinoCollisions(room, now + meteor.hitAtMs - SKY_OBJECT_FALL_MS + 1);
+    const lock = atFallStart.find((e) => e.event.kind === "LOCK");
+    expect(lock).toBeDefined();
+    if (lock && lock.event.kind === "LOCK") {
+      expect(lock.event.playerId).toBe(playerA);
+      expect(lock.event.objectId).toBe(0);
+      expect(lock.event.x).toBe(0.73);
+    }
+
+    // 잠긴 뒤 플레이어가 움직여도 다시 잠기거나 LOCK이 재발행되지 않는다.
+    rooms.applyDinoPositionInput(room, "A", playerA, { seq: 2, x: 0.1, clientTime: now }, now);
+    const again = rooms.tickDinoCollisions(room, now + meteor.hitAtMs - SKY_OBJECT_FALL_MS + 50);
+    expect(again.filter((e) => e.event.kind === "LOCK")).toEqual([]);
+  });
+
   it("hits a player standing under a meteor: loses a life, loses score, and is judged only once", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
     const meteor = { id: 0, hitAtMs: 8000, x: 0.5, kind: "METEOR" as const };

@@ -64,10 +64,15 @@ export function tickRoomDinoRun(io: AppServer, rooms: RoomManager, roomCode: str
           x: event.x,
         }),
       );
-    } else {
+    } else if (event.kind === "DEATH") {
       io.to(channel).emit(
         "dino:playerDied",
         toServerEvent(roomCode, room.state.revision, { teamId, playerId: event.playerId }),
+      );
+    } else {
+      io.to(channel).emit(
+        "dino:meteorLocked",
+        toServerEvent(roomCode, room.state.revision, { teamId, playerId: event.playerId, objectId: event.objectId, x: event.x }),
       );
     }
   }

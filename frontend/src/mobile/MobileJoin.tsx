@@ -2,7 +2,16 @@
 
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
-import type { Ack, PlayerId, RoomJoinResponse, RoomState, TeamId } from "@trex/shared";
+import {
+  METEOR_FRUIT_SCORE_REWARD,
+  METEOR_HEART_SCORE_REWARD,
+  METEOR_HIT_SCORE_PENALTY,
+  type Ack,
+  type PlayerId,
+  type RoomJoinResponse,
+  type RoomState,
+  type TeamId,
+} from "@trex/shared";
 import { connectSocket, type AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
 import { useWakeLock } from "../util/useWakeLock";
@@ -48,6 +57,19 @@ export function MobileJoin(): JSX.Element {
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [serverTimeOffsetMs, setServerTimeOffsetMs] = useState(0);
   const [ready, setReady] = useState(false);
+  // 운석이 플레이어를 목표로 "잠기는" 좌표(objectId → x). 소켓 리스너는 join 완료(ack) 전에
+  // 등록되므로 아래 playerId state를 클로저로 직접 참조하면 항상 null로 고정된다 — ref로
+  // 최신 값을 따로 추적한다.
+  const playerIdRef = useRef<PlayerId | null>(null);
+  const [meteorLocks, setMeteorLocks] = useState<Map<number, number>>(new Map());
+  // 운석 피하기 중 명중·과일·하트 등 순간적인 이벤트를 짧게 알려주는 배너.
+  const [dinoToast, setDinoToast] = useState<string | null>(null);
+  const dinoToastTimeoutRef = useRef<number | undefined>(undefined);
+  const showDinoToast = (message: string) => {
+    window.clearTimeout(dinoToastTimeoutRef.current);
+    setDinoToast(message);
+    dinoToastTimeoutRef.current = window.setTimeout(() => setDinoToast(null), 1800);
+  };
 
   // 흔들어서 발굴하는 동안 화면이 꺼져 입력이 끊기지 않도록, 입장한 뒤부터 계속 켜둔다.
   useWakeLock(status === "JOINED");
@@ -75,9 +97,34 @@ export function MobileJoin(): JSX.Element {
       setServerTimeOffsetMs(evt.serverTime - Date.now());
       setRoomState((prev) => (prev ? applyTeamPhaseChanged(prev, evt.data) : prev));
     });
-    socket.on("dino:started", (evt) => setRoomState((prev) => (prev ? applyDinoStarted(prev, evt.data) : prev)));
-    socket.on("dino:hit", (evt) => setRoomState((prev) => (prev ? applyDinoHit(prev, evt.data) : prev)));
-    socket.on("dino:bonus", (evt) => setRoomState((prev) => (prev ? applyDinoBonus(prev, evt.data) : prev)));
+    socket.on("dino:started", (evt) => {
+      setRoomState((prev) => (prev ? applyDinoStarted(prev, evt.data) : prev));
+      // 새 라운드의 objectId는 이전 라운드와 번호가 겹치므로, 이전에 잠긴 좌표가 새 오브젝트에
+      // 잘못 적용되지 않도록 비워둔다.
+      setMeteorLocks(new Map());
+    });
+    socket.on("dino:hit", (evt) => {
+      setRoomState((prev) => (prev ? applyDinoHit(prev, evt.data) : prev));
+      if (evt.data.playerId === playerIdRef.current) showDinoToast(`💥 운석에 맞았어요! (-${METEOR_HIT_SCORE_PENALTY}점)`);
+    });
+    socket.on("dino:bonus", (evt) => {
+      setRoomState((prev) => (prev ? applyDinoBonus(prev, evt.data) : prev));
+      if (evt.data.playerId === playerIdRef.current) {
+        showDinoToast(
+          evt.data.kind === "HEART"
+            ? `❤️ 생명을 얻었어요! (+${METEOR_HEART_SCORE_REWARD}점)`
+            : `🍎 과일을 먹었어요! (+${METEOR_FRUIT_SCORE_REWARD}점)`,
+        );
+      }
+    });
+    socket.on("dino:meteorLocked", (evt) => {
+      if (evt.data.playerId !== playerIdRef.current) return;
+      setMeteorLocks((prev) => {
+        const next = new Map(prev);
+        next.set(evt.data.objectId, evt.data.x);
+        return next;
+      });
+    });
     socket.on("dino:playerDied", (evt) => setRoomState((prev) => (prev ? applyPlayerDied(prev, evt.data) : prev)));
     socket.on("dino:finished", (evt) => setRoomState((prev) => (prev ? applyDinoFinished(prev, evt.data) : prev)));
     socket.on("dino:teamResult", (evt) => setRoomState((prev) => (prev ? applyDinoTeamResult(prev, evt.data) : prev)));
@@ -104,6 +151,7 @@ export function MobileJoin(): JSX.Element {
           );
           setNickname(joinNickname.trim());
           setPlayerId(ack.data.playerId);
+          playerIdRef.current = ack.data.playerId;
           setTeamId(ack.data.teamId);
           setRoomState(ack.data.state);
           setReady(ack.data.state.players.find((player) => player.id === ack.data.playerId)?.ready ?? false);
@@ -211,6 +259,8 @@ export function MobileJoin(): JSX.Element {
             playerId={playerId}
             result={team.dinoRun.result}
             serverTimeOffsetMs={serverTimeOffsetMs}
+            meteorLocks={meteorLocks}
+            toast={dinoToast}
           />
         )}
         {(team.phase === "CHARGING_PRACTICE" || team.phase === "CHARGING") && socket && (

@@ -93,7 +93,13 @@ export type SkyCollisionEvent =
       score: number;
       x: number;
     }
-  | { kind: "DEATH"; playerId: PlayerId };
+  | { kind: "DEATH"; playerId: PlayerId }
+  // 운석이 플레이어를 "따라다니다 떨어지는" 목표 좌표가 확정되는 순간을 알린다. 모바일
+  // 클라이언트가 이 값 없이 자체적으로 낙하 애니메이션 시작 시점의 로컬 좌표를 목표로
+  // 추정하면, 서버가 실제로 잠근 시각(100ms 배경 틱 기준)과 클라이언트 렌더링 시각이
+  // 미묘하게 어긋나 화면상 안 맞은 것처럼 보이는데 서버는 맞았다고 판정하는 불일치가
+  // 생긴다. 서버가 잠근 값을 그대로 내려줘 시각적 위치와 판정 위치를 항상 일치시킨다.
+  | { kind: "LOCK"; playerId: PlayerId; objectId: number; x: number };
 
 /**
  * 낙하 시각이 지났지만 아직 판정 안 한 오브젝트를 팀원별로 판정한다. 운석에 맞으면 목숨을
@@ -124,7 +130,9 @@ export function tickSkyCollisions(room: RoomRecord, teamId: TeamId, now: number)
       if (team.dinoRun.deadPlayerIds.includes(playerId)) continue;
       const key = `${playerId}:${obj.id}`;
       if (room.dinoMeteorLockState.has(key)) continue;
-      room.dinoMeteorLockState.set(key, room.dinoPositionState.get(playerId)?.x ?? 0.5);
+      const lockedX = room.dinoPositionState.get(playerId)?.x ?? 0.5;
+      room.dinoMeteorLockState.set(key, lockedX);
+      events.push({ kind: "LOCK", playerId, objectId: obj.id, x: lockedX });
     }
   }
 
