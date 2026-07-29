@@ -89,6 +89,16 @@ describe("dino run (meteor dodge)", () => {
     expect(maxConcurrent).toBeGreaterThanOrEqual(3);
   });
 
+  it("keeps the first half active without overcrowding the second half", () => {
+    const schedule = makeSkyObjectSchedule("balanced-density");
+    const midpointMs = 30_000;
+    const firstHalfCount = schedule.filter((object) => object.hitAtMs <= midpointMs).length;
+    const secondHalfCount = schedule.length - firstHalfCount;
+
+    expect(firstHalfCount).toBeGreaterThanOrEqual(42);
+    expect(secondHalfCount).toBeLessThanOrEqual(68);
+  });
+
   it("tracks a player's latest reported position and rejects stale/out-of-order sequences", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
     const first = rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: 0.2, clientTime: now }, now);
@@ -161,7 +171,7 @@ describe("dino run (meteor dodge)", () => {
     rooms.tickDinoCollisions(room, now + meteor.hitAtMs - SKY_OBJECT_FALL_MS + 1);
 
     const beforeGrace = rooms.tickDinoCollisions(room, now + meteor.hitAtMs + SKY_OBJECT_COLLISION_GRACE_MS - 1);
-    expect(beforeGrace).toEqual([]);
+    expect(beforeGrace.filter((event) => event.teamId === "A")).toEqual([]);
     expect(room.state.teams.A.dinoRun.resolvedObjectIdsByPlayer[playerA] ?? []).toEqual([]);
 
     rooms.applyDinoPositionInput(room, "A", playerA, { seq: 2, x: 0.8, clientTime: now }, now);

@@ -57,8 +57,9 @@ export const SKY_OBJECT_MIN_OFFSET_MS = 6_000;
 export const SKY_OBJECT_MAX_OFFSET_MS = 54_000;
 // 낙하 시간(800ms)보다 충분히 짧게 두어 후반에는 운석 여러 개가 동시에 화면에 나타난다.
 export const SKY_OBJECT_MIN_GAP_MS = 250;
-// 1보다 작을수록 초반엔 간격이 넓다가(뜸하게) 시간이 지날수록 간격이 좁아진다(점점 빽빽하게).
-export const SKY_OBJECT_DENSITY_CURVE_EXPONENT = 0.55;
+// 1보다 작을수록 후반으로 갈수록 빽빽해진다. 0.82는 완전 균등(1.0)보다 약한 후반 가속만
+// 남겨, 초반 물량은 늘리고 기존에 과도하게 겹치던 후반 물량은 줄인다.
+export const SKY_OBJECT_DENSITY_CURVE_EXPONENT = 0.82;
 // 오브젝트가 화면 위에서 판정 지점까지 떨어지는 데 걸리는 시간(연출용) — 짧을수록 빠르게 떨어진다.
 export const SKY_OBJECT_FALL_MS = 800;
 // 좌우 위치 보고 빈도 상한(자이로 기울임 → 서버 전송).
