@@ -2476,20 +2476,31 @@ body {
 }
 
 .result-view__trex--winner {
-  animation: result-trex-hop 1.8s ease-in-out infinite;
+  width: min(100%, 460px);
+  height: 240px;
 }
 
 .result-view__trex--yranno {
   width: min(100%, 440px);
-  height: 256px;
-  filter: grayscale(0.45) sepia(0.35);
-  opacity: 0.76;
-  transform: translateY(4px) rotate(-5deg);
+  height: 240px;
+  opacity: 0.92;
+  transform: translateY(2px);
 }
 
-.result-view__trex--yranno .battle-trex__model {
+.result-view__trex--winner .battle-trex__model,
+.result-view__yranno-image {
   width: 100%;
   height: 100%;
+}
+
+.result-view__trex--winner .battle-trex__model {
+  border-radius: 12px;
+}
+
+.result-view__yranno-image {
+  display: block;
+  object-fit: contain;
+  filter: drop-shadow(0 14px 16px rgba(0, 0, 0, 0.45));
 }
 
 .result-view__stage-result {
@@ -2511,17 +2522,6 @@ body {
 
 .result-view__stage-slot--yranno .result-view__stage-result {
   color: #c87373;
-}
-
-@keyframes result-trex-hop {
-  0%, 100% { transform: translate(-64px, 8px) rotate(-2deg); }
-  12% { transform: translate(-42px, -24px) rotate(2deg); }
-  25% { transform: translate(-18px, 8px) rotate(-1deg); }
-  37% { transform: translate(8px, -27px) rotate(2deg); }
-  50% { transform: translate(34px, 8px) rotate(-1deg); }
-  62% { transform: translate(58px, -24px) rotate(2deg); }
-  75% { transform: translate(34px, 8px) rotate(-1deg); }
-  87% { transform: translate(-18px, -25px) rotate(2deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {

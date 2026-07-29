@@ -46,7 +46,7 @@ export const SKY_OBJECT_COLLISION_RADIUS = 0.09;
 // 모바일 위치 전송·네트워크·서버 100ms 판정 틱의 지연을 흡수한다. 화면 착지 직후 이 시간만큼
 // 최신 위치를 더 받아 판정해, 이미 피한 공룡의 이전 좌표로 맞았다고 처리되는 일을 막는다.
 export const SKY_OBJECT_COLLISION_GRACE_MS = 150;
-export const SKY_OBJECT_COUNT = 110; // 1분 동안 떨어지는 운석+아이템 총 개수
+export const SKY_OBJECT_COUNT = 88; // 1분 동안 떨어지는 운석+아이템 총 개수 (전체 양을 0.8배로 조정)
 export const SKY_OBJECT_FRUIT_CHANCE = 0.15; // 이 중 과일일 확률
 export const SKY_OBJECT_HEART_CHANCE = 0.05; // 이 중 하트일 확률(나머지는 운석)
 // PHASE_START_GRACE_MS(5초) 동안은 모바일 화면이 "준비 중"이라 플레이어가 아직 좌우 위치를
@@ -56,10 +56,13 @@ export const SKY_OBJECT_HEART_CHANCE = 0.05; // 이 중 하트일 확률(나머�
 export const SKY_OBJECT_MIN_OFFSET_MS = 6_000;
 export const SKY_OBJECT_MAX_OFFSET_MS = 54_000;
 // 낙하 시간(800ms)보다 충분히 짧게 두어 후반에는 운석 여러 개가 동시에 화면에 나타난다.
-export const SKY_OBJECT_MIN_GAP_MS = 250;
-// 1보다 작을수록 후반으로 갈수록 빽빽해진다. 0.82는 완전 균등(1.0)보다 약한 후반 가속만
-// 남겨, 초반 물량은 늘리고 기존에 과도하게 겹치던 후반 물량은 줄인다.
-export const SKY_OBJECT_DENSITY_CURVE_EXPONENT = 0.82;
+export const SKY_OBJECT_MIN_GAP_MS = 300;
+// 1보다 작을수록 초반엔 간격이 넓다가(뜸하게) 시간이 지날수록 간격이 좁아진다(점점 빽빽하게).
+// 0.55는 후반 6초 구간에 전체의 20%가 넘게 몰려(초반 대비 8배) 후반부가 너무 정신없다는
+// 피드백이 있어 0.85로 완만하게 조정했었다. 이후 총 개수를 88개(0.8배)로 줄이면서 0.85로는
+// "동시에 최소 3개" 보장(§규정)이 깨져 0.75로 다시 낮췄다 — 여전히 초반 대비 후반 밀도
+// 차이는 원래(8배)보다 훨씬 완만한 2.5배 수준을 유지한다.
+export const SKY_OBJECT_DENSITY_CURVE_EXPONENT = 0.75;
 // 오브젝트가 화면 위에서 판정 지점까지 떨어지는 데 걸리는 시간(연출용) — 짧을수록 빠르게 떨어진다.
 export const SKY_OBJECT_FALL_MS = 800;
 // 좌우 위치 보고 빈도 상한(자이로 기울임 → 서버 전송).
@@ -97,7 +100,7 @@ export const STABILITY_TARGET = 100;
 export const CORE_HIT_RADIUS = 0.05;
 export const BONE_HIT_RADIUS = 0.18;
 export const TREX_MOVE_AMPLITUDE = 0.36; // 중심(0.5)에서 좌우로 흔들리는 폭 — 더 넓게 돌아다니도록 확대
-export const TREX_MOVE_PERIOD_MS = 7_000; // 웨이포인트 사이 이동 시간 — 짧을수록 더 빠르게 움직인다
+export const TREX_MOVE_PERIOD_MS = 10_000; // 웨이포인트 사이 이동 시간 — 짧을수록 더 빠르게 움직인다
 
 // Plan.md §2.3, §3 3경기 누적 점수제. 구체적 계수가 문서에 없어 MVP 기본값으로 정한다.
 export const GAME_SCORE_MAX = 100;

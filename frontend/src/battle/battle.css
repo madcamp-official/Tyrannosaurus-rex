@@ -568,14 +568,15 @@
   display: flex;
   align-items: flex-end;
   justify-content: center;
+  transform-origin: 50% 100%;
 }
 
 .battle-gun--a .battle-gun__body {
-  transform: rotate(4deg);
+  transform: rotate(16deg);
 }
 
 .battle-gun--b .battle-gun__body {
-  transform: rotate(-4deg);
+  transform: rotate(-16deg);
 }
 
 .battle-gun__model {

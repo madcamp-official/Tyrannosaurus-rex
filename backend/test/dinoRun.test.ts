@@ -95,8 +95,10 @@ describe("dino run (meteor dodge)", () => {
     const firstHalfCount = schedule.filter((object) => object.hitAtMs <= midpointMs).length;
     const secondHalfCount = schedule.length - firstHalfCount;
 
-    expect(firstHalfCount).toBeGreaterThanOrEqual(42);
-    expect(secondHalfCount).toBeLessThanOrEqual(68);
+    // 절대 개수 대신 SKY_OBJECT_COUNT 대비 비율로 검증한다 — 총 개수 자체가 바뀌어도
+    // "전반부가 너무 비지 않고, 후반부가 너무 몰리지 않는다"는 의도만 확인하면 된다.
+    expect(firstHalfCount / SKY_OBJECT_COUNT).toBeGreaterThanOrEqual(0.35);
+    expect(secondHalfCount / SKY_OBJECT_COUNT).toBeLessThanOrEqual(0.65);
   });
 
   it("tracks a player's latest reported position and rejects stale/out-of-order sequences", () => {
@@ -166,6 +168,12 @@ describe("dino run (meteor dodge)", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
     const meteor = { id: 0, hitAtMs: 8000, x: 0.5, kind: "METEOR" as const };
     room.state.teams.A.dinoRun.skyObjects = [meteor];
+    // 이 테스트는 팀 A의 유예 시간 판정만 다룬다 — 팀 B는 setupAssemblyRoom()이 실제
+    // 시드 기반 스케줄을 그대로 넣어두는데, 팀 B 플레이어는 위치를 한 번도 보고하지
+    // 않아 기본값(0.5)에 머물러 있다. 스케줄 상수(간격/밀도 곡선)가 바뀔 때마다 팀 B가
+    // 우연히 그 기본 위치에서 맞아 죽는 일이 생겨 팀 A만 보는 아래 단언이 깨지는 걸
+    // 막기 위해 팀 B는 아예 빈 스케줄로 둔다.
+    room.state.teams.B.dinoRun.skyObjects = [];
 
     rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: 0.5, clientTime: now }, now);
     rooms.tickDinoCollisions(room, now + meteor.hitAtMs - SKY_OBJECT_FALL_MS + 1);

@@ -14,6 +14,7 @@ import {
   type TeamId,
   type TeamState,
 } from "@trex/shared";
+import { serverNow } from "../socket";
 
 const GRADE_LABEL: Record<DinoRunGrade, string> = {
   PERFECT: "완벽한 조립!",
@@ -23,9 +24,11 @@ const GRADE_LABEL: Record<DinoRunGrade, string> = {
 };
 
 export function DinoRunTeamPanel({ team, players }: { team: TeamState; players: PublicPlayer[] }): JSX.Element {
-  const [nowMs, setNowMs] = useState(() => Date.now());
+  // 폰과 데스크탑의 시스템 시계가 서로 어긋나 있으면 같은 phaseStartedAt을 기준으로 해도
+  // 카운트다운이 서로 다르게 보인다 — raw Date.now() 대신 서버 기준으로 보정된 serverNow()를 쓴다.
+  const [nowMs, setNowMs] = useState(() => serverNow());
   useEffect(() => {
-    const interval = window.setInterval(() => setNowMs(Date.now()), 250);
+    const interval = window.setInterval(() => setNowMs(serverNow()), 250);
     return () => window.clearInterval(interval);
   }, []);
 
