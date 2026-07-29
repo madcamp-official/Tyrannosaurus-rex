@@ -21,6 +21,7 @@ import { ChargingSharedArena, ChargingTeamStats, type CrosshairDisplay, type Tre
 import { BattleScreen } from "../battle/BattleScreen";
 import { battleStateFromRoom } from "../battle/fromRoomState";
 import type { BattleShotEvent } from "../battle/battleTypes";
+import { useCountdownSound } from "../audio/useCountdownSound";
 
 const TEAM_IDS: readonly TeamId[] = ["A", "B"];
 
@@ -116,11 +117,11 @@ function ServerPhaseCountdown({ roomState }: { roomState: RoomState }): JSX.Elem
   }, []);
 
   const teams = TEAM_IDS.map((teamId) => roomState.teams[teamId]).filter((team) => team.phase !== "REVIVED");
-  if (teams.length === 0) return null;
-  const remainingSec = Math.max(
-    ...teams.map((team) => Math.max(0, Math.ceil((team.phaseStartedAt + PHASE_START_GRACE_MS - nowMs) / 1000))),
-  );
-  if (remainingSec <= 0) return null;
+  const remainingSec = teams.length === 0
+    ? null
+    : Math.max(...teams.map((team) => Math.max(0, Math.ceil((team.phaseStartedAt + PHASE_START_GRACE_MS - nowMs) / 1000))));
+  useCountdownSound(remainingSec);
+  if (remainingSec === null || remainingSec <= 0) return null;
 
   return (
     <div className="server-phase-countdown">

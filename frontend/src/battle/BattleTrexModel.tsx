@@ -181,9 +181,12 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
 
           const elapsed = (time - animationStartedAt) / 1000;
           const step = elapsed * 5.2;
-          motionRoot.rotation.y = Math.sin(elapsed * 0.72) * 1.18;
-          motionRoot.rotation.z = Math.sin(step) * 0.014;
-          motionRoot.position.y = Math.abs(Math.sin(step)) * size.y * 0.018;
+          const turnWave = Math.sin(elapsed * 0.5);
+          // sin³ 곡선은 정면(0도) 부근에 더 오래 머물고 방향 전환 지점의 속도가
+          // 자연스럽게 0이 된다. 최대 각도도 45도 안쪽으로 제한해 옆면보다 정면을 강조한다.
+          motionRoot.rotation.y = turnWave * turnWave * turnWave * 0.78;
+          motionRoot.rotation.z = Math.sin(step) * 0.008;
+          motionRoot.position.y = Math.abs(Math.sin(step)) * size.y * 0.006;
           renderer.render(scene, camera);
         };
         animationFrame = window.requestAnimationFrame(animateBattle);

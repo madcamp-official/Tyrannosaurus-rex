@@ -99,7 +99,6 @@ func scatter(seed_value: int = 0, radius_meters: float = 6.5) -> void:
 	_displayed_piece_id = ""
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value if seed_value != 0 else Time.get_ticks_usec()
-	var radius_units := radius_meters / MODEL_SCALE
 	var count := PIECE_ORDER.size()
 
 	for i in count:
@@ -108,12 +107,15 @@ func scatter(seed_value: int = 0, radius_meters: float = 6.5) -> void:
 			continue
 		piece.visible = true
 		var t := float(i) / float(maxi(1, count))
-		var angle := t * TAU
-		angle += rng.randf_range(-0.06, 0.06) * PI
+		# 카메라는 +Z에서 원점을 바라보므로 맞은편은 -Z(화면 위쪽)다.
+		# 발견한 뼈를 구덩이 바깥의 먼 쪽 반원에 집중시켜 둥글게 쌓인 형태로 보이게 한다.
+		var angle := lerpf(PI * 1.08, PI * 1.92, t)
+		angle += rng.randf_range(-0.025, 0.025) * PI
+		var piece_radius := rng.randf_range(radius_meters * 0.88, radius_meters * 1.06) / MODEL_SCALE
 		piece.position = Vector3(
-			cos(angle) * radius_units,
+			cos(angle) * piece_radius,
 			rng.randf_range(-0.2, 0.35) / MODEL_SCALE,
-			sin(angle) * radius_units
+			sin(angle) * piece_radius
 		)
 		# 탑다운 카메라에서 조각이 칼날처럼 얇게 보이지 않도록 눕힌 상태를
 		# 기본으로 두고, 입체감이 느껴질 정도의 작은 기울기만 허용한다.

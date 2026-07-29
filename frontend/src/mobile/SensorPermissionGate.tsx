@@ -7,6 +7,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { PHASE_START_GRACE_MS } from "@trex/shared";
 import { serverNow } from "../socket";
+import { useCountdownSound } from "../audio/useCountdownSound";
 
 export function SensorPermissionGate({ phaseStartedAt, children }: { phaseStartedAt: number; children: ReactNode }): JSX.Element {
   // 폰과 데스크탑의 시스템 시계가 서로 어긋나 있으면 같은 phaseStartedAt을 기준으로 해도
@@ -21,6 +22,7 @@ export function SensorPermissionGate({ phaseStartedAt, children }: { phaseStarte
 
   const elapsed = nowMs - phaseStartedAt;
   const remainingSec = Math.max(0, Math.ceil((PHASE_START_GRACE_MS - elapsed) / 1000));
+  useCountdownSound(remainingSec);
 
   return (
     <div className="sensor-gate-shell">
