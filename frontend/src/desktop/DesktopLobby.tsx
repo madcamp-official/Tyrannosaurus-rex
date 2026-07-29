@@ -342,6 +342,7 @@ export function DesktopLobby(): JSX.Element {
       const isCoreHit = evt.data.hitZone === "HEART" || evt.data.hitZone === "SKULL" || evt.data.hitZone === "SPINE";
       const shotEventId = `${evt.data.playerId}-${evt.data.shotId}`;
       const impactPoint = evt.data.hitPoint ?? evt.data.aimPoint;
+      const shooter = roomStateRef.current?.players.find((player) => player.id === evt.data.playerId);
       setEphemeral((prev) => ({
         ...prev,
         battleShotEvents: [
@@ -350,6 +351,8 @@ export function DesktopLobby(): JSX.Element {
             id: shotEventId,
             team: evt.data.teamId,
             playerId: evt.data.playerId,
+            playerName: shooter?.nickname ?? "플레이어",
+            scoreDelta: evt.data.energyDelta,
             hit: evt.data.hit,
             core: isCoreHit,
             point: [impactPoint.x, impactPoint.y],
@@ -359,7 +362,7 @@ export function DesktopLobby(): JSX.Element {
       }));
       window.setTimeout(() => {
         setEphemeral((prev) => ({ ...prev, battleShotEvents: prev.battleShotEvents.filter((e) => e.id !== shotEventId) }));
-      }, 900);
+      }, 1200);
 
       bridge.send("ENERGY_HIT", {
         teamId: evt.data.teamId,

@@ -117,7 +117,19 @@ function ShotEffect({ event }: { event: BattleShotEvent }): JSX.Element | null {
       <div
         className={`battle-impact battle-impact--${event.team.toLowerCase()}${event.core ? " battle-impact--core" : ""}`}
         style={{ left: pct(tx), top: pct(ty) }}
-      />
+      >
+        <span className="battle-impact__flash" />
+        <span className="battle-impact__ring battle-impact__ring--1" />
+        <span className="battle-impact__ring battle-impact__ring--2" />
+        <span className="battle-impact__ring battle-impact__ring--3" />
+        <span className="battle-impact__dust battle-impact__dust--1" />
+        <span className="battle-impact__dust battle-impact__dust--2" />
+        <span className="battle-impact__dust battle-impact__dust--3" />
+        <span className="battle-impact__dust battle-impact__dust--4" />
+        <span className="battle-impact__dust battle-impact__dust--5" />
+        <span className="battle-impact__dust battle-impact__dust--6" />
+        <span className="battle-impact__score">{event.playerName} +{event.scoreDelta}</span>
+      </div>
     </>
   );
 }

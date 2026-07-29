@@ -48,6 +48,8 @@ export interface BattleShotEvent {
   id: string;
   team: TeamId;
   playerId: string;
+  playerName: string;
+  scoreDelta: number;
   hit: boolean;
   core: boolean;
   /** 0..1, 0..1 — 무대 내 명중 좌표 */

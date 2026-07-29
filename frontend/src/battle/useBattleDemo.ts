@@ -146,7 +146,15 @@ export function useBattleDemo() {
           ? prev.trex.corePos
           : [clamp01(prev.trex.x + jitter()), clamp01(TREX_BASELINE_Y + jitter())];
 
-        fireShot({ team: teamKey === "teamA" ? "A" : "B", playerId: player.id, hit: isHit, core: isCore, point });
+        fireShot({
+          team: teamKey === "teamA" ? "A" : "B",
+          playerId: player.id,
+          playerName: player.name,
+          scoreDelta: gain,
+          hit: isHit,
+          core: isCore,
+          point,
+        });
 
         const reachedTarget = nextTeam.energy >= prev.energyTarget;
         if (reachedTarget && !resettingRef.current) {

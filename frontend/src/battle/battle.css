@@ -142,6 +142,8 @@
   align-items: center;
   gap: 6px;
   pointer-events: none;
+  transition: left 220ms cubic-bezier(0.22, 1, 0.36, 1), top 220ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: left, top;
 }
 
 .battle-core__glow {
@@ -239,30 +241,109 @@
 
 .battle-impact {
   position: absolute;
-  z-index: 3;
-  width: 10px;
-  height: 10px;
-  margin: -5px;
-  border-radius: 50%;
+  z-index: 4;
+  width: 1px;
+  height: 1px;
   pointer-events: none;
-  animation: battle-impact-ring 0.5s ease-out forwards;
+  color: var(--gold);
 }
 
 .battle-impact--a {
-  box-shadow: 0 0 0 3px var(--a-light);
+  color: var(--a-light);
 }
 
 .battle-impact--b {
-  box-shadow: 0 0 0 3px var(--b-light);
+  color: var(--b-light);
 }
 
 .battle-impact--core {
-  box-shadow: 0 0 0 4px var(--gold);
+  color: var(--gold);
 }
 
-@keyframes battle-impact-ring {
+.battle-impact__flash,
+.battle-impact__ring,
+.battle-impact__dust,
+.battle-impact__score {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+
+.battle-impact__flash {
+  width: 28px;
+  height: 28px;
+  margin: -14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 24px 10px currentColor;
+  animation: battle-impact-flash 320ms ease-out forwards;
+}
+
+.battle-impact__ring {
+  width: 28px;
+  height: 28px;
+  margin: -14px;
+  border: 3px solid currentColor;
+  border-radius: 50%;
+  box-shadow: 0 0 10px currentColor;
+  opacity: 0;
+  animation: battle-impact-wave 720ms cubic-bezier(0.1, 0.75, 0.25, 1) forwards;
+}
+
+.battle-impact__ring--2 { animation-delay: 90ms; }
+.battle-impact__ring--3 { animation-delay: 180ms; }
+
+.battle-impact__dust {
+  --dust-x: 0px;
+  --dust-y: -48px;
+  width: 7px;
+  height: 4px;
+  margin: -2px -3px;
+  border-radius: 60% 40%;
+  background: #f5e3c5;
+  box-shadow: 0 0 4px currentColor;
+  animation: battle-bone-dust 680ms ease-out forwards;
+}
+
+.battle-impact__dust--1 { --dust-x: 52px; --dust-y: -16px; }
+.battle-impact__dust--2 { --dust-x: 35px; --dust-y: 38px; animation-delay: 35ms; }
+.battle-impact__dust--3 { --dust-x: -18px; --dust-y: 50px; animation-delay: 70ms; }
+.battle-impact__dust--4 { --dust-x: -52px; --dust-y: 12px; animation-delay: 25ms; }
+.battle-impact__dust--5 { --dust-x: -30px; --dust-y: -42px; animation-delay: 55ms; }
+.battle-impact__dust--6 { --dust-x: 16px; --dust-y: -54px; animation-delay: 90ms; }
+
+.battle-impact__score {
+  transform: translate(-50%, -30px);
+  font-family: "YeogiOttaeJalnan", "Gothic A1", system-ui, sans-serif;
+  font-size: 23px;
+  font-weight: 900;
+  color: #fff8e9;
+  text-shadow: 0 3px 2px rgba(0, 0, 0, 0.8), 0 0 12px currentColor;
+  white-space: nowrap;
+  animation: battle-score-pop 1.05s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
+}
+
+@keyframes battle-impact-flash {
   0% { transform: scale(0.3); opacity: 1; }
-  100% { transform: scale(6); opacity: 0; }
+  100% { transform: scale(2.3); opacity: 0; }
+}
+
+@keyframes battle-impact-wave {
+  0% { transform: scale(0.25); opacity: 1; }
+  100% { transform: scale(3.8); opacity: 0; }
+}
+
+@keyframes battle-bone-dust {
+  0% { transform: translate(0, 0) rotate(0deg) scale(0.4); opacity: 1; }
+  70% { opacity: 0.9; }
+  100% { transform: translate(var(--dust-x), var(--dust-y)) rotate(210deg) scale(1.2); opacity: 0; }
+}
+
+@keyframes battle-score-pop {
+  0% { transform: translate(-50%, -18px) scale(0.65); opacity: 0; }
+  18% { transform: translate(-50%, -38px) scale(1.12); opacity: 1; }
+  72% { transform: translate(-50%, -54px) scale(1); opacity: 1; }
+  100% { transform: translate(-50%, -70px) scale(0.94); opacity: 0; }
 }
 
 /* ---------- 상단 바 ---------- */
