@@ -141,6 +141,11 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
     socket.emit("energy:fire", { requestId: newRequestId(), shotId: newRequestId(), clientTime: Date.now() }, (ack) => {
       if (!ack.ok) return;
       setLastResult(ack.data.hit ? "HIT" : "MISS");
+      if (ack.data.hit) {
+        // 발사 버튼 터치의 사용자 제스처 안에서 실행해야 모바일 브라우저의 진동 정책에
+        // 막히지 않는다. 급소 적중은 일반 적중보다 강한 패턴으로 즉시 구분한다.
+        navigator.vibrate?.(ack.data.energyDelta >= 3 ? [90, 45, 150] : 110);
+      }
       window.setTimeout(() => setLastResult(null), 400);
     });
   };
