@@ -41,12 +41,18 @@ export function DinoRunControls({
   playerId,
   result,
   serverTimeOffsetMs,
+  meteorLocks,
+  toast,
 }: {
   socket: AppSocket;
   team: TeamState;
   playerId: PlayerId;
   result: "WIN" | "LOSE" | "DRAW" | null;
   serverTimeOffsetMs: number;
+  /** 서버가 확정한 운석 목표 좌표(objectId → x). 클라이언트 자체 추정치보다 우선한다. */
+  meteorLocks: Map<number, number>;
+  /** 명중·과일·하트 등 방금 일어난 이벤트를 짧게 알려주는 문구. */
+  toast: string | null;
 }): JSX.Element {
   const [x, setX] = useState(0.5);
   const [flash, setFlash] = useState<"hit" | "bonus" | "heal" | null>(null);
@@ -150,6 +156,7 @@ export function DinoRunControls({
 
   return (
     <div className={`dino-run${flash ? ` dino-run--flash-${flash}` : ""}`}>
+      {toast && <p className="dino-run__toast">{toast}</p>}
       <div className="dino-run__hud">
         <span>⏱ {remainingSec}초</span>
         <span>
@@ -170,11 +177,13 @@ export function DinoRunControls({
           if (progress < -0.05 || progress > 1 + SKY_OBJECT_COLLISION_GRACE_MS / SKY_OBJECT_FALL_MS) return null;
           let objX = obj.x;
           if (obj.kind === "METEOR") {
-            let locked = meteorLockRef.current.get(obj.id);
-            if (locked === undefined) {
-              locked = xRef.current;
-              meteorLockRef.current.set(obj.id, locked);
-            }
+            // 서버가 확정한 좌표가 도착하면 그 값을 우선한다 — 낙하 시작 직후 잠깐(서버 배경
+            // 틱·네트워크 왕복 시간 동안)은 로컬 추정치를 쓰지만, 서버 값이 오는 즉시 그걸로
+            // 맞춰 착지(판정) 시점엔 항상 실제 판정 위치와 화면 위치가 일치하게 한다.
+            const serverLocked = meteorLocks.get(obj.id);
+            let locked = serverLocked ?? meteorLockRef.current.get(obj.id);
+            if (locked === undefined) locked = xRef.current;
+            meteorLockRef.current.set(obj.id, locked);
             objX = locked;
           }
           const emoji = obj.kind === "METEOR" ? "☄️" : obj.kind === "HEART" ? "❤️" : FRUIT_EMOJIS[obj.id % FRUIT_EMOJIS.length];

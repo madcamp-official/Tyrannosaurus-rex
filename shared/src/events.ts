@@ -289,6 +289,11 @@ export interface ServerToClientEvents {
   "dino:hit": (
     evt: ServerEvent<{ teamId: TeamId; playerId: PlayerId; objectId: number; livesLeft: number; score: number; x: number }>,
   ) => void;
+  // 운석이 플레이어를 목표로 "잠기는" 순간의 좌우 좌표. 클라이언트가 자체적으로 낙하 시작
+  // 시점의 로컬 좌표를 목표로 추정하면 서버의 실제 잠금 시각(100ms 배경 틱)과 렌더링 시각이
+  // 어긋나 화면상 위치와 실제 판정 위치가 달라질 수 있다 — 서버가 잠근 값을 그대로 내려줘
+  // 항상 일치시킨다.
+  "dino:meteorLocked": (evt: ServerEvent<{ teamId: TeamId; playerId: PlayerId; objectId: number; x: number }>) => void;
   "dino:bonus": (
     evt: ServerEvent<{
       teamId: TeamId;
