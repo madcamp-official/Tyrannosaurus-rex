@@ -120,6 +120,32 @@ describe("energy:fire", () => {
     expect(room.state.roomPhase).toBe("PLAYING");
   });
 
+  it("marks the first team to fill revival energy as WIN, and the other team LOSE once it also finishes", () => {
+    const { rooms, room, playerA } = setupChargingRoom();
+    let now = Date.now();
+    let guard = 0;
+    while (room.state.teams.A.charging.energy < ENERGY_TARGET && guard < 100) {
+      now += SHOT_COOLDOWN_MS + 10;
+      room.aimState.set(playerA, { point: aimAtCore(room, now), mode: "TOUCHPAD", calibrated: true, receivedAt: now, lastSeq: guard + 2 });
+      rooms.fireEnergy(room, "A", playerA, randomUUID(), now);
+      guard += 1;
+    }
+    // 팀 A가 먼저 채웠고, 팀 B는 아직 REVIVED에 도달하지 않았다 — A는 WIN.
+    expect(room.state.teams.A.charging.result).toBe("WIN");
+    expect(room.state.teams.B.charging.result).toBeNull();
+
+    // 팀 B가 시간 초과로 나중에 REVIVED에 도달하면 LOSE로 표시된다(순서와 무관하게 YRANNO는 항상 LOSE).
+    room.state.teams.B.phase = "CHARGING";
+    room.state.teams.B.phaseEndsAt = now - 1;
+    room.chargingStartedAt.B = now - 1000;
+    rooms.tickCharging(room, now + 1000);
+    expect(room.state.teams.B.phase).toBe("REVIVED");
+    expect(room.state.teams.B.charging.form).toBe("YRANNO");
+    expect(room.state.teams.B.charging.result).toBe("LOSE");
+    // 먼저 이긴 팀의 결과는 그대로 유지된다.
+    expect(room.state.teams.A.charging.result).toBe("WIN");
+  });
+
   it("finalizes with the higher cumulative score once both teams are revived", () => {
     const { rooms, room } = setupChargingRoom();
     room.state.teams.A.phase = "REVIVED";

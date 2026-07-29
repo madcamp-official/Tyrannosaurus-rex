@@ -472,6 +472,29 @@
   color: var(--b-light);
 }
 
+.battle-board__result {
+  font-size: 13px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.battle-board__result--win {
+  background: rgba(120, 220, 140, 0.22);
+  color: #8ef0a8;
+}
+
+.battle-board__result--lose {
+  background: rgba(220, 90, 90, 0.2);
+  color: #f0a0a0;
+}
+
+.battle-board__result--draw {
+  background: rgba(220, 200, 120, 0.2);
+  color: #f0dca0;
+}
+
 .battle-board__sub {
   font-size: 14px;
   opacity: 0.7;

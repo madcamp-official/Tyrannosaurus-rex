@@ -33,7 +33,7 @@ function makeTeam(overrides: Partial<TeamState> & { id: "A" | "B" }): TeamState 
       grade: null,
       result: null,
     },
-    charging: { energy: 0, stability: 100, activeCore: "HEART", coreChangesAt: 0, form: "NONE" },
+    charging: { energy: 0, stability: 100, activeCore: "HEART", coreChangesAt: 0, form: "NONE", result: null },
     scores: { excavation: null, dinoRun: null, charging: null },
     ...overrides,
   };
