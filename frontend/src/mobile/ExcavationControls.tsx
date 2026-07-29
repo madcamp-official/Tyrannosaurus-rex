@@ -18,6 +18,11 @@ const SHAKE_AXIS_THRESHOLD = 10;
 // event.acceleration을 못 주는 기기용 폴백 — 중력 포함 벡터 크기(accelerationIncludingGravity) 기준이라 방향 구분은 없다.
 const SHAKE_MAGNITUDE_THRESHOLD = 14;
 const MAX_COUNT_PER_PACKET = 5;
+// 흔들기/탭 둘 다 한 번의 파기 동작마다 효과음을 튼다. 빠르게 연타해도 겹쳐 재생되도록
+// <audio> 여러 개를 돌려쓴다(하나만 쓰면 currentTime을 되감을 때 이전 재생이 뚝 끊긴다).
+const DIG_SOUND_POOL_SIZE = 3;
+// 너무 짧은 간격으로 계속 재생을 트리거하면(초고속 연타) 오디오가 뭉개져 들리므로 최소 간격을 둔다.
+const DIG_SOUND_MIN_INTERVAL_MS = 90;
 
 type MotionPermissionApi = { requestPermission?: () => Promise<"granted" | "denied"> };
 
@@ -36,6 +41,30 @@ export function ExcavationControls({
   const tapCountRef = useRef(0);
   const seqRef = useRef(0);
   const lastShakeAtRef = useRef(0);
+  const digSoundPoolRef = useRef<HTMLAudioElement[]>([]);
+  const digSoundIndexRef = useRef(0);
+  const lastDigSoundAtRef = useRef(0);
+
+  useEffect(() => {
+    digSoundPoolRef.current = Array.from({ length: DIG_SOUND_POOL_SIZE }, () => {
+      const audio = new Audio("/audio/excavation-dig.mp3");
+      audio.preload = "auto";
+      audio.volume = 0.5;
+      return audio;
+    });
+  }, []);
+
+  const playDigSound = () => {
+    const now = Date.now();
+    if (now - lastDigSoundAtRef.current < DIG_SOUND_MIN_INTERVAL_MS) return;
+    lastDigSoundAtRef.current = now;
+    const pool = digSoundPoolRef.current;
+    if (pool.length === 0) return;
+    const audio = pool[digSoundIndexRef.current % pool.length]!;
+    digSoundIndexRef.current += 1;
+    audio.currentTime = 0;
+    void audio.play().catch(() => undefined);
+  };
 
   useEffect(() => {
     if (typeof window.DeviceMotionEvent === "undefined") {
@@ -77,6 +106,7 @@ export function ExcavationControls({
       lastShakeAtRef.current = now;
       motionCountRef.current += 1;
       setShakeFlash(true);
+      playDigSound();
       window.setTimeout(() => setShakeFlash(false), 150);
     };
     window.addEventListener("devicemotion", handleMotion);
@@ -123,8 +153,9 @@ export function ExcavationControls({
 
   const handleTap = () => {
     tapCountRef.current += 1;
-    // 탭도 흔들기와 똑같이 삽 모션을 재생해서, 어느 방식으로 파든 파는 동작이 눈에 보이게 한다.
+    // 탭도 흔들기와 똑같이 삽 모션과 효과음을 재생해서, 어느 방식으로 파든 파는 동작이 똑같이 느껴지게 한다.
     setShakeFlash(true);
+    playDigSound();
     window.setTimeout(() => setShakeFlash(false), 150);
   };
 
