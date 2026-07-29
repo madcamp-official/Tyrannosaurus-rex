@@ -6,12 +6,16 @@
 
 import { useEffect, useState, type ReactNode } from "react";
 import { PHASE_START_GRACE_MS } from "@trex/shared";
+import { serverNow } from "../socket";
 
 export function SensorPermissionGate({ phaseStartedAt, children }: { phaseStartedAt: number; children: ReactNode }): JSX.Element {
-  const [nowMs, setNowMs] = useState(() => Date.now());
+  // 폰과 데스크탑의 시스템 시계가 서로 어긋나 있으면 같은 phaseStartedAt을 기준으로 해도
+  // 카운트다운이 서로 다르게 보인다 — 각 기기의 raw Date.now() 대신 서버 기준으로 보정된
+  // serverNow()를 써서 모든 화면이 같은 숫자를 보게 한다.
+  const [nowMs, setNowMs] = useState(() => serverNow());
 
   useEffect(() => {
-    const interval = window.setInterval(() => setNowMs(Date.now()), 200);
+    const interval = window.setInterval(() => setNowMs(serverNow()), 200);
     return () => window.clearInterval(interval);
   }, []);
 
