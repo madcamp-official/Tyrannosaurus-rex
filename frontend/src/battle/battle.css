@@ -122,15 +122,15 @@
 .battle-trex {
   position: absolute;
   z-index: 1;
-  width: 1240px;
-  height: 720px;
-  transition: left 0.25s linear, top 0.25s linear;
+  width: 2480px;
+  height: 1440px;
+  transition: left 0.25s linear;
 }
 
 .battle-trex__model {
   display: block;
-  width: 1240px;
-  height: 720px;
+  width: 2480px;
+  height: 1440px;
 }
 
 .battle-core {
@@ -595,11 +595,11 @@
 }
 
 .battle-gun--a .battle-gun__body {
-  transform: rotate(28deg);
+  transform: rotate(18deg);
 }
 
 .battle-gun--b .battle-gun__body {
-  transform: rotate(-28deg);
+  transform: scaleX(-1) rotate(18deg);
 }
 
 .battle-gun__model {

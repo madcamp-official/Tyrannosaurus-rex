@@ -98,15 +98,17 @@ function LaserGunModel({ team }: { team: TeamId }): JSX.Element {
         const center = bounds.getCenter(new THREE.Vector3());
         const size = bounds.getSize(new THREE.Vector3());
         loaded.position.sub(center);
-        loaded.rotation.set(-0.08, team === "A" ? -0.42 : 0.42, 0);
+        // 참고 이미지의 후방 상단 3/4 각도를 하나만 만든다. B팀도 같은
+        // 렌더를 사용하고 CSS에서 수평 반전해 두 총의 원근과 실루엣을 동일하게 유지한다.
+        loaded.rotation.set(-0.16, -0.58, 0.04);
         scene.add(loaded);
 
         const radius = Math.max(size.x, size.y, size.z) * 0.62;
         // 손잡이와 총열 윗면이 함께 보이는 비스듬한 상단 3/4 시점. 좌우는 같은
         // 카메라를 사용하고 모델의 Y 회전만 반대로 적용해 정확한 거울 대칭을 만든다.
-        camera.position.set(0, radius * 1.5, radius * 2.05);
+        camera.position.set(radius * 0.72, radius * 1.08, radius * 2.35);
         camera.up.set(0, 1, 0);
-        camera.lookAt(0, -radius * 0.08, 0);
+        camera.lookAt(0, -radius * 0.12, 0);
         camera.near = Math.max(0.01, radius * 0.01);
         camera.far = radius * 10;
         camera.updateProjectionMatrix();

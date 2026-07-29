@@ -10,6 +10,8 @@ function pct(n: number): string {
   return `${(n * 100).toFixed(2)}%`;
 }
 
+const TREX_BASELINE = 0.62;
+
 interface AllPlayer {
   id: string;
   name: string;
@@ -50,14 +52,20 @@ export function BattleArena({
         className="battle-trex"
         style={{
           left: pct(trex.x),
-          top: pct(trex.y),
+          top: pct(TREX_BASELINE),
           transform: `translate(-50%, -50%) scaleX(${trex.facing})`,
         }}
       >
         <BattleTrexModel />
       </div>
 
-      <div className="battle-core" style={{ left: pct(trex.corePos[0]), top: pct(trex.corePos[1]) }}>
+      <div
+        className="battle-core"
+        style={{
+          left: pct(trex.corePos[0]),
+          top: pct(TREX_BASELINE + (trex.corePos[1] - trex.y) * 2),
+        }}
+      >
         <span className="battle-core__glow" />
         <span className="battle-core__label">{coreName} 코어 · 약점</span>
       </div>

@@ -2,8 +2,8 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-const CANVAS_WIDTH = 620;
-const CANVAS_HEIGHT = 360;
+const CANVAS_WIDTH = 1240;
+const CANVAS_HEIGHT = 720;
 const BATTLE_WALK_FPS = 15;
 const RESULT_WALK_FPS = 15;
 
@@ -20,11 +20,11 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
     const renderer = new THREE.WebGLRenderer({
       canvas,
       alpha: true,
-      antialias: false,
+      antialias: isWinner,
       powerPreference: "high-performance",
     });
-    // 254개의 메시로 구성된 모델을 CSS에서 2배 확대한다. DPR까지 곱해 렌더링하면
-    // 픽셀 수가 급증하므로 내부 해상도는 1배로 유지하고 브라우저가 확대하도록 한다.
+    // CSS 확대 시 원본 620×360 비트맵이 그대로 늘어나던 현상을 막기 위해
+    // 내부 해상도를 두 배로 올린다. DPR은 1로 제한해 모바일 GPU 부하는 억제한다.
     renderer.setPixelRatio(1);
     renderer.setSize(CANVAS_WIDTH, CANVAS_HEIGHT, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -46,6 +46,33 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
     const motionRoot = new THREE.Group();
     scene.add(motionRoot);
 
+    let resultGround: THREE.Mesh | null = null;
+    const resultTextures: THREE.Texture[] = [];
+    if (isWinner) {
+      const textureLoader = new THREE.TextureLoader();
+      const sky = textureLoader.load("/images/night-sky.jpg");
+      sky.colorSpace = THREE.SRGBColorSpace;
+      scene.background = sky;
+      resultTextures.push(sky);
+
+      const grass = textureLoader.load("/images/excavation-grass.jpg");
+      grass.colorSpace = THREE.SRGBColorSpace;
+      grass.wrapS = THREE.RepeatWrapping;
+      grass.wrapT = THREE.RepeatWrapping;
+      grass.repeat.set(3, 3);
+      grass.anisotropy = 4;
+      resultTextures.push(grass);
+      resultGround = new THREE.Mesh(
+        new THREE.PlaneGeometry(30, 18),
+        new THREE.MeshStandardMaterial({ map: grass, roughness: 0.96, metalness: 0 }),
+      );
+      resultGround.rotation.x = -Math.PI / 2;
+      resultGround.receiveShadow = true;
+      scene.add(resultGround);
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    }
+
     let disposed = false;
     let loadedModel: THREE.Group | null = null;
     let animationFrame = 0;
@@ -59,6 +86,10 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
       loadedModel = gltf.scene;
       loadedModel.traverse((child) => {
         if (!(child instanceof THREE.Mesh)) return;
+        if (isWinner) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+        }
         const hadMultipleMaterials = Array.isArray(child.material);
         const sources: THREE.Material[] = hadMultipleMaterials ? child.material : [child.material];
         const clonedMaterials = sources.map((source) => {
@@ -100,6 +131,10 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
       const size = bounds.getSize(new THREE.Vector3());
       loadedModel.position.sub(center);
       motionRoot.add(loadedModel);
+      if (resultGround) {
+        resultGround.position.y = -size.y * 0.5;
+        resultGround.scale.setScalar(Math.max(size.x, size.y, size.z) / 5);
+      }
 
       // 깊이 최댓값이 아니라 화면에 투영되는 가로·세로 크기로 거리를 맞춘다.
       const verticalFov = THREE.MathUtils.degToRad(camera.fov);
@@ -185,6 +220,11 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
           const materials = Array.isArray(child.material) ? child.material : [child.material];
           materials.forEach((material) => material.dispose());
         });
+      }
+      resultTextures.forEach((texture) => texture.dispose());
+      if (resultGround) {
+        resultGround.geometry.dispose();
+        (resultGround.material as THREE.Material).dispose();
       }
       renderer.dispose();
     };
