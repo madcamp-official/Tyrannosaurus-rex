@@ -23,8 +23,17 @@ const FLASH_MS = 350;
 /** 화면 좌/우를 누르고 있는 동안 초당 이동하는 비율(0~1 기준) — 매 프레임(rAF) 델타 타임에
  * 비례해 갱신해서 인터벌 틱 단위로 끊기지 않고 부드럽게 이동한다. */
 const MOVE_SPEED_PER_SEC = 1.6;
+const METEOR_IMAGE = "/images/dino-meteor.png";
+const HEART_IMAGE = "/images/dino-heart.png";
+const TREX_IMAGE = "/images/dino-trex.png";
 /** 과일 종류를 오브젝트 id로 결정적으로 골라 시각적으로 다양하게 보이게 한다. */
-const FRUIT_EMOJIS = ["🍎", "🍇", "🍓", "🍑", "🍉"];
+const FRUIT_IMAGES = [
+  "/images/dino-fruit-apple.png",
+  "/images/dino-fruit-grape.png",
+  "/images/dino-fruit-banana.png",
+  "/images/dino-fruit-cherry.png",
+  "/images/dino-fruit-melon.png",
+];
 /**
  * 운석·보너스가 착지하는(판정되는) 세로 위치 — 공룡이 서 있는 자리와 같은 줄이 되도록
  * 맞춘다. .dino-run__dino의 CSS bottom(16%)과 정확히 대응하는 값(100 - 16)이다.
@@ -186,19 +195,19 @@ export function DinoRunControls({
             meteorLockRef.current.set(obj.id, locked);
             objX = locked;
           }
-          const emoji = obj.kind === "METEOR" ? "☄️" : obj.kind === "HEART" ? "❤️" : FRUIT_EMOJIS[obj.id % FRUIT_EMOJIS.length];
+          const image = obj.kind === "METEOR" ? METEOR_IMAGE : obj.kind === "HEART" ? HEART_IMAGE : FRUIT_IMAGES[obj.id % FRUIT_IMAGES.length];
           return (
             <div
               key={obj.id}
               className={`dino-run__sky-object${obj.kind !== "METEOR" ? " dino-run__sky-object--bonus" : ""}`}
               style={{ left: `${objX * 100}%`, top: `${clamp01(progress) * LANDING_TOP_PERCENT}%` }}
             >
-              {emoji}
+              <img src={image} alt="" />
             </div>
           );
         })}
         <div className="dino-run__dino" style={{ left: `${x * 100}%` }}>
-          🦖
+          <img src={TREX_IMAGE} alt="" />
         </div>
         <div className="dino-run__ground" />
       </div>
