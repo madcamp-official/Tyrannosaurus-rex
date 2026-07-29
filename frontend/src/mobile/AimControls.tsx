@@ -1,6 +1,6 @@
 /** Plan.md §5.2, §6.3. 자이로 전용 조준 파이프라인 + 발사(터치패드 모드는 제거). */
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AIM_UPDATE_MAX_HZ, SHOT_COOLDOWN_MS, type NormalizedPoint, type SensorPermission } from "@trex/shared";
 import type { AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
@@ -30,7 +30,17 @@ function applyDeadzone(value: number): number {
   return Math.sign(value) * (magnitude - GYRO_DEADZONE_DEG);
 }
 
-export function AimControls({ socket, practice = false }: { socket: AppSocket; practice?: boolean }): JSX.Element {
+export function AimControls({
+  socket,
+  practice = false,
+  showDiagnostics = false,
+  autoRequestPermission = true,
+}: {
+  socket?: AppSocket;
+  practice?: boolean;
+  showDiagnostics?: boolean;
+  autoRequestPermission?: boolean;
+}): JSX.Element {
   const [orientationPermission, setOrientationPermission] = useState<SensorPermission>("UNKNOWN");
   const [calibrated, setCalibrated] = useState(false);
   const [point, setPoint] = useState<NormalizedPoint>({ x: 0.5, y: 0.5 });
@@ -49,13 +59,11 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
   const hasReadingRef = useRef(false);
   const seqRef = useRef(0);
 
-  useEffect(() => {
+  const requestOrientationPermission = useCallback(() => {
     if (typeof window.DeviceOrientationEvent === "undefined") {
       setOrientationPermission("UNSUPPORTED");
       return;
     }
-    // 버튼 없이 바로 요청한다 — 입장 폼 제출 시 이미 한 번 요청해둬서(§sensorPermissions),
-    // 대부분 여기서는 팝업 없이 캐시된 결과가 즉시 돌아온다.
     const api = window.DeviceOrientationEvent as unknown as OrientationPermissionApi;
     if (typeof api.requestPermission !== "function") {
       setOrientationPermission("GRANTED");
@@ -66,6 +74,21 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
       .then((result) => setOrientationPermission(result === "granted" ? "GRANTED" : "DENIED"))
       .catch(() => setOrientationPermission("DENIED"));
   }, []);
+
+  useEffect(() => {
+    if (autoRequestPermission) {
+      // 입장 폼에서 이미 권한을 요청한 본 게임은 캐시된 결과를 바로 확인한다.
+      requestOrientationPermission();
+      return;
+    }
+    // 독립 테스트는 iOS의 사용자 제스처 요구를 지키기 위해 버튼을 누를 때까지 기다린다.
+    if (typeof window.DeviceOrientationEvent === "undefined") {
+      setOrientationPermission("UNSUPPORTED");
+      return;
+    }
+    const api = window.DeviceOrientationEvent as unknown as OrientationPermissionApi;
+    if (typeof api.requestPermission !== "function") setOrientationPermission("GRANTED");
+  }, [autoRequestPermission, requestOrientationPermission]);
 
   useEffect(() => {
     if (orientationPermission !== "GRANTED") return undefined;
@@ -108,6 +131,7 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
   }, [orientationPermission]);
 
   useEffect(() => {
+    if (!socket) return undefined;
     const interval = window.setInterval(() => {
       seqRef.current += 1;
       socket.emit("aim:update", {
@@ -128,7 +152,7 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
   };
 
   const fire = () => {
-    if (cooldownActive) return;
+    if (!socket || cooldownActive) return;
     setCooldownActive(true);
     window.setTimeout(() => setCooldownActive(false), SHOT_COOLDOWN_MS);
     socket.emit("energy:fire", { requestId: newRequestId(), shotId: newRequestId(), clientTime: Date.now() }, (ack) => {
@@ -145,9 +169,16 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
       )}
 
       {orientationPermission !== "GRANTED" && (
-        <p className="mobile-game__hint">
-          {orientationPermission === "UNSUPPORTED" ? "이 기기는 자이로를 지원하지 않아요." : "자이로 권한이 필요해요."}
-        </p>
+        <>
+          <p className="mobile-game__hint">
+            {orientationPermission === "UNSUPPORTED" ? "이 기기는 자이로를 지원하지 않아요." : "자이로 권한이 필요해요."}
+          </p>
+          {orientationPermission !== "UNSUPPORTED" && (
+            <button type="button" className="mobile-game__button" onClick={requestOrientationPermission}>
+              자이로 권한 허용
+            </button>
+          )}
+        </>
       )}
       {orientationPermission === "GRANTED" && (
         <button type="button" className="mobile-game__button" onClick={calibrate}>
@@ -155,11 +186,21 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
         </button>
       )}
 
+      {showDiagnostics && (
+        <div className="gyro-diagnostics" aria-live="polite">
+          <span>센서: {orientationPermission === "GRANTED" ? "연결됨" : orientationPermission}</span>
+          <span>영점: {calibrated ? "설정됨" : "미설정"}</span>
+          <span>
+            조준 좌표: X {point.x.toFixed(3)} · Y {point.y.toFixed(3)}
+          </span>
+        </div>
+      )}
+
       <div className={`aim-pad${lastResult === "HIT" ? " aim-pad--hit" : ""}${lastResult === "MISS" ? " aim-pad--miss" : ""}`}>
         <div className="aim-pad__crosshair" style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }} />
       </div>
 
-      <button type="button" className="fire-button" disabled={practice || cooldownActive} onClick={fire}>
+      <button type="button" className="fire-button" disabled={!socket || practice || cooldownActive} onClick={fire}>
         {practice ? "연습 중" : "발사"}
       </button>
     </div>
