@@ -122,15 +122,15 @@
 .battle-trex {
   position: absolute;
   z-index: 1;
-  width: 620px;
-  height: 360px;
+  width: 1240px;
+  height: 720px;
   transition: left 0.25s linear, top 0.25s linear;
 }
 
 .battle-trex__model {
   display: block;
-  width: 620px;
-  height: 360px;
+  width: 1240px;
+  height: 720px;
 }
 
 .battle-core {

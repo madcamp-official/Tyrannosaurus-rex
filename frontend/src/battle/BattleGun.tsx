@@ -35,8 +35,9 @@ function LaserGunModel({ team }: { team: TeamId }): JSX.Element {
       const tint = new THREE.Color(team === "A" ? 0xf06c2e : 0x159bd0);
       loaded.traverse((child) => {
         if (!(child instanceof THREE.Mesh)) return;
-        const materials = Array.isArray(child.material) ? child.material : [child.material];
-        child.material = materials.map((source) => {
+        const hadMultipleMaterials = Array.isArray(child.material);
+        const materials: THREE.Material[] = hadMultipleMaterials ? child.material : [child.material];
+        const clonedMaterials = materials.map((source) => {
           const material = source.clone() as THREE.MeshStandardMaterial;
           if ("color" in material) material.color.lerp(tint, 0.42);
           if ("emissive" in material) {
@@ -46,6 +47,7 @@ function LaserGunModel({ team }: { team: TeamId }): JSX.Element {
           material.needsUpdate = true;
           return material;
         });
+        child.material = hadMultipleMaterials ? clonedMaterials : clonedMaterials[0]!;
       });
 
       const bounds = new THREE.Box3().setFromObject(loaded);

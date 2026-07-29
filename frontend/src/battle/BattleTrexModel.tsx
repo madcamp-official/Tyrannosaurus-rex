@@ -13,9 +13,14 @@ export function BattleTrexModel(): JSX.Element {
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
 
-    const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true, powerPreference: "high-performance" });
-    // 사격 화면 뒤에서 Godot WebGL도 함께 실행된다. DPR 2는 이 캔버스의 픽셀 수를 4배로
-    // 늘려 저사양 GPU에서 병목이 되므로 표시 크기와 같은 1배 해상도로 고정한다.
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      alpha: true,
+      antialias: false,
+      powerPreference: "high-performance",
+    });
+    // 254개의 메시로 구성된 모델을 CSS에서 2배 확대한다. DPR까지 곱해 렌더링하면
+    // 픽셀 수가 급증하므로 내부 해상도는 1배로 유지하고 브라우저가 확대하도록 한다.
     renderer.setPixelRatio(1);
     renderer.setSize(CANVAS_WIDTH, CANVAS_HEIGHT, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -40,7 +45,7 @@ export function BattleTrexModel(): JSX.Element {
     let disposed = false;
     let loadedModel: THREE.Group | null = null;
     let frame = 0;
-    let lastRenderAt = 0;
+    let previousRenderTime = 0;
     const clock = new THREE.Clock();
 
     new GLTFLoader().load("/models/trex_skeleton/skeleton.gltf", (gltf) => {
@@ -49,8 +54,9 @@ export function BattleTrexModel(): JSX.Element {
       loadedModel = gltf.scene;
       loadedModel.traverse((child) => {
         if (!(child instanceof THREE.Mesh)) return;
-        const sources = Array.isArray(child.material) ? child.material : [child.material];
-        child.material = sources.map((source) => {
+        const hadMultipleMaterials = Array.isArray(child.material);
+        const sources: THREE.Material[] = hadMultipleMaterials ? child.material : [child.material];
+        const clonedMaterials = sources.map((source) => {
           const material = source.clone() as THREE.MeshStandardMaterial;
           if ("color" in material) material.color.set(0xe8dfcf);
           if ("roughness" in material) material.roughness = 0.72;
@@ -59,6 +65,9 @@ export function BattleTrexModel(): JSX.Element {
           material.needsUpdate = true;
           return material;
         });
+        // 단일 재질 메시를 배열로 바꾸면 geometry group이 없는 GLTF 메시가
+        // draw call을 만들지 못한다. 원본 재질 형태를 그대로 유지해야 한다.
+        child.material = hadMultipleMaterials ? clonedMaterials : clonedMaterials[0]!;
       });
 
       // 원본 모델의 긴 몸체 축은 Z축이다. Y축으로 90도 돌려 머리~꼬리
@@ -83,13 +92,14 @@ export function BattleTrexModel(): JSX.Element {
       camera.far = cameraDistance + size.z * 2;
       camera.updateProjectionMatrix();
 
-      const animate = (frameTime: number) => {
+      const animate = (renderTime: number) => {
         if (disposed) return;
         frame = window.requestAnimationFrame(animate);
-        // 조준점과 서버 티라노 좌표는 별도 DOM으로 갱신되므로, 모델의 미세한 숨쉬기
-        // 애니메이션만 30fps로 제한해도 조작 반응성에는 영향이 없다.
-        if (frameTime - lastRenderAt < FRAME_INTERVAL_MS) return;
-        lastRenderAt = frameTime;
+        // 조준점과 서버 티라노 좌표는 별도 DOM으로 갱신되므로 모델 애니메이션만
+        // 30fps로 제한해도 조작 반응성에는 영향이 없다.
+        if (renderTime - previousRenderTime < FRAME_INTERVAL_MS) return;
+        previousRenderTime = renderTime - ((renderTime - previousRenderTime) % FRAME_INTERVAL_MS);
+
         const elapsed = clock.getElapsedTime();
         motionRoot.position.y = Math.sin(elapsed * 4.2) * motionAmount;
         motionRoot.rotation.y = Math.sin(elapsed * 1.7) * 0.045;
