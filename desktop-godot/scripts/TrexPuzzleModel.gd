@@ -112,13 +112,15 @@ func scatter(seed_value: int = 0, radius_meters: float = 6.5) -> void:
 		angle += rng.randf_range(-0.06, 0.06) * PI
 		piece.position = Vector3(
 			cos(angle) * radius_units,
-			rng.randf_range(-1.2, 1.2) / MODEL_SCALE,
+			rng.randf_range(-0.2, 0.35) / MODEL_SCALE,
 			sin(angle) * radius_units
 		)
+		# 탑다운 카메라에서 조각이 칼날처럼 얇게 보이지 않도록 눕힌 상태를
+		# 기본으로 두고, 입체감이 느껴질 정도의 작은 기울기만 허용한다.
 		piece.rotation = Vector3(
-			rng.randf_range(-1.1, 1.1),
+			rng.randf_range(-0.38, 0.38),
 			rng.randf_range(-PI, PI),
-			rng.randf_range(-1.1, 1.1)
+			rng.randf_range(-0.38, 0.38)
 		)
 		piece.scale = Vector3.ONE * SCATTER_PIECE_SCALE
 
