@@ -36,7 +36,7 @@ function TeamEnergyCard({ teamId, teamName, energy, target, totalHits, coreHits 
         <div className="battle-gauge__bar-fill" style={{ width: `${pct}%` }} />
       </div>
       <div className="battle-gauge__foot">
-        남은 {remaining}% · 총 명중 {totalHits}회 · 코어 {coreHits}회
+        남은 {remaining}% · 약점 명중 {totalHits}회 · 이동 {coreHits}회
       </div>
     </div>
   );

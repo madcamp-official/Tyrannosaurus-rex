@@ -100,6 +100,43 @@ describe("energy:fire", () => {
     expect(player.stats.coreHits).toBe(1);
   });
 
+  it("moves the shared target to a different core immediately after a valid hit", () => {
+    const { rooms, room, playerA, now } = setupChargingRoom();
+    const before = computeActiveCore(room, now).core;
+
+    const outcome = rooms.fireEnergy(room, "A", playerA, randomUUID(), now);
+
+    expect(outcome.coreChanged?.from).toBe(before);
+    expect(outcome.coreChanged?.to).not.toBe(before);
+    expect(computeActiveCore(room, now).core).toBe(outcome.coreChanged?.to);
+    expect(room.state.teams.A.charging.activeCore).toBe(outcome.coreChanged?.to);
+    expect(room.state.teams.B.charging.activeCore).toBe(outcome.coreChanged?.to);
+  });
+
+  it("awards no hit, energy, or personal score for a body shot outside the active target", () => {
+    const { rooms, room, playerA, now } = setupChargingRoom();
+    const trex = computeTrexTransform(room, now);
+    room.aimState.set(playerA, {
+      point: { x: trex.position.x, y: trex.position.y + 0.12 },
+      mode: "TOUCHPAD",
+      calibrated: true,
+      receivedAt: now,
+      lastSeq: 2,
+    });
+
+    const outcome = rooms.fireEnergy(room, "A", playerA, randomUUID(), now);
+    const player = room.state.players.find((p) => p.id === playerA)!;
+
+    expect(outcome.hit).toBe(false);
+    expect(outcome.hitZone).toBeNull();
+    expect(outcome.energyDelta).toBe(0);
+    expect(outcome.coreChanged).toBeNull();
+    expect(player.stats.shots).toBe(1);
+    expect(player.stats.hits).toBe(0);
+    expect(player.stats.coreHits).toBe(0);
+    expect(player.stats.energyContributed).toBe(0);
+  });
+
   it("reaches NORMAL revival once energy hits the target, scoring the game without ending the round early", () => {
     const { rooms, room, playerA } = setupChargingRoom();
     let now = Date.now();

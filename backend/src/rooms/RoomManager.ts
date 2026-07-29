@@ -104,6 +104,10 @@ export type RoomRecord = {
   chargingStartedAt: Record<TeamId, number | null>;
   /** 공유 스켈레톤 하나의 이동·코어 로테이션 기준 시각. 두 팀 중 먼저 CHARGING에 들어간 팀이 정한다 (§2.3). */
   sharedTrexStartedAt: number | null;
+  /** 양 팀이 동시에 노리는 서버 권위 약점. 유효 약점 명중 직후 다른 부위로 변경된다. */
+  sharedActiveCore: CoreZone;
+  /** 결정적인 다음 약점 선택에 사용하는 이번 라운드의 누적 약점 명중 횟수. */
+  sharedCoreHitCount: number;
   /** 플레이어별 최신 유효 조준 좌표 (§17.9). */
   aimState: Map<PlayerId, AimState>;
   /**
@@ -294,6 +298,8 @@ export class RoomManager {
       },
       chargingStartedAt: { A: null, B: null },
       sharedTrexStartedAt: null,
+      sharedActiveCore: "HEART",
+      sharedCoreHitCount: 0,
       aimState: new Map(),
       dinoPositionState: new Map(),
       dinoMeteorLockState: new Map(),
@@ -456,6 +462,8 @@ export class RoomManager {
     };
     room.chargingStartedAt = { A: null, B: null };
     room.sharedTrexStartedAt = null;
+    room.sharedActiveCore = "HEART";
+    room.sharedCoreHitCount = 0;
     room.aimState = new Map();
     room.dinoPositionState = new Map();
     room.dinoMeteorLockState = new Map();
@@ -486,6 +494,9 @@ export class RoomManager {
     room.excavationFirstFinishAt = null;
     room.dinoRunTransitionAt = null;
     room.chargingFirstFinishAt = null;
+    room.sharedTrexStartedAt = null;
+    room.sharedActiveCore = "HEART";
+    room.sharedCoreHitCount = 0;
     Object.assign(room, makeVoteState());
     this.touch(room);
     this.bumpRevision(room);
