@@ -87,12 +87,9 @@ func _add_backdrop_tile(material: ShaderMaterial, width: float, depth: float, x:
 
 func _build_camera() -> void:
 	var camera := Camera3D.new()
-	# 비스듬히 내려다보던 각도 대신, 하늘에서 수직으로 내려다보는 탑다운 시점으로 바꿨다.
-	# 높이는 이전 카메라(0,9,13)의 원점까지 거리(~15.8)와 비슷하게 잡아 구덩이/티라노가
-	# 화면에서 차지하는 크기가 크게 달라지지 않게 했다. 곧장 아래를 보는 방향은 기본
-	# up 벡터(Vector3.UP)와 평행해 look_at 기준이 무너지므로, 화면 위쪽이 -Z(원래 카메라가
-	# 있던 반대쪽) 방향을 향하도록 별도의 up 벡터를 준다.
-	camera.position = Vector3(0, 15, 0)
+	# 원점까지의 거리는 기존 탑다운 카메라와 같은 약 15m로 유지하면서, 수직 기준 30도
+	# 사선에서 내려다본다. 화면 점유율은 유지하되 구덩이의 앞·뒤 경사와 깊이가 분명히 읽힌다.
+	camera.position = Vector3(0, 13.0, 7.5)
 	camera.fov = 68.0
 	camera.near = 0.1
 	camera.far = 100.0
