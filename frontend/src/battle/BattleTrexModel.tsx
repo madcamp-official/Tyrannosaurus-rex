@@ -29,7 +29,7 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
     renderer.setSize(CANVAS_WIDTH, CANVAS_HEIGHT, false);
     renderer.outputColorSpace = THREE.SRGBColorSpace;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.25;
+    renderer.toneMappingExposure = isWinner ? 1.42 : 1.25;
 
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(30, CANVAS_WIDTH / CANVAS_HEIGHT, 0.01, 1000);
@@ -95,6 +95,7 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
         const clonedMaterials = sources.map((source) => {
           const material = source.clone() as THREE.MeshStandardMaterial;
           if ("color" in material && mode === "battle") material.color.set(0xe8dfcf);
+          if ("color" in material && isWinner) material.color.offsetHSL(0, -0.02, 0.1);
           if ("color" in material && mode === "yranno") material.color.multiply(new THREE.Color(0x88785b));
           if ("roughness" in material) material.roughness = 0.72;
           if ("metalness" in material) material.metalness = 0.04;
@@ -109,7 +110,7 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
 
       // 원본 모델의 긴 몸체 축은 Z축이다. 사격과 승리 화면 모두 회전하지
       // 않은 정면 자세를 사용하고, 정적인 와이라노만 기존 옆면 구도를 유지한다.
-      loadedModel.rotation.y = mode === "yranno" ? Math.PI / 2 : 0;
+      loadedModel.rotation.y = mode === "yranno" ? Math.PI / 2 : isWinner ? Math.PI * 0.1 : 0;
       let bounds = new THREE.Box3().setFromObject(loadedModel);
       let center = bounds.getCenter(new THREE.Vector3());
 
@@ -142,10 +143,11 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
       const distanceForHeight = size.y / (2 * Math.tan(verticalFov / 2));
       const distanceForWidth = size.x / (2 * Math.tan(horizontalFov / 2));
       const cameraDistance = Math.max(distanceForHeight, distanceForWidth) * 1.18 + size.z * 0.5;
-      camera.position.set(0, isWinner ? size.y * 0.2 : size.y * 0.04, cameraDistance);
+      const viewDistance = isWinner ? cameraDistance * 0.84 : cameraDistance;
+      camera.position.set(0, isWinner ? size.y * 0.2 : size.y * 0.04, viewDistance);
       camera.lookAt(0, isWinner ? -size.y * 0.12 : 0, 0);
-      camera.near = Math.max(0.01, cameraDistance - size.z * 1.5);
-      camera.far = cameraDistance + size.z * 2;
+      camera.near = Math.max(0.01, viewDistance - size.z * 1.5);
+      camera.far = viewDistance + size.z * 2;
       camera.updateProjectionMatrix();
 
       if (mode === "yranno") {
