@@ -67,8 +67,10 @@ export const SKY_OBJECT_MIN_GAP_MS = 300;
 // "동시에 최소 3개" 보장(§규정)이 깨져 0.75로 다시 낮췄다 — 여전히 초반 대비 후반 밀도
 // 차이는 원래(8배)보다 훨씬 완만한 2.5배 수준을 유지한다.
 export const SKY_OBJECT_DENSITY_CURVE_EXPONENT = 0.75;
-// 오브젝트가 화면 위에서 판정 지점까지 떨어지는 데 걸리는 시간(연출용) — 짧을수록 빠르게 떨어진다.
-export const SKY_OBJECT_FALL_MS = 800;
+// 오브젝트가 화면 위에서 판정 지점까지 떨어지는 데 걸리는 시간(연출용) — 짧을수록 빠르게
+// 떨어진다. 너무 빠르다는 피드백에 따라 속도를 0.85배로 늦췄다 — 시간은 속도의 역수이므로
+// 800 / 0.85 ≈ 941로 늘렸다.
+export const SKY_OBJECT_FALL_MS = 941;
 // 좌우 위치 보고 빈도 상한(자이로 기울임 → 서버 전송).
 export const DINO_POSITION_UPDATE_MAX_HZ = 20;
 // 팀 성능(0~1) 정규화 기준 — 팀원 1인이 이 점수를 내면 만점으로 친다. 과일·하트를 거의 다
