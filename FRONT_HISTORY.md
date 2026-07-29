@@ -359,3 +359,11 @@
 - API/Socket.IO/Shared 계약 변경: `room:join`에 선택적 `reconnectToken`을 추가하고 응답에 새 토큰과 `reconnected` 여부를 추가했다. 모바일은 방 코드별 토큰을 `localStorage`에 저장하고 같은 주소 재방문 시 자동 복구한다.
 - 환경 변수 변경: 없음.
 - 검증 결과: `npm run typecheck`, `npm test`(74개), `npm run build`, `git diff --check` 통과.
+## 2026-07-29 - 결과 초원·와이라노·Retrogun 및 발굴 재질 최적화
+
+- 구현 목적: 최종 승리 화면을 구덩이 시점에서 밝은 초원 무대로 교체하고, 실제 제공된 와이라노 이미지와 Retrogun 재질을 적용하면서 3D 화면의 렉을 줄였다.
+- 주요 변경 사항: 승리 팀의 육체 티라노 3D 모델이 밝은 하늘과 3D 잔디 평면 위를 15fps로 걷고 방향을 전환한다. 패배 팀은 제공된 `yranno.png`를 1400px WebP로 최적화해 표시한다. Retrogun의 albedo·normal·roughness·metalness 텍스처를 1024px WebP로 줄여 실제 FBX 모델에 연결하고 팀별로 옅은 색조만 적용했다. 정적인 총은 오프스크린 WebGL에서 한 번만 렌더한 뒤 2D 캔버스로 옮겨 GPU 컨텍스트를 반환하며, 승리 화면은 패자 측 WebGL을 없애고 단면 렌더링과 15fps 제한을 사용한다.
+- Godot 변경: 흙은 깊이 0.75m까지 기존 사진 텍스처를 유지하고 0.75~2.2m에서 첨부 이미지의 짙은 적갈색으로 전환한다. 양 팀 동시 발굴 시 흙 파티클을 팀당 42개에서 26개로 줄였다.
+- API/Socket.IO/Shared 계약 변경: 없음.
+- 환경 변수 변경: 없음.
+- 검증 결과: Godot 4.7.1 Web export 성공. 브라우저 연결 대상이 없어 자동 실화면 캡처는 수행하지 못했으며, 타입 검사·전체 테스트·프로덕션 빌드로 검증했다.

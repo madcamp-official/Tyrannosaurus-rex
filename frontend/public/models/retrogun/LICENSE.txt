@@ -1,0 +1,5 @@
+Project-supplied Retrogun asset
+
+The original files are located in model/Retrogun and were supplied with this
+project. No author or license metadata was present in that folder. The WebP
+files here are resized deployment derivatives of those source textures.

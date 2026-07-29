@@ -40,7 +40,8 @@ const CLUSTER_BOUND_RADIUS := 6.2
 # 거기까지 닿으면 뼈가 파인 자리 위에 놓인 것처럼 보인다. 어느 스쿱이든 "중심에서
 # scoop_radius만큼 뻗은 끝"이 이 반경을 넘지 않도록 최종 위치를 한 번 더 잘라낸다.
 const MAX_DIG_REACH := 5.8
-const DIRT_COLOR_DEPTH_SCALE := 7.5
+const DIRT_DEEP_COLOR_START := 0.75
+const DIRT_DEEP_COLOR_FULL := 2.2
 const MAX_SCOOP_HISTORY := 18
 
 @export var grass_texture: Texture2D
@@ -195,7 +196,9 @@ func _rebuild_geometry() -> void:
 		var y := dug if dug < -0.01 else 0.0
 		verts[i] = Vector3(_orig_x[i], y, _orig_z[i])
 		var depth := maxf(0.0, -dug)
-		var depth_ratio := 1.0 - exp(-depth / DIRT_COLOR_DEPTH_SCALE) if depth > 0.01 else 0.0
+		# 표면 가까이는 기존 흙 텍스처 색을 그대로 유지하고, 실제 깊이가 일정 수준을
+		# 넘은 뒤부터 첨부 이미지의 짙은 적갈색으로 부드럽게 넘어가도록 정규화한다.
+		var depth_ratio := smoothstep(DIRT_DEEP_COLOR_START, DIRT_DEEP_COLOR_FULL, depth)
 		colors[i] = Color(depth_ratio, 0.0, 0.0, 1.0)
 
 	var st := SurfaceTool.new()

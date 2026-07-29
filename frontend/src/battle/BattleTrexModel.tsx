@@ -4,8 +4,28 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 const CANVAS_WIDTH = 620;
 const CANVAS_HEIGHT = 360;
-const RESULT_ROTATION_FPS = 12;
-const RESULT_ROTATION_STOPS = [0, -Math.PI / 2, -Math.PI, -Math.PI / 2, 0] as const;
+const RESULT_WALK_FPS = 15;
+
+function makeMeadowTexture(): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  canvas.width = 96;
+  canvas.height = 96;
+  const context = canvas.getContext("2d")!;
+  context.fillStyle = "#517438";
+  context.fillRect(0, 0, 96, 96);
+  for (let i = 0; i < 380; i += 1) {
+    const lightness = 28 + ((i * 17) % 18);
+    context.fillStyle = `hsl(${92 + (i % 19)}, 38%, ${lightness}%)`;
+    context.fillRect((i * 37) % 96, (i * 61) % 96, 1 + (i % 2), 2 + (i % 3));
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.RepeatWrapping;
+  texture.repeat.set(14, 8);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  texture.anisotropy = 2;
+  return texture;
+}
 
 type TrexModelMode = "battle" | "winner" | "yranno";
 
@@ -16,9 +36,10 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
 
+    const isWinner = mode === "winner";
     const renderer = new THREE.WebGLRenderer({
       canvas,
-      alpha: true,
+      alpha: !isWinner,
       antialias: false,
       powerPreference: "high-performance",
     });
@@ -31,6 +52,10 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
     renderer.toneMappingExposure = 1.25;
 
     const scene = new THREE.Scene();
+    if (isWinner) {
+      scene.background = new THREE.Color(0xaedaf0);
+      scene.fog = new THREE.Fog(0xaedaf0, 16, 42);
+    }
     const camera = new THREE.PerspectiveCamera(30, CANVAS_WIDTH / CANVAS_HEIGHT, 0.01, 1000);
     scene.add(new THREE.HemisphereLight(0xfff7e7, 0x30475f, 3.1));
 
@@ -47,6 +72,9 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
 
     let disposed = false;
     let loadedModel: THREE.Group | null = null;
+    let meadowGeometry: THREE.PlaneGeometry | null = null;
+    let meadowMaterial: THREE.MeshStandardMaterial | null = null;
+    let meadowTexture: THREE.CanvasTexture | null = null;
     let animationFrame = 0;
     let animationStartedAt = 0;
     let previousRenderTime = 0;
@@ -66,7 +94,7 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
           if ("color" in material && mode === "yranno") material.color.multiply(new THREE.Color(0x88785b));
           if ("roughness" in material) material.roughness = 0.72;
           if ("metalness" in material) material.metalness = 0.04;
-          material.side = THREE.DoubleSide;
+          material.side = THREE.FrontSide;
           material.needsUpdate = true;
           return material;
         });
@@ -84,14 +112,30 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
       loadedModel.position.sub(center);
       motionRoot.add(loadedModel);
 
+      if (isWinner) {
+        meadowTexture = makeMeadowTexture();
+        meadowGeometry = new THREE.PlaneGeometry(size.x * 5.5, size.x * 2.8, 1, 1);
+        meadowMaterial = new THREE.MeshStandardMaterial({
+          map: meadowTexture,
+          color: 0xb5d58b,
+          roughness: 1,
+          metalness: 0,
+        });
+        const meadow = new THREE.Mesh(meadowGeometry, meadowMaterial);
+        meadow.rotation.x = -Math.PI / 2;
+        meadow.position.y = -size.y * 0.5;
+        meadow.position.z = -size.z * 0.22;
+        scene.add(meadow);
+      }
+
       // 깊이 최댓값이 아니라 화면에 투영되는 가로·세로 크기로 거리를 맞춘다.
       const verticalFov = THREE.MathUtils.degToRad(camera.fov);
       const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * camera.aspect);
       const distanceForHeight = size.y / (2 * Math.tan(verticalFov / 2));
       const distanceForWidth = size.x / (2 * Math.tan(horizontalFov / 2));
       const cameraDistance = Math.max(distanceForHeight, distanceForWidth) * 1.18 + size.z * 0.5;
-      camera.position.set(0, size.y * 0.04, cameraDistance);
-      camera.lookAt(0, 0, 0);
+      camera.position.set(0, isWinner ? size.y * 0.2 : size.y * 0.04, cameraDistance);
+      camera.lookAt(0, isWinner ? -size.y * 0.12 : 0, 0);
       camera.near = Math.max(0.01, cameraDistance - size.z * 1.5);
       camera.far = cameraDistance + size.z * 2;
       camera.updateProjectionMatrix();
@@ -106,26 +150,25 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
         return;
       }
 
-      // 결과용 육체 티라노는 메시 하나뿐이라 낮은 프레임으로 실제 3D 방향만 바꾼다.
-      // 폴짝임과 좌우 이동은 바깥 DOM 애니메이션이 맡아 WebGL 부하를 작게 유지한다.
+      // 원본 육체 티라노에는 리그/걷기 클립이 없다. 실제 3D 모델을 초원 위에서 이동시키고,
+      // 보폭에 맞춘 상하·앞뒤 흔들림과 방향 전환을 조합해 걷는 움직임을 만든다.
       const animateWinner = (time: number) => {
         if (disposed) return;
         animationFrame = window.requestAnimationFrame(animateWinner);
         if (animationStartedAt === 0) animationStartedAt = time;
-        const interval = 1000 / RESULT_ROTATION_FPS;
+        const interval = 1000 / RESULT_WALK_FPS;
         if (document.hidden || time - previousRenderTime < interval) return;
         previousRenderTime = time - ((time - previousRenderTime) % interval);
 
-        const stopDurationMs = 1800;
-        const elapsed = time - animationStartedAt;
-        const segment = Math.floor(elapsed / stopDurationMs) % (RESULT_ROTATION_STOPS.length - 1);
-        const segmentProgress = (elapsed % stopDurationMs) / stopDurationMs;
-        const eased = segmentProgress * segmentProgress * (3 - 2 * segmentProgress);
-        motionRoot.rotation.y = THREE.MathUtils.lerp(
-          RESULT_ROTATION_STOPS[segment]!,
-          RESULT_ROTATION_STOPS[segment + 1]!,
-          eased,
-        );
+        const elapsed = (time - animationStartedAt) / 1000;
+        const travel = Math.sin(elapsed * 0.72);
+        const direction = Math.cos(elapsed * 0.72);
+        const step = elapsed * 5.6;
+        motionRoot.position.x = travel * size.x * 0.34;
+        motionRoot.position.y = Math.abs(Math.sin(step)) * size.y * 0.025;
+        motionRoot.rotation.z = Math.sin(step) * 0.018;
+        const targetFacing = direction >= 0 ? 0 : Math.PI;
+        motionRoot.rotation.y = THREE.MathUtils.lerp(motionRoot.rotation.y, targetFacing, 0.16);
         renderer.render(scene, camera);
       };
       animationFrame = window.requestAnimationFrame(animateWinner);
@@ -146,6 +189,9 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
         });
       }
       renderer.dispose();
+      meadowGeometry?.dispose();
+      meadowMaterial?.dispose();
+      meadowTexture?.dispose();
     };
   }, [mode]);
 

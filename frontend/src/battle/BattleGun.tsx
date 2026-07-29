@@ -7,6 +7,12 @@ import type { BattleShotEvent, TeamId } from "./battleTypes";
 
 const GUN_CANVAS_WIDTH = 440;
 const GUN_CANVAS_HEIGHT = 320;
+const RETROGUN_TEXTURES = {
+  albedo: "/models/retrogun/LaserGun_albedo.webp",
+  normal: "/models/retrogun/LaserGun_normal.webp",
+  roughness: "/models/retrogun/LaserGun_roughness.webp",
+  metalness: "/models/retrogun/LaserGun_metalness.webp",
+} as const;
 
 function LaserGunModel({ team }: { team: TeamId }): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -15,8 +21,11 @@ function LaserGunModel({ team }: { team: TeamId }): JSX.Element {
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
 
+    // 레이저건은 발사 시 CSS로만 반동하므로 매 프레임 WebGL 컨텍스트를 유지할 필요가 없다.
+    // 별도 캔버스에 한 번 렌더한 뒤 2D 비트맵으로 옮겨 GPU 컨텍스트를 즉시 반환한다.
+    const renderCanvas = document.createElement("canvas");
     const renderer = new THREE.WebGLRenderer({
-      canvas,
+      canvas: renderCanvas,
       alpha: true,
       antialias: false,
       powerPreference: "high-performance",
@@ -39,33 +48,78 @@ function LaserGunModel({ team }: { team: TeamId }): JSX.Element {
 
     let disposed = false;
     let model: THREE.Group | null = null;
-    const loader = new FBXLoader();
-    loader.load("/models/LaserGun.fbx", (loaded) => {
-      if (disposed) return;
-      model = loaded;
-      loaded.traverse((child) => {
-        if (!(child instanceof THREE.Mesh)) return;
-        const hadMultipleMaterials = Array.isArray(child.material);
-        const materials: THREE.Material[] = hadMultipleMaterials ? child.material : [child.material];
-        const clonedMaterials = materials.map((source) => source.clone());
-        child.material = hadMultipleMaterials ? clonedMaterials : clonedMaterials[0]!;
+    let loadedTextures: THREE.Texture[] = [];
+    const textureLoader = new THREE.TextureLoader();
+    const loadTexture = (url: string) =>
+      new Promise<THREE.Texture>((resolve, reject) => textureLoader.load(url, resolve, undefined, reject));
+
+    void Promise.all([
+      loadTexture(RETROGUN_TEXTURES.albedo),
+      loadTexture(RETROGUN_TEXTURES.normal),
+      loadTexture(RETROGUN_TEXTURES.roughness),
+      loadTexture(RETROGUN_TEXTURES.metalness),
+    ]).then(([albedo, normal, roughness, metalness]) => {
+      loadedTextures = [albedo, normal, roughness, metalness];
+      if (disposed) {
+        loadedTextures.forEach((texture) => texture.dispose());
+        return;
+      }
+      albedo.colorSpace = THREE.SRGBColorSpace;
+      for (const texture of [albedo, normal, roughness, metalness]) {
+        texture.wrapS = THREE.RepeatWrapping;
+        texture.wrapT = THREE.RepeatWrapping;
+        texture.anisotropy = 2;
+      }
+
+      new FBXLoader().load("/models/LaserGun.fbx", (loaded) => {
+        if (disposed) return;
+        model = loaded;
+        const teamTint = new THREE.Color(team === "A" ? 0xffd0b5 : 0xbfe8ff);
+        loaded.traverse((child) => {
+          if (!(child instanceof THREE.Mesh)) return;
+          const source = Array.isArray(child.material) ? child.material[0] : child.material;
+          const material = new THREE.MeshStandardMaterial({
+            map: albedo,
+            normalMap: normal,
+            roughnessMap: roughness,
+            metalnessMap: metalness,
+            color: teamTint,
+            roughness: 0.88,
+            metalness: 0.62,
+            transparent: source?.transparent ?? false,
+            opacity: source?.opacity ?? 1,
+          });
+          const originalMaterials = Array.isArray(child.material) ? child.material : [child.material];
+          originalMaterials.forEach((original) => original.dispose());
+          child.material = material;
+        });
+
+        const bounds = new THREE.Box3().setFromObject(loaded);
+        const center = bounds.getCenter(new THREE.Vector3());
+        const size = bounds.getSize(new THREE.Vector3());
+        loaded.position.sub(center);
+        loaded.rotation.set(-0.26, team === "A" ? -0.48 : 0.48, team === "A" ? -0.1 : 0.1);
+        loaded.position.y -= size.y * 0.08;
+        scene.add(loaded);
+
+        const radius = Math.max(size.x, size.y, size.z) * 0.62;
+        camera.position.set(team === "A" ? radius * 0.12 : -radius * 0.12, radius * 0.12, radius * 2.25);
+        camera.lookAt(0, -radius * 0.06, 0);
+        camera.near = Math.max(0.01, radius * 0.01);
+        camera.far = radius * 10;
+        camera.updateProjectionMatrix();
+        renderer.render(scene, camera);
+        const context = canvas.getContext("2d");
+        context?.clearRect(0, 0, GUN_CANVAS_WIDTH, GUN_CANVAS_HEIGHT);
+        context?.drawImage(renderCanvas, 0, 0, GUN_CANVAS_WIDTH, GUN_CANVAS_HEIGHT);
+        renderer.renderLists.dispose();
+        renderer.dispose();
+        renderer.forceContextLoss();
+      }, undefined, (error) => {
+        console.error("Retrogun FBX 모델을 불러오지 못했습니다.", error);
       });
-
-      const bounds = new THREE.Box3().setFromObject(loaded);
-      const center = bounds.getCenter(new THREE.Vector3());
-      const size = bounds.getSize(new THREE.Vector3());
-      loaded.position.sub(center);
-      loaded.rotation.set(-0.26, team === "A" ? -0.48 : 0.48, team === "A" ? -0.1 : 0.1);
-      loaded.position.y -= size.y * 0.08;
-      scene.add(loaded);
-
-      const radius = Math.max(size.x, size.y, size.z) * 0.62;
-      camera.position.set(team === "A" ? radius * 0.12 : -radius * 0.12, radius * 0.12, radius * 2.25);
-      camera.lookAt(0, -radius * 0.06, 0);
-      camera.near = Math.max(0.01, radius * 0.01);
-      camera.far = radius * 10;
-      camera.updateProjectionMatrix();
-      renderer.render(scene, camera);
+    }).catch((error) => {
+      console.error("Retrogun 텍스처를 불러오지 못했습니다.", error);
     });
 
     return () => {
@@ -80,6 +134,7 @@ function LaserGunModel({ team }: { team: TeamId }): JSX.Element {
         });
       }
       renderer.dispose();
+      loadedTextures.forEach((texture) => texture.dispose());
     };
   }, [team]);
 

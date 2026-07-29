@@ -68,7 +68,8 @@ func _build_dirt_particles() -> void:
 	_dirt_particles = CPUParticles3D.new()
 	_dirt_particles.emitting = false
 	_dirt_particles.one_shot = true
-	_dirt_particles.amount = 42
+	# 양 팀이 동시에 발굴할 때 WebGL 파티클 오버드로우가 급증하지 않도록 제한한다.
+	_dirt_particles.amount = 26
 	_dirt_particles.lifetime = 1.05
 	_dirt_particles.explosiveness = 0.92
 	_dirt_particles.randomness = 0.38
