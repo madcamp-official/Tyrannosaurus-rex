@@ -555,19 +555,19 @@
 
 .battle-gun {
   position: absolute;
-  bottom: 208px;
+  bottom: 70px;
   z-index: 3;
-  width: 150px;
-  height: 190px;
+  width: 440px;
+  height: 320px;
   pointer-events: none;
 }
 
 .battle-gun--a {
-  left: 20px;
+  left: 64px;
 }
 
 .battle-gun--b {
-  right: 20px;
+  right: 64px;
 }
 
 .battle-gun__body {
@@ -580,18 +580,18 @@
 }
 
 .battle-gun--a .battle-gun__body {
-  transform: rotate(7deg);
+  transform: rotate(4deg);
 }
 
 .battle-gun--b .battle-gun__body {
-  transform: rotate(-7deg);
+  transform: rotate(-4deg);
 }
 
 .battle-gun__model {
   display: block;
-  width: 150px;
-  height: 190px;
-  filter: drop-shadow(0 10px 12px rgba(0, 0, 0, 0.58));
+  width: 440px;
+  height: 320px;
+  filter: drop-shadow(0 18px 18px rgba(0, 0, 0, 0.62));
   transition: filter 0.15s ease-out;
 }
 
@@ -601,7 +601,7 @@
 
 @keyframes battle-gun-recoil {
   0% { transform: translateY(0); }
-  30% { transform: translateY(10px); }
+  30% { transform: translateY(18px); }
   100% { transform: translateY(0); }
 }
 
@@ -619,7 +619,7 @@
 
 .battle-gun__flash {
   position: absolute;
-  top: 2px;
+  top: 22px;
   left: 50%;
   width: 46px;
   height: 46px;
