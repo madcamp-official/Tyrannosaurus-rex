@@ -4,8 +4,12 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 const CANVAS_WIDTH = 620;
 const CANVAS_HEIGHT = 360;
+const RESULT_ROTATION_FPS = 12;
+const RESULT_ROTATION_STOPS = [0, -Math.PI / 2, -Math.PI, -Math.PI / 2, 0] as const;
 
-export function BattleTrexModel(): JSX.Element {
+type TrexModelMode = "battle" | "winner" | "yranno";
+
+export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -43,8 +47,12 @@ export function BattleTrexModel(): JSX.Element {
 
     let disposed = false;
     let loadedModel: THREE.Group | null = null;
+    let animationFrame = 0;
+    let animationStartedAt = 0;
+    let previousRenderTime = 0;
 
-    new GLTFLoader().load("/models/trex_skeleton/skeleton.gltf", (gltf) => {
+    const modelUrl = mode === "battle" ? "/models/trex_skeleton/skeleton.gltf" : "/models/trex/trex.glb";
+    new GLTFLoader().load(modelUrl, (gltf) => {
       if (disposed) return;
 
       loadedModel = gltf.scene;
@@ -54,7 +62,8 @@ export function BattleTrexModel(): JSX.Element {
         const sources: THREE.Material[] = hadMultipleMaterials ? child.material : [child.material];
         const clonedMaterials = sources.map((source) => {
           const material = source.clone() as THREE.MeshStandardMaterial;
-          if ("color" in material) material.color.set(0xe8dfcf);
+          if ("color" in material && mode === "battle") material.color.set(0xe8dfcf);
+          if ("color" in material && mode === "yranno") material.color.multiply(new THREE.Color(0x88785b));
           if ("roughness" in material) material.roughness = 0.72;
           if ("metalness" in material) material.metalness = 0.04;
           material.side = THREE.DoubleSide;
@@ -87,15 +96,46 @@ export function BattleTrexModel(): JSX.Element {
       camera.far = cameraDistance + size.z * 2;
       camera.updateProjectionMatrix();
 
-      // 254개 메시를 매 프레임 다시 그리는 대신 모델 자체는 한 번만 렌더링한다.
-      // 티라노의 실제 좌우 이동은 이 캔버스 바깥 DOM 컨테이너가 서버 좌표로 담당한다.
-      renderer.render(scene, camera);
+      if (mode === "yranno") {
+        motionRoot.rotation.z = -0.12;
+      }
+
+      if (mode !== "winner" || window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        // 사격 스켈레톤과 와이라노는 정지 화면이므로 한 번만 렌더링한다.
+        renderer.render(scene, camera);
+        return;
+      }
+
+      // 결과용 육체 티라노는 메시 하나뿐이라 낮은 프레임으로 실제 3D 방향만 바꾼다.
+      // 폴짝임과 좌우 이동은 바깥 DOM 애니메이션이 맡아 WebGL 부하를 작게 유지한다.
+      const animateWinner = (time: number) => {
+        if (disposed) return;
+        animationFrame = window.requestAnimationFrame(animateWinner);
+        if (animationStartedAt === 0) animationStartedAt = time;
+        const interval = 1000 / RESULT_ROTATION_FPS;
+        if (document.hidden || time - previousRenderTime < interval) return;
+        previousRenderTime = time - ((time - previousRenderTime) % interval);
+
+        const stopDurationMs = 1800;
+        const elapsed = time - animationStartedAt;
+        const segment = Math.floor(elapsed / stopDurationMs) % (RESULT_ROTATION_STOPS.length - 1);
+        const segmentProgress = (elapsed % stopDurationMs) / stopDurationMs;
+        const eased = segmentProgress * segmentProgress * (3 - 2 * segmentProgress);
+        motionRoot.rotation.y = THREE.MathUtils.lerp(
+          RESULT_ROTATION_STOPS[segment]!,
+          RESULT_ROTATION_STOPS[segment + 1]!,
+          eased,
+        );
+        renderer.render(scene, camera);
+      };
+      animationFrame = window.requestAnimationFrame(animateWinner);
     }, undefined, (error) => {
-      console.error("스켈레톤 티라노 모델을 불러오지 못했습니다.", error);
+      console.error(`${mode === "battle" ? "스켈레톤" : "티라노사우루스"} 모델을 불러오지 못했습니다.`, error);
     });
 
     return () => {
       disposed = true;
+      window.cancelAnimationFrame(animationFrame);
       if (loadedModel) {
         motionRoot.remove(loadedModel);
         loadedModel.traverse((child) => {
@@ -107,15 +147,15 @@ export function BattleTrexModel(): JSX.Element {
       }
       renderer.dispose();
     };
-  }, []);
+  }, [mode]);
 
   return (
     <canvas
       ref={canvasRef}
-      className="battle-trex__model"
+      className={`battle-trex__model battle-trex__model--${mode}`}
       width={CANVAS_WIDTH}
       height={CANVAS_HEIGHT}
-      aria-label="움직이는 스켈레톤 티라노사우루스"
+      aria-label={mode === "battle" ? "움직이는 스켈레톤 티라노사우루스" : mode === "yranno" ? "와이라노" : "폴짝이는 티라노사우루스"}
     />
   );
 }

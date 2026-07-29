@@ -1,0 +1,12 @@
+Project-supplied Tyrannosaurus model
+Original source: model/source/trex/Trex.gltf
+Original textures: model/source/trex/*.png
+
+Web asset processing:
+- Geometry preserved at 16,129 vertices / 28,152 triangles.
+- Textures resized to 1024x1024 and embedded as WebP.
+- Geometry quantized and packaged as a single GLB.
+
+The original source directory does not contain license metadata.
+Confirm the model's distribution rights before redistributing it outside
+this project.
