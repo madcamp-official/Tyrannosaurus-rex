@@ -76,6 +76,18 @@ describe("dino run (meteor dodge)", () => {
     }
   });
 
+  it("allows at least three sky objects to be falling at the same time", () => {
+    const schedule = makeSkyObjectSchedule("concurrent-meteors");
+    const maxConcurrent = schedule.reduce((max, current) => {
+      const concurrent = schedule.filter(
+        (candidate) => candidate.hitAtMs <= current.hitAtMs && candidate.hitAtMs > current.hitAtMs - SKY_OBJECT_FALL_MS,
+      ).length;
+      return Math.max(max, concurrent);
+    }, 0);
+
+    expect(maxConcurrent).toBeGreaterThanOrEqual(3);
+  });
+
   it("tracks a player's latest reported position and rejects stale/out-of-order sequences", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
     const first = rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: 0.2, clientTime: now }, now);

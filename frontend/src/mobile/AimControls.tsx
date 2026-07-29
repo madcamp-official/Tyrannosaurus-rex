@@ -89,9 +89,9 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
       const dBeta = filteredRef.current.beta - zeroRef.current.beta;
       const dGamma = filteredRef.current.gamma - zeroRef.current.gamma;
       setPoint({
-        x: clamp01(0.5 + dGamma / GYRO_SENSITIVITY_X_DEG / 2),
-        // 폰 위쪽(윗변)을 몸에서 멀어지게 기울이면 아래로, 몸 쪽으로 기울이면 위로 — beta가
-        // 늘어날수록(몸 쪽으로 기울일수록) 위로 가야 하므로 부호를 뒤집는다.
+        // 오른쪽 가장자리를 몸쪽으로 비틀면 오른쪽으로 가도록 기기 gamma의 부호를 뒤집는다.
+        x: clamp01(0.5 - dGamma / GYRO_SENSITIVITY_X_DEG / 2),
+        // 폰 위쪽을 몸에서 멀어지게 기울이면 아래로, 몸 쪽으로 기울이면 위로 이동한다.
         y: clamp01(0.5 - dBeta / GYRO_SENSITIVITY_Y_DEG / 2),
       });
     };
