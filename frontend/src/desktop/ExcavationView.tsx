@@ -46,6 +46,15 @@ export function ExcavationTeamPanel({
 
   return (
     <div className="exca-view">
+      <div className="exca-progress" aria-label={`다음 뼈 발굴 진행률 ${progressPct}%`}>
+        <div className="exca-progress__label">
+          <strong>{progressPct}%</strong>
+        </div>
+        <div className="exca-progress__track">
+          <div className="exca-progress__fill" style={{ width: `${progressPct}%` }} />
+        </div>
+      </div>
+
       <div className={`exca-sidebar${team.id === "B" ? " exca-sidebar--mirrored" : ""}`}>
         <div className="exca-sidebar__header">
           <strong>{team.id === "A" ? "🔥" : "❄️"} {teamName}</strong>
@@ -80,14 +89,6 @@ export function ExcavationTeamPanel({
         <div className="exca-sidebar__footer">발굴한 뼈 {team.excavation.discoveredBoneIds.length}개</div>
       </div>
 
-      <div className="exca-progress">
-        <div className="exca-progress__label">
-          다음 뼈까지 <strong>{progressPct}%</strong>
-        </div>
-        <div className="exca-progress__track">
-          <div className="exca-progress__fill" style={{ width: `${progressPct}%` }} />
-        </div>
-      </div>
     </div>
   );
 }

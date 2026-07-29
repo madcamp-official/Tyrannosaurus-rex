@@ -1011,7 +1011,7 @@ body {
 
 .exca-sidebar {
   position: absolute;
-  top: 82px;
+  bottom: 56px;
   width: clamp(300px, 37vw, 430px);
   box-sizing: border-box;
   background: rgba(15, 20, 18, 0.46);
@@ -1203,7 +1203,7 @@ body {
 
 .exca-progress {
   position: absolute;
-  bottom: 40px;
+  top: 82px;
   left: 50%;
   transform: translateX(-50%);
   width: min(520px, 60%);
