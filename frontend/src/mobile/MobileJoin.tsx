@@ -271,15 +271,10 @@ export function MobileJoin(): JSX.Element {
           <AimControls socket={socket} practice={team.phase === "CHARGING_PRACTICE"} />
         )}
         {team.phase === "REVIVED" && (
+          // 부활 완료 여부·WIN/LOSE/DRAW 결과는 데스크탑 공유 화면(PlayArea)에만 띄운다 —
+          // 다 같이 보는 결과라 폰마다 따로 뜨면 오히려 산만하다.
           <div className="mobile-game__revived">
-            <p className="mobile-game__title">
-              {team.charging.form === "NORMAL" ? "🦖 부활 완료!" : "🦖 와이라노가 되어버렸어요."} 데스크탑 화면을 확인하세요.
-            </p>
-            {team.charging.result && (
-              <p className="mobile-game__hint">
-                {team.charging.result === "WIN" ? "🏆 부활 성공! 먼저 채웠어요." : team.charging.result === "DRAW" ? "무승부예요." : "상대가 먼저 채웠어요."}
-              </p>
-            )}
+            <p className="mobile-game__title">🦖 데스크탑 화면을 확인하세요!</p>
           </div>
         )}
       </>

@@ -1487,30 +1487,6 @@ body {
   background: #f5d873;
 }
 
-.excavation-controls__shovel {
-  width: clamp(3.4rem, 16vw, 5rem);
-  line-height: 1;
-  color: #f5c542;
-  filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.35));
-  transform: rotate(-18deg);
-}
-
-.excavation-controls__shovel--dig {
-  animation: excavation-shovel-dig 0.3s ease-out;
-}
-
-@keyframes excavation-shovel-dig {
-  0% {
-    transform: rotate(-18deg);
-  }
-  40% {
-    transform: rotate(32deg) translateY(6px);
-  }
-  100% {
-    transform: rotate(-18deg);
-  }
-}
-
 .puzzle-view__canvas {
   position: relative;
   width: 100%;
@@ -1750,12 +1726,6 @@ body {
   font-size: 1.1rem;
   font-weight: 700;
   color: #90be6d;
-}
-
-.excavation-controls__shovel svg {
-  display: block;
-  width: 100%;
-  height: auto;
 }
 
 .excavation-controls__result {
@@ -2880,10 +2850,6 @@ body {
   .excavation-controls {
     gap: clamp(22px, 4vh, 34px);
     padding: 24px 18px;
-  }
-
-  .excavation-controls__shovel {
-    width: clamp(4rem, 18vw, 5.5rem);
   }
 
   .dig-button {

@@ -49,6 +49,11 @@ const CROSSHAIR_STALE_MS = 700;
 const TEAM_EMBLEM: Record<TeamId, string> = { A: "🔥", B: "❄️" };
 const LOBBY_BGM_VOLUME = 0.26;
 const LOBBY_BGM_FADE_MS = 900;
+// 파는 소리는 다 같이 보는 데스크탑 화면에서만 들린다(폰에서는 안 남) — 여러 팀원이 동시에
+// 파도 자연스럽게 겹쳐 들리도록 <audio> 여러 개를 돌려쓴다.
+const DIG_SOUND_POOL_SIZE = 4;
+const DIG_SOUND_MIN_INTERVAL_MS = 90;
+const DIG_SOUND_VOLUME = 0.45;
 
 function ReadyCheckIcon(): JSX.Element {
   return (
@@ -63,6 +68,9 @@ export function DesktopLobby(): JSX.Element {
   const socketRef = useRef<AppSocket | null>(null);
   const lobbyBgmRef = useRef<HTMLAudioElement | null>(null);
   const lobbyBgmFadeRef = useRef<number | null>(null);
+  const digSoundPoolRef = useRef<HTMLAudioElement[]>([]);
+  const digSoundIndexRef = useRef(0);
+  const lastDigSoundAtRef = useRef(0);
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [joinUrl, setJoinUrl] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -149,6 +157,27 @@ export function DesktopLobby(): JSX.Element {
   }, [bgmMuted, roomState?.roomPhase]);
 
   useEffect(() => {
+    digSoundPoolRef.current = Array.from({ length: DIG_SOUND_POOL_SIZE }, () => {
+      const audio = new Audio("/audio/excavation-dig.mp3");
+      audio.preload = "auto";
+      audio.volume = DIG_SOUND_VOLUME;
+      return audio;
+    });
+  }, []);
+
+  const playDigSound = () => {
+    const now = Date.now();
+    if (now - lastDigSoundAtRef.current < DIG_SOUND_MIN_INTERVAL_MS) return;
+    lastDigSoundAtRef.current = now;
+    const pool = digSoundPoolRef.current;
+    if (pool.length === 0) return;
+    const audio = pool[digSoundIndexRef.current % pool.length]!;
+    digSoundIndexRef.current += 1;
+    audio.currentTime = 0;
+    void audio.play().catch(() => undefined);
+  };
+
+  useEffect(() => {
     const socket = connectSocket("HOST");
     socketRef.current = socket;
 
@@ -160,6 +189,7 @@ export function DesktopLobby(): JSX.Element {
     });
     socket.on("excavation:progress", (evt) => {
       setRoomState((prev) => (prev ? applyExcavationProgress(prev, evt.data) : prev));
+      playDigSound();
       // 이번 뼈 구간(0~100%)만 잘라서 넘긴다 — nextBoneAt은 발굴 시작부터 누적된 목표치라
       // 그대로 쓰면 골드 뼈 이벤트로 구간 폭이 줄어들 때만 오차가 생기고 그 외엔 정확하다.
       const segmentStart = Math.max(0, evt.data.nextBoneAt - EXCAVATION_POINTS_PER_BONE);
