@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type FormEvent } from "react";
 import QRCode from "qrcode";
 import {
   BONE_IDS,
+  boneCountForTeam,
   DEFAULT_MAX_PLAYERS_PER_TEAM,
   EXCAVATION_POINTS_PER_BONE,
   MAX_PLAYERS_PER_TEAM_CAP,
@@ -190,11 +191,13 @@ export function DesktopLobby(): JSX.Element {
     socket.on("excavation:progress", (evt) => {
       setRoomState((prev) => (prev ? applyExcavationProgress(prev, evt.data) : prev));
       playDigSound();
-      // 이번 뼈 구간(0~100%)만 잘라서 넘긴다 — nextBoneAt은 발굴 시작부터 누적된 목표치라
-      // 그대로 쓰면 골드 뼈 이벤트로 구간 폭이 줄어들 때만 오차가 생기고 그 외엔 정확하다.
-      const segmentStart = Math.max(0, evt.data.nextBoneAt - EXCAVATION_POINTS_PER_BONE);
-      const segmentSpan = Math.max(1, evt.data.nextBoneAt - segmentStart);
-      const progress = Math.min(100, Math.max(0, ((evt.data.points - segmentStart) / segmentSpan) * 100));
+      // 뼈 구간(0~100%)이 아니라 팀의 발굴 전체 목표치 대비 누적 진행도를 넘긴다 — 웨이브
+      // 수(=뼈 구간 개수)가 인원수에 비례해 줄어들다 보니(§boneCountForTeam), 구간 단위로
+      // 넘기면 인원이 적을수록 땅 파는 연출이 총 몇 번 안 일어나 같은 발굴지가 유독 조금만
+      // 파인 것처럼 보였다. 팀 전체 목표치 기준으로 바꾸면 인원수와 무관하게 땅이 고르게 파인다.
+      const playerCount = roomStateRef.current?.teams[evt.data.teamId]?.playerIds.length ?? 1;
+      const totalPointsNeeded = boneCountForTeam(playerCount) * EXCAVATION_POINTS_PER_BONE;
+      const progress = Math.min(100, Math.max(0, (evt.data.points / totalPointsNeeded) * 100));
       bridge.send("EXCAVATION_PROGRESS", { teamId: evt.data.teamId, progress });
     });
     socket.on("excavation:boneFound", (evt) => {

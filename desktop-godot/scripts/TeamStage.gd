@@ -9,10 +9,12 @@ const ARENA_WIDTH := 6.0
 const ARENA_DEPTH := 4.0
 const REVEAL_POP_DURATION := 0.6
 const SNAP_DURATION := 0.3
-## excavation:progress는 입력마다(초당 최대 12회) 오지만, 매번 파면 뼈 하나 찾는 사이에도
-## 땅이 다 파여서 후반부에 시각적 변화가 없어진다. 진행도가 이만큼 움직일 때마다 한 번만 판다
-## (뼈 하나당 0~100%를 대략 10번에 나눠 파는 셈).
-const EXCAVATION_DIG_STEP := 7.0
+## excavation:progress는 입력마다(초당 최대 12회) 오지만 매번 파면 너무 잦다. progress는
+## "뼈 구간 하나(0~100%)"가 아니라 "팀의 발굴 전체 목표치 대비 누적 진행도(0~100%)"이므로
+## (§DesktopLobby.tsx의 excavation:progress 핸들러), 이 값은 발굴 전체 동안 몇 번 팔지를
+## 정한다 — 100/EXCAVATION_DIG_STEP번. 팀 인원이 적어 전체 목표치가 낮아도(웨이브 수가
+## 적어도) 항상 같은 횟수만큼 파여서, 인원수와 무관하게 땅이 고르게 파인 것처럼 보인다.
+const EXCAVATION_DIG_STEP := 0.6
 
 var team_id: String = "A"
 var _ground: GroundDig
@@ -165,9 +167,9 @@ func _apply_ground_visibility() -> void:
 	if _ground:
 		_ground.visible = true
 
-## React가 excavation:progress마다 보내는 이번 뼈 구간 진행도(0~100)를 받아 땅을 파낸다.
-## 진행도가 EXCAVATION_DIG_STEP만큼 움직였을 때만 실제로 파서, 뼈 하나 얻는 동안 땅이
-## 다 파여버리지 않고 발굴 전체 구간에 걸쳐 조금씩 변화하게 한다.
+## React가 excavation:progress마다 보내는 팀 전체 발굴 진행도(0~100, §EXCAVATION_DIG_STEP)를
+## 받아 땅을 파낸다. 진행도가 EXCAVATION_DIG_STEP만큼 움직였을 때만 실제로 파서, 발굴 시작부터
+## 끝까지 조금씩 고르게 변화하게 한다.
 func on_excavation_progress(progress: float) -> void:
 	if not _ground or _phase != "EXCAVATION":
 		return
