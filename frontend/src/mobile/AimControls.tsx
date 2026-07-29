@@ -5,13 +5,16 @@ import { AIM_UPDATE_MAX_HZ, SHOT_COOLDOWN_MS, type NormalizedPoint, type SensorP
 import type { AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
 
-// 영점에서 이 각도만큼 움직이면 화면 끝에 도달한다. 기존 좌우 100도는 실제 손목 동작으로
-// 끝까지 보내기 어려워 45도로 줄이고, 상하도 비슷한 조작 범위로 맞춘다.
-const GYRO_SENSITIVITY_X_DEG = 45;
-const GYRO_SENSITIVITY_Y_DEG = 35;
-// 새 센서값을 더 빠르게 반영하되, 손떨림은 아래 데드존으로 따로 억제한다.
-const LOW_PASS_ALPHA = 0.75;
-const GYRO_DEADZONE_DEG = 1;
+// 별도 자이로 테스트에서 검증한 기울기 기반 속도 조준 설정.
+const MAX_TILT_DEG = 24;
+const MAX_AIM_SPEED = 0.4;
+const TILT_FILTER_ALPHA = 0.35;
+const GYRO_DEADZONE_DEG = 4;
+const INPUT_CURVE_EXPONENT = 1.5;
+const AXIS_PRIORITY_RATIO = 1.25;
+const MINOR_AXIS_SCALE = 0.2;
+const MOVE_RESPONSE = 9;
+const BRAKE_RESPONSE = 20;
 // DeviceOrientationEvent의 beta/gamma는 오일러 각이라 기기를 크게(특히 ±90도 근처까지)
 // 기울이면 한 프레임 만에 값이 반대 부호로 튈 수 있다(짐벌락류 불연속) — 조준점이 순간적으로
 // 반대 방향으로 튀는 버그의 원인. 한 프레임에 물리적으로 있을 수 없는 큰 변화(사람이 손으로
@@ -24,10 +27,15 @@ function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
 }
 
-function applyDeadzone(value: number): number {
+function angleDelta(current: number, zero: number): number {
+  return ((current - zero + 540) % 360) - 180;
+}
+
+function tiltControl(value: number): number {
   const magnitude = Math.abs(value);
   if (magnitude <= GYRO_DEADZONE_DEG) return 0;
-  return Math.sign(value) * (magnitude - GYRO_DEADZONE_DEG);
+  const amount = clamp01((magnitude - GYRO_DEADZONE_DEG) / (MAX_TILT_DEG - GYRO_DEADZONE_DEG));
+  return Math.sign(value) * Math.pow(amount, INPUT_CURVE_EXPONENT);
 }
 
 export function AimControls({ socket, practice = false }: { socket: AppSocket; practice?: boolean }): JSX.Element {
@@ -40,11 +48,11 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
   const pointRef = useRef(point);
   pointRef.current = point;
   const zeroRef = useRef<{ beta: number; gamma: number } | null>(null);
-  const filteredRef = useRef({ beta: 0, gamma: 0 });
-  // 튐 판정은 반드시 "직전 raw 값"과 비교해야 한다 — filteredRef(저역통과 필터를 거쳐 항상
-  // 한 박자 뒤처지는 값)와 비교하면, 한 방향으로 계속 빠르게 기울이는 정상적인 동작에서도
-  // raw와 filtered의 격차가 누적돼 결국 임계값을 넘어버리고, 그 뒤로는 filteredRef가 다시는
-  // 갱신되지 않아 조준점이 특정 각도에서 영원히 멈추는 버그가 있었다.
+  const currentReadingRef = useRef({ beta: 0, gamma: 0 });
+  const tiltRef = useRef({ roll: 0, pitch: 0 });
+  const velocityRef = useRef({ x: 0, y: 0 });
+  // 튐 판정은 반드시 직전 raw 값과 비교한다. 필터링된 기울기와 비교하면 정상적인 빠른
+  // 움직임도 누적 오차 때문에 글리치로 오인되어 조준이 멈출 수 있다.
   const lastRawRef = useRef({ beta: 0, gamma: 0 });
   const hasReadingRef = useRef(false);
   const seqRef = useRef(0);
@@ -72,7 +80,7 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
     const handleOrientation = (event: DeviceOrientationEvent) => {
       if (event.beta === null || event.gamma === null) return;
       if (!hasReadingRef.current) {
-        filteredRef.current = { beta: event.beta, gamma: event.gamma };
+        currentReadingRef.current = { beta: event.beta, gamma: event.gamma };
         lastRawRef.current = { beta: event.beta, gamma: event.gamma };
         hasReadingRef.current = true;
       } else {
@@ -81,30 +89,61 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
         const isGlitch = rawDeltaBeta > MAX_FRAME_DELTA_DEG || rawDeltaGamma > MAX_FRAME_DELTA_DEG;
         // raw 추적값은 글리치 여부와 무관하게 항상 갱신한다 — 그래야 다음 프레임의 비교
         // 기준이 실제 기기 자세를 계속 따라가고, 정상적인 빠른 움직임이 연쇄적으로 계속
-        // 걸러지는 일이 없다. 글리치로 판단된 딱 그 한 프레임만 필터 반영에서 제외한다.
+        // 걸러지는 일이 없다. 글리치로 판단된 딱 그 한 프레임만 입력에서 제외한다.
         lastRawRef.current = { beta: event.beta, gamma: event.gamma };
         if (isGlitch) return;
-        filteredRef.current = {
-          beta: filteredRef.current.beta + (event.beta - filteredRef.current.beta) * LOW_PASS_ALPHA,
-          gamma: filteredRef.current.gamma + (event.gamma - filteredRef.current.gamma) * LOW_PASS_ALPHA,
-        };
+        currentReadingRef.current = { beta: event.beta, gamma: event.gamma };
       }
       // "영점 잡기"를 실제로 누르기 전엔 임의의 초기 자세가 영점이 되어버려 조준이 엉뚱한
       // 방향으로 틀어지는 문제가 있었다 — 그래서 명시적으로 누르기 전까진 조준점을 화면
-      // 중앙에 고정해두고 움직이지 않는다(필터 값 자체는 계속 갱신해 버튼을 누르는 순간
-      // 이미 안정된 값을 영점으로 잡는다).
+      // 중앙에 고정해두고 움직이지 않는다. 버튼을 누르는 순간 최신 센서값을 영점으로 잡는다.
       if (!zeroRef.current) return;
-      const dBeta = applyDeadzone(filteredRef.current.beta - zeroRef.current.beta);
-      const dGamma = applyDeadzone(filteredRef.current.gamma - zeroRef.current.gamma);
-      setPoint({
-        // 오른쪽 가장자리를 몸쪽으로 비틀면 오른쪽으로 가도록 기기 gamma의 부호를 뒤집는다.
-        x: clamp01(0.5 - dGamma / GYRO_SENSITIVITY_X_DEG / 2),
-        // 폰 위쪽을 몸에서 멀어지게 기울이면 아래로, 몸 쪽으로 기울이면 위로 이동한다.
-        y: clamp01(0.5 - dBeta / GYRO_SENSITIVITY_Y_DEG / 2),
-      });
+      const roll = currentReadingRef.current.gamma - zeroRef.current.gamma;
+      const pitch = angleDelta(currentReadingRef.current.beta, zeroRef.current.beta);
+      tiltRef.current = {
+        roll: tiltRef.current.roll + (roll - tiltRef.current.roll) * TILT_FILTER_ALPHA,
+        pitch: tiltRef.current.pitch + (pitch - tiltRef.current.pitch) * TILT_FILTER_ALPHA,
+      };
     };
+
+    let animationFrame = 0;
+    let lastFrame = performance.now();
+    const integrateAim = (now: number) => {
+      const dt = Math.min((now - lastFrame) / 1000, 0.05);
+      lastFrame = now;
+      if (zeroRef.current) {
+        // 테스트 기기에서 오른쪽 기울기가 gamma 음수로 들어오므로 좌우 입력만 반전한다.
+        let vx = -tiltControl(tiltRef.current.roll);
+        let vy = tiltControl(tiltRef.current.pitch);
+        if (Math.abs(vx) > Math.abs(vy) * AXIS_PRIORITY_RATIO) vy *= MINOR_AXIS_SCALE;
+        else if (Math.abs(vy) > Math.abs(vx) * AXIS_PRIORITY_RATIO) vx *= MINOR_AXIS_SCALE;
+
+        const desiredX = vx * MAX_AIM_SPEED;
+        const desiredY = -vy * MAX_AIM_SPEED;
+        const braking = vx === 0 && vy === 0;
+        const response = 1 - Math.exp(-(braking ? BRAKE_RESPONSE : MOVE_RESPONSE) * dt);
+        velocityRef.current = {
+          x: velocityRef.current.x + (desiredX - velocityRef.current.x) * response,
+          y: velocityRef.current.y + (desiredY - velocityRef.current.y) * response,
+        };
+        if (Math.abs(velocityRef.current.x) > 0.0001 || Math.abs(velocityRef.current.y) > 0.0001) {
+          const nextPoint = {
+            x: clamp01(pointRef.current.x + velocityRef.current.x * dt),
+            y: clamp01(pointRef.current.y + velocityRef.current.y * dt),
+          };
+          pointRef.current = nextPoint;
+          setPoint(nextPoint);
+        }
+      }
+      animationFrame = window.requestAnimationFrame(integrateAim);
+    };
+
     window.addEventListener("deviceorientation", handleOrientation);
-    return () => window.removeEventListener("deviceorientation", handleOrientation);
+    animationFrame = window.requestAnimationFrame(integrateAim);
+    return () => {
+      window.removeEventListener("deviceorientation", handleOrientation);
+      window.cancelAnimationFrame(animationFrame);
+    };
   }, [orientationPermission]);
 
   useEffect(() => {
@@ -122,9 +161,14 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
   }, [socket, calibrated]);
 
   const calibrate = () => {
-    zeroRef.current = { ...filteredRef.current };
+    if (!hasReadingRef.current) return;
+    zeroRef.current = { ...currentReadingRef.current };
+    tiltRef.current = { roll: 0, pitch: 0 };
+    velocityRef.current = { x: 0, y: 0 };
     setCalibrated(true);
-    setPoint({ x: 0.5, y: 0.5 });
+    const centeredPoint = { x: 0.5, y: 0.5 };
+    pointRef.current = centeredPoint;
+    setPoint(centeredPoint);
   };
 
   const fire = () => {
