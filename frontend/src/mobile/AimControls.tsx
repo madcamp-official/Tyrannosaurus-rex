@@ -5,11 +5,13 @@ import { AIM_UPDATE_MAX_HZ, SHOT_COOLDOWN_MS, type NormalizedPoint, type SensorP
 import type { AppSocket } from "../socket";
 import { newRequestId } from "../util/requestId";
 
-// 이만큼 기울이면 화면 절반 끝까지 이동 — 값이 클수록 덜 민감하다. 좌우(자이로 gamma)가
-// 위아래(beta)보다 훨씬 민감하게 느껴져서 축마다 따로 둔다.
-const GYRO_SENSITIVITY_X_DEG = 100;
-const GYRO_SENSITIVITY_Y_DEG = 40;
-const LOW_PASS_ALPHA = 0.5;
+// 영점에서 이 각도만큼 움직이면 화면 끝에 도달한다. 기존 좌우 100도는 실제 손목 동작으로
+// 끝까지 보내기 어려워 45도로 줄이고, 상하도 비슷한 조작 범위로 맞춘다.
+const GYRO_SENSITIVITY_X_DEG = 45;
+const GYRO_SENSITIVITY_Y_DEG = 35;
+// 새 센서값을 더 빠르게 반영하되, 손떨림은 아래 데드존으로 따로 억제한다.
+const LOW_PASS_ALPHA = 0.75;
+const GYRO_DEADZONE_DEG = 1;
 // DeviceOrientationEvent의 beta/gamma는 오일러 각이라 기기를 크게(특히 ±90도 근처까지)
 // 기울이면 한 프레임 만에 값이 반대 부호로 튈 수 있다(짐벌락류 불연속) — 조준점이 순간적으로
 // 반대 방향으로 튀는 버그의 원인. 한 프레임에 물리적으로 있을 수 없는 큰 변화(사람이 손으로
@@ -20,6 +22,12 @@ type OrientationPermissionApi = { requestPermission?: () => Promise<"granted" | 
 
 function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
+}
+
+function applyDeadzone(value: number): number {
+  const magnitude = Math.abs(value);
+  if (magnitude <= GYRO_DEADZONE_DEG) return 0;
+  return Math.sign(value) * (magnitude - GYRO_DEADZONE_DEG);
 }
 
 export function AimControls({ socket, practice = false }: { socket: AppSocket; practice?: boolean }): JSX.Element {
@@ -86,8 +94,8 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
       // 중앙에 고정해두고 움직이지 않는다(필터 값 자체는 계속 갱신해 버튼을 누르는 순간
       // 이미 안정된 값을 영점으로 잡는다).
       if (!zeroRef.current) return;
-      const dBeta = filteredRef.current.beta - zeroRef.current.beta;
-      const dGamma = filteredRef.current.gamma - zeroRef.current.gamma;
+      const dBeta = applyDeadzone(filteredRef.current.beta - zeroRef.current.beta);
+      const dGamma = applyDeadzone(filteredRef.current.gamma - zeroRef.current.gamma);
       setPoint({
         // 오른쪽 가장자리를 몸쪽으로 비틀면 오른쪽으로 가도록 기기 gamma의 부호를 뒤집는다.
         x: clamp01(0.5 - dGamma / GYRO_SENSITIVITY_X_DEG / 2),
