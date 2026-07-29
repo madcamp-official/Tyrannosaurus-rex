@@ -8,6 +8,8 @@ export interface BattlePlayer {
   shots: number;
   hits: number;
   energy: number;
+  /** 조준점 원 색상 — 같은 팀이어도 사람마다 다르게 표시한다(PublicPlayer.color). */
+  color: string;
 }
 
 export interface BattleTeam {

@@ -100,7 +100,7 @@ describe("battleStateFromRoom", () => {
     expect(battle!.trex).toEqual({ x: 0.4, y: 0.5, facing: -1, corePos: [0.42, 0.46] });
     expect(battle!.teamA.name).toBe("T라노 팀");
     expect(battle!.teamB.name).toBe("F라노 팀");
-    expect(battle!.teamA.players).toEqual([{ id: "p1", name: "화염랩터", shots: 10, hits: 5, energy: 30 }]);
+    expect(battle!.teamA.players).toEqual([{ id: "p1", name: "화염랩터", shots: 10, hits: 5, energy: 30, color: "#000000" }]);
     expect(battle!.teamA.totalHits).toBe(5);
     expect(battle!.teamA.coreHits).toBe(2);
     expect(battle!.teamB.players[0]!.name).toBe("프로스트핀");

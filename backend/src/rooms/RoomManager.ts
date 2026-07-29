@@ -106,8 +106,13 @@ export type RoomRecord = {
   sharedTrexStartedAt: number | null;
   /** 플레이어별 최신 유효 조준 좌표 (§17.9). */
   aimState: Map<PlayerId, AimState>;
-  /** 플레이어별 최신 좌우 위치(운석 피하기, 0~1). */
-  dinoPositionState: Map<PlayerId, { x: number; lastSeq: number; receivedAt: number }>;
+  /**
+   * 플레이어별 최신 좌우 위치(운석 피하기, 0~1) + 최근 이력. history는 "낙하 순간에 실제로
+   * 그 자리에 있었는지"를 나중에(유예 시간 이후) 되짚어 판정하기 위한 것 — 최신값만 쓰면
+   * 착지 순간엔 피했다가 유예 시간 안에 다시 그 자리로 걸어 들어온 경우도 "위에서 맞은 것"으로
+   * 잘못 판정된다(§SKY_OBJECT_COLLISION_GRACE_MS, dinoRun.ts의 positionNearTime).
+   */
+  dinoPositionState: Map<PlayerId, { x: number; lastSeq: number; receivedAt: number; history: { x: number; receivedAt: number }[] }>;
   /**
    * 운석이 "공룡을 따라다니다 떨어지도록" — 운석이 스폰되는 순간(낙하 시작 시각) 플레이어가
    * 있던 좌우 위치를 목표로 고정해둔다. 키는 `${playerId}:${objectId}`. 그 뒤로 플레이어가

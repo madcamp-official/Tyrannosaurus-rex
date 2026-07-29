@@ -21,6 +21,7 @@ function teamFrom(allPlayers: PublicPlayer[], team: TeamState, teamName: string)
     shots: p.stats.shots,
     hits: p.stats.hits,
     energy: p.stats.energyContributed,
+    color: p.color,
   }));
   return {
     name: teamName,

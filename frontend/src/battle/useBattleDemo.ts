@@ -21,8 +21,12 @@ function clamp01(v: number): number {
   return Math.min(1, Math.max(0, v));
 }
 
-function makePlayer(id: string, name: string): BattlePlayer {
-  return { id, name, shots: 0, hits: 0, energy: 0 };
+// backend/src/rooms/colors.ts의 PLAYER_COLOR_PALETTE와 동일한 값 — 실제 게임과 데모 화면의
+// 조준점 색이 같은 팔레트로 보이게 맞춘다(둘 다 참조할 공유 상수 위치는 아직 없다).
+const DEMO_PLAYER_COLORS = ["#F94144", "#F3722C", "#F9C74F", "#90BE6D", "#43AA8B", "#577590", "#277DA1", "#9D4EDD"];
+
+function makePlayer(id: string, name: string, colorIndex: number): BattlePlayer {
+  return { id, name, shots: 0, hits: 0, energy: 0, color: DEMO_PLAYER_COLORS[colorIndex % DEMO_PLAYER_COLORS.length]! };
 }
 
 function initialBattle(): BattleState {
@@ -38,7 +42,12 @@ function initialBattle(): BattleState {
       totalHits: 0,
       coreHits: 0,
       result: null,
-      players: [makePlayer("a1", "화염랩터"), makePlayer("a2", "골드팽"), makePlayer("a3", "선라이더"), makePlayer("a4", "엠버울프")],
+      players: [
+        makePlayer("a1", "화염랩터", 0),
+        makePlayer("a2", "골드팽", 1),
+        makePlayer("a3", "선라이더", 2),
+        makePlayer("a4", "엠버울프", 3),
+      ],
     },
     teamB: {
       name: "빙결 팽",
@@ -46,7 +55,12 @@ function initialBattle(): BattleState {
       totalHits: 0,
       coreHits: 0,
       result: null,
-      players: [makePlayer("b1", "프로스트핀"), makePlayer("b2", "아이스팽"), makePlayer("b3", "글레이셔"), makePlayer("b4", "블루레이")],
+      players: [
+        makePlayer("b1", "프로스트핀", 4),
+        makePlayer("b2", "아이스팽", 5),
+        makePlayer("b3", "글레이셔", 6),
+        makePlayer("b4", "블루레이", 7),
+      ],
     },
     trex: { x: TREX_RANGE[0], y: TREX_BASELINE_Y, facing: 1, corePos: corePosFor(TREX_RANGE[0], 1) },
   };
