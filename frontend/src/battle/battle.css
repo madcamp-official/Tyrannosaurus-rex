@@ -125,7 +125,6 @@
   width: 1240px;
   height: 720px;
   transition: left 0.25s linear, top 0.25s linear;
-  filter: drop-shadow(0 18px 22px rgba(0, 0, 0, 0.55));
 }
 
 .battle-trex__model {
@@ -177,6 +176,7 @@
   align-items: center;
   gap: 4px;
   animation: battle-crosshair-jitter 0.9s ease-in-out infinite;
+  transition: left 70ms linear, top 70ms linear;
   pointer-events: none;
 }
 

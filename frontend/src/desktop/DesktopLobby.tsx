@@ -75,6 +75,9 @@ export function DesktopLobby(): JSX.Element {
   });
   const [gameResult, setGameResult] = useState<GameResultEvent | null>(null);
   const { bridge } = useGodotBridge();
+  const isChargingBattle =
+    roomState?.roomPhase === "PLAYING" &&
+    (roomState.teams.A.phase === "CHARGING" || roomState.teams.B.phase === "CHARGING");
 
   useEffect(() => {
     const socket = connectSocket("HOST");
@@ -207,7 +210,11 @@ export function DesktopLobby(): JSX.Element {
           const teamCrosshairs = Object.values(nextCrosshairsByPlayer)
             .filter((c) => c.teamId === evt.data.teamId)
             .map((c) => ({ playerId: c.playerId, color: c.color, point: c.point, active: true }));
-          bridge.send("CROSSHAIRS", { teamId: evt.data.teamId, crosshairs: teamCrosshairs });
+          // CHARGING에서는 React 배틀 화면이 조준점을 직접 표시한다. 뒤에 남아 있는 Godot에도
+          // 같은 고빈도 좌표를 중복 전송하면 두 렌더러가 동시에 갱신돼 프레임 드롭이 커진다.
+          if (prev.teams[evt.data.teamId].phase !== "CHARGING") {
+            bridge.send("CROSSHAIRS", { teamId: evt.data.teamId, crosshairs: teamCrosshairs });
+          }
           return { ...ePrev, crosshairsByPlayer: nextCrosshairsByPlayer };
         });
         return prev;
@@ -355,7 +362,9 @@ export function DesktopLobby(): JSX.Element {
 
   return (
     <main className="desktop-lobby">
-      <GodotStage />
+      {/* 사격 화면은 별도 Three.js WebGL을 사용한다. 이때 Godot까지 뒤에서 계속 렌더링하면
+          GPU 컨텍스트 두 개가 경쟁하므로 사격 동안 iframe을 언마운트해 자원을 해제한다. */}
+      {!isChargingBattle && <GodotStage />}
       <div className="desktop-lobby__scrim" />
 
       <div className="desktop-lobby__overlay">

@@ -4,7 +4,6 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 const CANVAS_WIDTH = 620;
 const CANVAS_HEIGHT = 360;
-const FRAME_INTERVAL_MS = 1000 / 30;
 
 type TrexModelMode = "battle" | "winner" | "yranno";
 
@@ -46,9 +45,6 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
 
     let disposed = false;
     let loadedModel: THREE.Group | null = null;
-    let frame = 0;
-    let previousRenderTime = 0;
-    const clock = new THREE.Clock();
 
     const modelUrl = mode === "battle" ? "/models/trex_skeleton/skeleton.gltf" : "/models/trex/trex.glb";
     new GLTFLoader().load(modelUrl, (gltf) => {
@@ -89,7 +85,6 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
       const distanceForHeight = size.y / (2 * Math.tan(verticalFov / 2));
       const distanceForWidth = size.x / (2 * Math.tan(horizontalFov / 2));
       const cameraDistance = Math.max(distanceForHeight, distanceForWidth) * 1.18 + size.z * 0.5;
-      const motionAmount = Math.max(size.x, size.y) * 0.018;
       camera.position.set(0, size.y * 0.04, cameraDistance);
       camera.lookAt(0, 0, 0);
       camera.near = Math.max(0.01, cameraDistance - size.z * 1.5);
@@ -98,30 +93,17 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
 
       if (mode === "yranno") {
         motionRoot.rotation.z = -0.12;
-        renderer.render(scene, camera);
-        return;
       }
 
-      const animate = (renderTime: number) => {
-        if (disposed) return;
-        frame = window.requestAnimationFrame(animate);
-        if (renderTime - previousRenderTime < FRAME_INTERVAL_MS) return;
-        previousRenderTime = renderTime - ((renderTime - previousRenderTime) % FRAME_INTERVAL_MS);
-
-        const elapsed = clock.getElapsedTime();
-        motionRoot.position.y = Math.sin(elapsed * 4.2) * motionAmount;
-        motionRoot.rotation.y = Math.sin(elapsed * 1.7) * 0.045;
-        motionRoot.rotation.z = Math.sin(elapsed * 4.2) * 0.012;
-        renderer.render(scene, camera);
-      };
-      frame = window.requestAnimationFrame(animate);
+      // 254개 메시를 매 프레임 다시 그리는 대신 모델 자체는 한 번만 렌더링한다.
+      // 사격 이동과 결과 화면의 폴짝임은 캔버스 바깥 DOM 컨테이너가 담당한다.
+      renderer.render(scene, camera);
     }, undefined, (error) => {
       console.error(`${mode === "battle" ? "스켈레톤" : "티라노사우루스"} 모델을 불러오지 못했습니다.`, error);
     });
 
     return () => {
       disposed = true;
-      window.cancelAnimationFrame(frame);
       if (loadedModel) {
         motionRoot.remove(loadedModel);
         loadedModel.traverse((child) => {
