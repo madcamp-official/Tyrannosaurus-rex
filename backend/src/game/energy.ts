@@ -12,7 +12,7 @@ import {
   type TeamPhase,
 } from "@trex/shared";
 import type { RoomRecord } from "../rooms/RoomManager.js";
-import { computeActiveCore, computeTrexTransform, resolveHit } from "./charging.js";
+import { advanceActiveCore, computeActiveCore, computeTrexTransform, CORE_OFFSETS, resolveHit } from "./charging.js";
 
 export type ShotTracking = { lastShotAt: number; recentShotIds: Set<string> };
 
@@ -36,6 +36,7 @@ export type EnergyFireOutcome = {
   hitPoint: { x: number; y: number } | null;
   /** REVIVED에 새로 도달했다면(정상 또는 와이라노 확정) true. 룸 승패 확정 처리를 트리거한다. */
   justReachedRevived: boolean;
+  coreChanged: { from: "HEART" | "SKULL" | "SPINE"; to: "HEART" | "SKULL" | "SPINE" } | null;
 };
 
 function rejectOutcome(reason: NonNullable<EnergyFireOutcome["reason"]>, team: { phase: TeamPhase }): EnergyFireOutcome {
@@ -52,6 +53,7 @@ function rejectOutcome(reason: NonNullable<EnergyFireOutcome["reason"]>, team: {
     aimPoint: null,
     hitPoint: null,
     justReachedRevived: false,
+    coreChanged: null,
   };
 }
 
@@ -91,6 +93,7 @@ export function applyEnergyFire(
   const trex = computeTrexTransform(room, now);
   const { core } = computeActiveCore(room, now);
   const { hitZone, energyDelta, stabilityDelta } = resolveHit(aim.point, trex.position, core);
+  const isCoreHit = hitZone === "HEART" || hitZone === "SKULL" || hitZone === "SPINE";
 
   team.charging.energy = Math.max(0, Math.min(ENERGY_TARGET, team.charging.energy + energyDelta));
   team.charging.stability = Math.max(0, Math.min(STABILITY_TARGET, team.charging.stability + stabilityDelta));
@@ -101,7 +104,15 @@ export function applyEnergyFire(
     if (hitZone !== null) {
       player.stats.hits += 1;
       player.stats.energyContributed += energyDelta;
-      if (hitZone === "HEART" || hitZone === "SKULL" || hitZone === "SPINE") player.stats.coreHits += 1;
+      if (isCoreHit) player.stats.coreHits += 1;
+    }
+  }
+
+  const coreChanged = isCoreHit ? advanceActiveCore(room) : null;
+  if (coreChanged) {
+    for (const stateTeam of Object.values(room.state.teams)) {
+      stateTeam.charging.activeCore = coreChanged.to;
+      stateTeam.charging.coreChangesAt = 0;
     }
   }
 
@@ -123,8 +134,11 @@ export function applyEnergyFire(
     stabilityAfter: team.charging.stability,
     teamPhaseAfter: team.phase,
     aimPoint: aim.point,
-    hitPoint: hitZone !== null ? trex.position : null,
+    hitPoint: isCoreHit
+      ? { x: trex.position.x + CORE_OFFSETS[core].x, y: trex.position.y + CORE_OFFSETS[core].y }
+      : null,
     justReachedRevived,
+    coreChanged,
   };
 }
 

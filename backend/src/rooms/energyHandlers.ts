@@ -62,6 +62,20 @@ export function registerEnergyHandlers(io: AppServer, socket: AppSocket, rooms: 
       }),
     );
 
+    if (outcome.coreChanged) {
+      for (const teamId of ["A", "B"] as const) {
+        io.to(channel).emit(
+          "energy:coreChanged",
+          toServerEvent(roomCode, room.state.revision, {
+            teamId,
+            from: outcome.coreChanged.from,
+            to: outcome.coreChanged.to,
+            nextChangeAt: 0,
+          }),
+        );
+      }
+    }
+
     if (outcome.justReachedRevived) {
       io.to(channel).emit(
         "revival:formChanged",

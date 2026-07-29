@@ -1,9 +1,7 @@
 /** Plan.md §6.3, §12.4~§12.5. 서버 권위 티라노 이동, 코어 로테이션, 단순 히트박스 판정. */
 
 import {
-  BONE_HIT_RADIUS,
   CORE_HIT_RADIUS,
-  ENERGY_HIT_BONE,
   ENERGY_HIT_CORE,
   STABILITY_HIT_CORE,
   TREX_MOVE_AMPLITUDE,
@@ -72,14 +70,26 @@ export function computeTrexTransform(room: RoomRecord, now: number): TrexTransfo
   };
 }
 
-/** 코어는 더 이상 부위를 옮겨 다니지 않고 항상 심장 위치에 고정된다. */
-export function computeActiveCore(_room: RoomRecord, _now: number): { core: CoreZone; nextChangeAt: number } {
-  return { core: "HEART", nextChangeAt: Number.POSITIVE_INFINITY };
+/** 현재 약점은 서버가 방 단위로 하나만 관리하며 유효 명중 때만 변경된다. */
+export function computeActiveCore(room: RoomRecord, _now: number): { core: CoreZone; nextChangeAt: number } {
+  return { core: room.sharedActiveCore, nextChangeAt: 0 };
+}
+
+/** 현재 부위를 제외한 두 후보 중 라운드 시드와 명중 순번으로 다음 약점을 결정한다. */
+export function advanceActiveCore(room: RoomRecord): { from: CoreZone; to: CoreZone } {
+  const from = room.sharedActiveCore;
+  const candidates = (["HEART", "SKULL", "SPINE"] as const).filter((core) => core !== from);
+  const seed = room.roundSeed ?? room.state.roomCode;
+  const pick = seededRandom01(`${seed}:coreTarget`, room.sharedCoreHitCount) < 0.5 ? 0 : 1;
+  const to = candidates[pick]!;
+  room.sharedCoreHitCount += 1;
+  room.sharedActiveCore = to;
+  return { from, to };
 }
 
 export type HitResolution = { hitZone: HitZone | null; energyDelta: number; stabilityDelta: number };
 
-/** 티라노를 맞히면 점수, 코어(심장)를 맞히면 추가 점수, 완전히 빗나가면 0점 — 3단계 판정을 없앴다. */
+/** 화면에 표시된 현재 약점만 유효 명중이다. 몸체나 이전 약점은 점수를 주지 않는다. */
 export function resolveHit(aimPoint: NormalizedPoint, trexCenter: NormalizedPoint, activeCore: CoreZone): HitResolution {
   const coreCenter = { x: trexCenter.x + CORE_OFFSETS[activeCore].x, y: trexCenter.y + CORE_OFFSETS[activeCore].y };
   const distToCore = Math.hypot(aimPoint.x - coreCenter.x, aimPoint.y - coreCenter.y);
@@ -87,9 +97,5 @@ export function resolveHit(aimPoint: NormalizedPoint, trexCenter: NormalizedPoin
     return { hitZone: activeCore, energyDelta: ENERGY_HIT_CORE, stabilityDelta: STABILITY_HIT_CORE };
   }
 
-  const distToBody = Math.hypot(aimPoint.x - trexCenter.x, aimPoint.y - trexCenter.y);
-  if (distToBody <= BONE_HIT_RADIUS) {
-    return { hitZone: "BONE", energyDelta: ENERGY_HIT_BONE, stabilityDelta: 0 };
-  }
   return { hitZone: null, energyDelta: 0, stabilityDelta: 0 };
 }

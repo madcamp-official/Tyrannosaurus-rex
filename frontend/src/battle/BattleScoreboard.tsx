@@ -1,4 +1,4 @@
-/** 사이드 스코어보드: 플레이어/발사/명중/에너지 기여. B팀은 컬럼 순서를 반전해 바깥→안쪽으로 읽히게 한다. */
+/** 사이드 스코어보드: 플레이어/발사/약점 명중/개인 점수. B팀은 컬럼 순서를 반전한다. */
 
 import type { BattleTeam, TeamId } from "./battleTypes";
 import { hitRate } from "./battleTypes";
@@ -13,8 +13,8 @@ export function BattleScoreboard({ team, teamId }: { team: BattleTeam; teamId: T
   const ranked = [...team.players].sort((a, b) => b.energy - a.energy);
 
   const columns = mirrored
-    ? ["에너지 기여", "명중", "발사", "플레이어"]
-    : ["플레이어", "발사", "명중", "에너지 기여"];
+    ? ["개인 점수", "약점 명중", "발사", "플레이어"]
+    : ["플레이어", "발사", "약점 명중", "개인 점수"];
 
   return (
     <div className={`battle-board battle-board--${teamId.toLowerCase()}${mirrored ? " battle-board--mirrored" : ""}`}>
@@ -57,7 +57,7 @@ export function BattleScoreboard({ team, teamId }: { team: BattleTeam; teamId: T
         </tbody>
       </table>
 
-      <div className="battle-board__footer">코어 명중 {team.coreHits}회</div>
+      <div className="battle-board__footer">현재 약점 명중 {team.coreHits}회</div>
     </div>
   );
 }
