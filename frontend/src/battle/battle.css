@@ -175,8 +175,7 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  animation: battle-crosshair-jitter 0.9s ease-in-out infinite;
-  transition: left 70ms linear, top 70ms linear;
+  will-change: left, top;
   pointer-events: none;
 }
 
@@ -210,14 +209,6 @@
 
 .battle-crosshair--b .battle-crosshair__label {
   color: var(--b-light);
-}
-
-@keyframes battle-crosshair-jitter {
-  0% { transform: translate(-50%, -50%); }
-  25% { transform: translate(calc(-50% + 2px), calc(-50% - 2px)); }
-  50% { transform: translate(calc(-50% - 2px), calc(-50% + 1px)); }
-  75% { transform: translate(calc(-50% + 1px), calc(-50% + 2px)); }
-  100% { transform: translate(-50%, -50%); }
 }
 
 .battle-laser {
@@ -595,14 +586,8 @@
   transition: filter 0.15s ease-out;
 }
 
-.battle-gun__body--recoil .battle-gun__model {
-  animation: battle-gun-recoil 0.18s ease-out;
-}
-
-@keyframes battle-gun-recoil {
-  0% { transform: translateY(0); }
-  30% { transform: translateY(18px); }
-  100% { transform: translateY(0); }
+.battle-gun__motion {
+  will-change: transform;
 }
 
 .battle-gun--a .battle-gun__body--hit .battle-gun__model {

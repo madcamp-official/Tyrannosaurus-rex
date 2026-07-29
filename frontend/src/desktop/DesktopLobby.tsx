@@ -78,6 +78,12 @@ export function DesktopLobby(): JSX.Element {
     coreChangesAtByTeam: {},
     battleShotEvents: [],
   });
+  const roomStateRef = useRef(roomState);
+  roomStateRef.current = roomState;
+  const ephemeralRef = useRef(ephemeral);
+  ephemeralRef.current = ephemeral;
+  const pendingCrosshairsRef = useRef<ChargingEphemeral["crosshairsByPlayer"]>({});
+  const crosshairFlushTimerRef = useRef<number | null>(null);
   const [gameResult, setGameResult] = useState<GameResultEvent | null>(null);
   const { bridge } = useGodotBridge();
   const isChargingBattle =
@@ -255,33 +261,45 @@ export function DesktopLobby(): JSX.Element {
       });
     });
     socket.on("aim:playerMoved", (evt) => {
-      setRoomState((prev) => {
-        if (!prev) return prev;
-        const player = prev.players.find((p) => p.id === evt.data.playerId);
-        if (!player) return prev;
-        setEphemeral((ePrev) => {
-          const nextCrosshairsByPlayer = {
-            ...ePrev.crosshairsByPlayer,
-            [evt.data.playerId]: {
-              playerId: evt.data.playerId,
-              teamId: evt.data.teamId,
-              point: evt.data.point,
-              color: player.color,
-              receivedAt: Date.now(),
-            },
-          };
-          const teamCrosshairs = Object.values(nextCrosshairsByPlayer)
-            .filter((c) => c.teamId === evt.data.teamId)
-            .map((c) => ({ playerId: c.playerId, color: c.color, point: c.point, active: true }));
-          // CHARGING에서는 React 배틀 화면이 조준점을 직접 표시한다. 뒤에 남아 있는 Godot에도
-          // 같은 고빈도 좌표를 중복 전송하면 두 렌더러가 동시에 갱신돼 프레임 드롭이 커진다.
-          if (prev.teams[evt.data.teamId].phase !== "CHARGING") {
-            bridge.send("CROSSHAIRS", { teamId: evt.data.teamId, crosshairs: teamCrosshairs });
-          }
-          return { ...ePrev, crosshairsByPlayer: nextCrosshairsByPlayer };
-        });
-        return prev;
-      });
+      const currentRoom = roomStateRef.current;
+      const player = currentRoom?.players.find((candidate) => candidate.id === evt.data.playerId);
+      if (!currentRoom || !player) return;
+
+      pendingCrosshairsRef.current[evt.data.playerId] = {
+        playerId: evt.data.playerId,
+        teamId: evt.data.teamId,
+        point: evt.data.point,
+        color: player.color,
+        receivedAt: Date.now(),
+      };
+
+      // CHARGING에서는 React 배틀 화면이 조준점을 직접 표시한다. 뒤에 남아 있는 Godot에도
+      // 같은 고빈도 좌표를 중복 전송하면 두 렌더러가 동시에 갱신돼 프레임 드롭이 커진다.
+      if (currentRoom.teams[evt.data.teamId].phase !== "CHARGING") {
+        const nextCrosshairs = { ...ephemeralRef.current.crosshairsByPlayer, ...pendingCrosshairsRef.current };
+        const teamCrosshairs = Object.values(nextCrosshairs)
+          .filter((crosshair) => crosshair.teamId === evt.data.teamId)
+          .map((crosshair) => ({
+            playerId: crosshair.playerId,
+            color: crosshair.color,
+            point: crosshair.point,
+            active: true,
+          }));
+        bridge.send("CROSSHAIRS", { teamId: evt.data.teamId, crosshairs: teamCrosshairs });
+      }
+
+      // 여러 플레이어가 각각 20Hz로 보내도 React 전체 배틀 화면은 최대 약 30Hz만 갱신한다.
+      if (crosshairFlushTimerRef.current === null) {
+        crosshairFlushTimerRef.current = window.setTimeout(() => {
+          const pending = pendingCrosshairsRef.current;
+          pendingCrosshairsRef.current = {};
+          crosshairFlushTimerRef.current = null;
+          setEphemeral((prev) => ({
+            ...prev,
+            crosshairsByPlayer: { ...prev.crosshairsByPlayer, ...pending },
+          }));
+        }, 33);
+      }
     });
     socket.on("energy:shotResolved", (evt) => {
       setRoomState((prev) => (prev ? applyShotResolved(prev, evt.data) : prev));
@@ -323,6 +341,7 @@ export function DesktopLobby(): JSX.Element {
     });
 
     return () => {
+      if (crosshairFlushTimerRef.current !== null) window.clearTimeout(crosshairFlushTimerRef.current);
       socket.close();
       socketRef.current = null;
     };
