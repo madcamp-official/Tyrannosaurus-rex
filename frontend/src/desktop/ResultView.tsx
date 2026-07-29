@@ -159,7 +159,7 @@ export function ResultView({
         <div className="result-view__mvp">
           <h3>개인 MVP</h3>
           <ol className="result-view__mvp-grid">
-            {gameResult.mvp.map((entry, i) => (
+            {gameResult.mvp.slice(0, 3).map((entry, i) => (
               <li key={entry.playerId} className="result-view__mvp-row">
                 <span className="result-view__mvp-rank">{i + 1}</span>
                 <span className="result-view__mvp-name">

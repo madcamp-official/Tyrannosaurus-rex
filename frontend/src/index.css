@@ -2662,6 +2662,18 @@ body {
   gap: 12px;
 }
 
+.result-view__mvp-row:first-child {
+  grid-column: 1 / -1;
+  width: calc(50% - 12px);
+  justify-self: center;
+}
+
+.result-view__mvp-row:nth-child(2):last-child {
+  grid-column: 1 / -1;
+  width: calc(50% - 12px);
+  justify-self: center;
+}
+
 .result-view__mvp-rank {
   font-weight: 800;
   min-width: 1.6em;
