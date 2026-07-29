@@ -40,9 +40,9 @@ import { seededRandom01 } from "./seededRandom.js";
 
 /**
  * 라운드 시드로 낙하 오브젝트 스케줄을 생성한다. 양 팀이 같은 스케줄을 공유한다(§4 공정성).
- * [MIN, MAX] 구간에 지터를 섞어 뿌리되, 지수(SKY_OBJECT_DENSITY_CURVE_EXPONENT < 1)로
- * 시간축을 휘어 초반엔 뜸하고 후반으로 갈수록 점점 빽빽해지게 만든 뒤, 최소 간격 미만이면
- * 뒤로 밀어 보정하고, 각 오브젝트의 좌우 위치·종류(운석/과일/하트)를 시드 기반으로 정한다.
+ * [MIN, MAX] 구간에 지터를 섞어 뿌리되, 약한 후반 가속 곡선을 적용한다. 초반에도 충분한
+ * 오브젝트가 나오면서 후반에만 과도하게 겹치지 않도록 하고, 최소 간격 미만이면 뒤로 밀어
+ * 보정한 뒤 각 오브젝트의 좌우 위치·종류(운석/과일/하트)를 시드 기반으로 정한다.
  */
 export function makeSkyObjectSchedule(seed: string): SkyObject[] {
   const span = SKY_OBJECT_MAX_OFFSET_MS - SKY_OBJECT_MIN_OFFSET_MS;

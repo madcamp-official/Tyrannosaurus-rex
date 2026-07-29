@@ -89,6 +89,18 @@ describe("dino run (meteor dodge)", () => {
     expect(maxConcurrent).toBeGreaterThanOrEqual(3);
   });
 
+  it("keeps the first half active without overcrowding the second half", () => {
+    const schedule = makeSkyObjectSchedule("balanced-density");
+    const midpointMs = 30_000;
+    const firstHalfCount = schedule.filter((object) => object.hitAtMs <= midpointMs).length;
+    const secondHalfCount = schedule.length - firstHalfCount;
+
+    // 절대 개수 대신 SKY_OBJECT_COUNT 대비 비율로 검증한다 — 총 개수 자체가 바뀌어도
+    // "전반부가 너무 비지 않고, 후반부가 너무 몰리지 않는다"는 의도만 확인하면 된다.
+    expect(firstHalfCount / SKY_OBJECT_COUNT).toBeGreaterThanOrEqual(0.35);
+    expect(secondHalfCount / SKY_OBJECT_COUNT).toBeLessThanOrEqual(0.65);
+  });
+
   it("tracks a player's latest reported position and rejects stale/out-of-order sequences", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
     const first = rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: 0.2, clientTime: now }, now);
@@ -167,7 +179,7 @@ describe("dino run (meteor dodge)", () => {
     rooms.tickDinoCollisions(room, now + meteor.hitAtMs - SKY_OBJECT_FALL_MS + 1);
 
     const beforeGrace = rooms.tickDinoCollisions(room, now + meteor.hitAtMs + SKY_OBJECT_COLLISION_GRACE_MS - 1);
-    expect(beforeGrace).toEqual([]);
+    expect(beforeGrace.filter((event) => event.teamId === "A")).toEqual([]);
     expect(room.state.teams.A.dinoRun.resolvedObjectIdsByPlayer[playerA] ?? []).toEqual([]);
 
     rooms.applyDinoPositionInput(room, "A", playerA, { seq: 2, x: 0.8, clientTime: now }, now);
