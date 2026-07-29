@@ -72,6 +72,11 @@ export function registerEnergyHandlers(io: AppServer, socket: AppSocket, rooms: 
           stability: outcome.stabilityAfter,
         }),
       );
+      // charging.result(WIN/LOSE/DRAW)가 이 시점에 확정되는데, 라운드 전체가 끝나야만
+      // room:state를 보내는 broadcastResultIfFinalized만 믿으면(아래) 상대 팀이 아직
+      // 한참 남아있을 땐 이 팀의 WIN 표시가 즉시 전달되지 않는다 — 와이라노(시간 초과)
+      // 경로(emitTransitionEvents)와 동일하게 여기서도 즉시 방송한다.
+      broadcastRoomState(io, rooms, roomCode);
     }
 
     broadcastResultIfFinalized(io, rooms, roomCode, outcome.roundFinalized);
