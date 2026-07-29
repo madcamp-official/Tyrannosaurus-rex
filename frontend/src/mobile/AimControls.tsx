@@ -9,12 +9,19 @@ import { newRequestId } from "../util/requestId";
 const MAX_TILT_DEG = 24;
 const MAX_AIM_SPEED = 0.4;
 const TILT_FILTER_ALPHA = 0.35;
-const GYRO_DEADZONE_DEG = 4;
+// 자연스러운 손떨림은 몇 도 정도 흔들리는데, 데드존이 너무 좁으면(4도) 손을 정확히
+// 영점으로 되돌려도 데드존 밖에 살짝 걸쳐 있어 "멈추지 않고 계속 미끄러진다"는 느낌을
+// 준다 — 데드존을 넓혀 정지가 훨씬 잘 인식되게 한다.
+const GYRO_DEADZONE_DEG = 7;
 const INPUT_CURVE_EXPONENT = 1.5;
 const AXIS_PRIORITY_RATIO = 1.25;
 const MINOR_AXIS_SCALE = 0.2;
 const MOVE_RESPONSE = 9;
-const BRAKE_RESPONSE = 20;
+// 데드존 안으로 돌아왔을 때 속도가 지수적으로만 줄어들면 눈에 띄지 않는 잔여 속도가
+// 몇 프레임 더 조준점을 밀어내 "손을 놨는데도 계속 밀린다"는 느낌을 준다 — 제동을
+// 더 강하게 걸고, 아래에서 아주 작은 잔여 속도는 그냥 0으로 스냅한다.
+const BRAKE_RESPONSE = 30;
+const VELOCITY_SNAP_EPSILON = 0.01;
 // DeviceOrientationEvent의 beta/gamma는 오일러 각이라 기기를 크게(특히 ±90도 근처까지)
 // 기울이면 한 프레임 만에 값이 반대 부호로 튈 수 있다(짐벌락류 불연속) — 조준점이 순간적으로
 // 반대 방향으로 튀는 버그의 원인. 한 프레임에 물리적으로 있을 수 없는 큰 변화(사람이 손으로
@@ -122,10 +129,16 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
         const desiredY = -vy * MAX_AIM_SPEED;
         const braking = vx === 0 && vy === 0;
         const response = 1 - Math.exp(-(braking ? BRAKE_RESPONSE : MOVE_RESPONSE) * dt);
-        velocityRef.current = {
-          x: velocityRef.current.x + (desiredX - velocityRef.current.x) * response,
-          y: velocityRef.current.y + (desiredY - velocityRef.current.y) * response,
-        };
+        let nextVx = velocityRef.current.x + (desiredX - velocityRef.current.x) * response;
+        let nextVy = velocityRef.current.y + (desiredY - velocityRef.current.y) * response;
+        // 지수 감쇠는 이론상 0에 정확히 닿지 않는다 — 눈에 안 보일 만큼 작은 잔여
+        // 속도가 몇 프레임 더 조준점을 밀어내는 "계속 미끄러지는" 느낌의 원인이라,
+        // 제동 중 충분히 작아지면 그냥 0으로 스냅해 확실하게 멈춘다.
+        if (braking) {
+          if (Math.abs(nextVx) < VELOCITY_SNAP_EPSILON) nextVx = 0;
+          if (Math.abs(nextVy) < VELOCITY_SNAP_EPSILON) nextVy = 0;
+        }
+        velocityRef.current = { x: nextVx, y: nextVy };
         if (Math.abs(velocityRef.current.x) > 0.0001 || Math.abs(velocityRef.current.y) > 0.0001) {
           const nextPoint = {
             x: clamp01(pointRef.current.x + velocityRef.current.x * dt),
