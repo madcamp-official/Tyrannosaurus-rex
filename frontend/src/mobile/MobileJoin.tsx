@@ -46,6 +46,7 @@ export function MobileJoin(): JSX.Element {
   const [playerId, setPlayerId] = useState<PlayerId | null>(null);
   const [teamId, setTeamId] = useState<TeamId | null>(null);
   const [roomState, setRoomState] = useState<RoomState | null>(null);
+  const [serverTimeOffsetMs, setServerTimeOffsetMs] = useState(0);
   const [ready, setReady] = useState(false);
 
   // 흔들어서 발굴하는 동안 화면이 꺼져 입력이 끊기지 않도록, 입장한 뒤부터 계속 켜둔다.
@@ -66,8 +67,14 @@ export function MobileJoin(): JSX.Element {
     socketRef.current?.close();
     const socket = connectSocket("PLAYER");
     socketRef.current = socket;
-    socket.on("room:state", (evt) => setRoomState(evt.data));
-    socket.on("team:phaseChanged", (evt) => setRoomState((prev) => (prev ? applyTeamPhaseChanged(prev, evt.data) : prev)));
+    socket.on("room:state", (evt) => {
+      setServerTimeOffsetMs(evt.serverTime - Date.now());
+      setRoomState(evt.data);
+    });
+    socket.on("team:phaseChanged", (evt) => {
+      setServerTimeOffsetMs(evt.serverTime - Date.now());
+      setRoomState((prev) => (prev ? applyTeamPhaseChanged(prev, evt.data) : prev));
+    });
     socket.on("dino:started", (evt) => setRoomState((prev) => (prev ? applyDinoStarted(prev, evt.data) : prev)));
     socket.on("dino:hit", (evt) => setRoomState((prev) => (prev ? applyDinoHit(prev, evt.data) : prev)));
     socket.on("dino:bonus", (evt) => setRoomState((prev) => (prev ? applyDinoBonus(prev, evt.data) : prev)));
@@ -198,7 +205,13 @@ export function MobileJoin(): JSX.Element {
       <>
         {team.phase === "EXCAVATION" && socket && <ExcavationControls socket={socket} teamId={teamId} result={team.excavation.result} />}
         {team.phase === "ASSEMBLY" && socket && playerId && (
-          <DinoRunControls socket={socket} team={team} playerId={playerId} result={team.dinoRun.result} />
+          <DinoRunControls
+            socket={socket}
+            team={team}
+            playerId={playerId}
+            result={team.dinoRun.result}
+            serverTimeOffsetMs={serverTimeOffsetMs}
+          />
         )}
         {(team.phase === "CHARGING_PRACTICE" || team.phase === "CHARGING") && socket && (
           // 두 phase를 하나의 JSX 자리에서 렌더링해야 CHARGING_PRACTICE에서 잡은 영점

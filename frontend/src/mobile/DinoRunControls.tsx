@@ -12,6 +12,7 @@ import {
   PHASE_START_GRACE_MS,
   DINO_RUN_DURATION_MS,
   METEOR_DODGE_LIVES,
+  SKY_OBJECT_COLLISION_GRACE_MS,
   SKY_OBJECT_FALL_MS,
   type PlayerId,
   type TeamState,
@@ -39,11 +40,13 @@ export function DinoRunControls({
   team,
   playerId,
   result,
+  serverTimeOffsetMs,
 }: {
   socket: AppSocket;
   team: TeamState;
   playerId: PlayerId;
   result: "WIN" | "LOSE" | "DRAW" | null;
+  serverTimeOffsetMs: number;
 }): JSX.Element {
   const [x, setX] = useState(0.5);
   const [flash, setFlash] = useState<"hit" | "bonus" | "heal" | null>(null);
@@ -119,7 +122,7 @@ export function DinoRunControls({
 
   // 서버 phaseStartedAt(서버 시계)과 로컬 시계의 오차는 연출용으로만 쓴다 — 실제 판정은
   // 서버 수신 시각 기준이다 (§6.2).
-  const elapsed = Math.max(0, nowMs - team.phaseStartedAt - PHASE_START_GRACE_MS);
+  const elapsed = Math.max(0, nowMs + serverTimeOffsetMs - team.phaseStartedAt - PHASE_START_GRACE_MS);
   const remainingSec = Math.max(0, Math.ceil((DINO_RUN_DURATION_MS - elapsed) / 1000));
 
   if (result) {
@@ -164,7 +167,7 @@ export function DinoRunControls({
       >
         {team.dinoRun.skyObjects.map((obj) => {
           const progress = (elapsed - (obj.hitAtMs - SKY_OBJECT_FALL_MS)) / SKY_OBJECT_FALL_MS;
-          if (progress < -0.05 || progress > 1.05) return null;
+          if (progress < -0.05 || progress > 1 + SKY_OBJECT_COLLISION_GRACE_MS / SKY_OBJECT_FALL_MS) return null;
           let objX = obj.x;
           if (obj.kind === "METEOR") {
             let locked = meteorLockRef.current.get(obj.id);

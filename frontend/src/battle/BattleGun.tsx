@@ -87,17 +87,27 @@ function LaserGunModel({ team }: { team: TeamId }): JSX.Element {
 }
 
 export function BattleGun({ team, shotEvents }: { team: TeamId; shotEvents: BattleShotEvent[] }): JSX.Element {
+  const motionRef = useRef<HTMLDivElement>(null);
   const own = useMemo(() => shotEvents.filter((e) => e.team === team), [shotEvents, team]);
   const last = own[own.length - 1];
   const hasCoreHit = own.some((e) => e.core);
 
+  useEffect(() => {
+    if (!last || !motionRef.current) return;
+    motionRef.current.animate(
+      [{ transform: "translateY(0)" }, { transform: "translateY(18px)", offset: 0.3 }, { transform: "translateY(0)" }],
+      { duration: 180, easing: "ease-out" },
+    );
+  }, [last?.id]);
+
   return (
     <div className={`battle-gun battle-gun--${team.toLowerCase()}`}>
       <div
-        key={last?.id ?? "idle"}
-        className={`battle-gun__body${last ? " battle-gun__body--recoil" : ""}${last?.hit ? " battle-gun__body--hit" : ""}${hasCoreHit ? " battle-gun__body--core" : ""}`}
+        className={`battle-gun__body${last?.hit ? " battle-gun__body--hit" : ""}${hasCoreHit ? " battle-gun__body--core" : ""}`}
       >
-        <LaserGunModel team={team} />
+        <div ref={motionRef} className="battle-gun__motion">
+          <LaserGunModel team={team} />
+        </div>
         {last && <span className="battle-gun__flash" />}
       </div>
     </div>

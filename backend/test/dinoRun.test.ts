@@ -11,6 +11,7 @@ import {
   PHASE_START_GRACE_MS,
   ROUND_TRANSITION_MS,
   SKY_OBJECT_COUNT,
+  SKY_OBJECT_COLLISION_GRACE_MS,
   SKY_OBJECT_FALL_MS,
 } from "@trex/shared";
 import { RoomManager } from "../src/rooms/RoomManager.js";
@@ -135,7 +136,7 @@ describe("dino run (meteor dodge)", () => {
     room.state.teams.A.dinoRun.skyObjects = [meteor];
     rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: meteor.x, clientTime: now }, now);
 
-    const events = rooms.tickDinoCollisions(room, now + meteor.hitAtMs + 1);
+    const events = rooms.tickDinoCollisions(room, now + meteor.hitAtMs + SKY_OBJECT_COLLISION_GRACE_MS + 1);
     const hit = events.find((e) => e.teamId === "A" && e.event.kind === "HIT");
     expect(hit).toBeDefined();
     if (hit && hit.event.kind === "HIT") {
@@ -151,6 +152,24 @@ describe("dino run (meteor dodge)", () => {
     expect(again.filter((e) => e.teamId === "A" && e.event.kind === "HIT")).toEqual([]);
   });
 
+  it("waits for the collision grace period so the latest dodge position can arrive", () => {
+    const { rooms, room, playerA, now } = setupAssemblyRoom();
+    const meteor = { id: 0, hitAtMs: 8000, x: 0.5, kind: "METEOR" as const };
+    room.state.teams.A.dinoRun.skyObjects = [meteor];
+
+    rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: 0.5, clientTime: now }, now);
+    rooms.tickDinoCollisions(room, now + meteor.hitAtMs - SKY_OBJECT_FALL_MS + 1);
+
+    const beforeGrace = rooms.tickDinoCollisions(room, now + meteor.hitAtMs + SKY_OBJECT_COLLISION_GRACE_MS - 1);
+    expect(beforeGrace).toEqual([]);
+    expect(room.state.teams.A.dinoRun.resolvedObjectIdsByPlayer[playerA] ?? []).toEqual([]);
+
+    rooms.applyDinoPositionInput(room, "A", playerA, { seq: 2, x: 0.8, clientTime: now }, now);
+    const afterGrace = rooms.tickDinoCollisions(room, now + meteor.hitAtMs + SKY_OBJECT_COLLISION_GRACE_MS + 1);
+    expect(afterGrace.filter((event) => event.teamId === "A")).toEqual([]);
+    expect(room.state.teams.A.dinoRun.livesByPlayer[playerA]).toBe(METEOR_DODGE_LIVES);
+  });
+
   it("dodging a meteor (moving away after it locks onto your spawn-time position) costs no life and counts toward MVP stats", () => {
     const { rooms, room, playerA, now } = setupAssemblyRoom();
     const meteor = { id: 0, hitAtMs: 8000, x: 0.5, kind: "METEOR" as const };
@@ -163,7 +182,7 @@ describe("dino run (meteor dodge)", () => {
 
     // 그 뒤 반대쪽으로 이동해 고정된 목표 지점을 벗어나면 피한 것으로 인정된다.
     rooms.applyDinoPositionInput(room, "A", playerA, { seq: 2, x: 1, clientTime: now }, now);
-    const events = rooms.tickDinoCollisions(room, now + meteor.hitAtMs + 1);
+    const events = rooms.tickDinoCollisions(room, now + meteor.hitAtMs + SKY_OBJECT_COLLISION_GRACE_MS + 1);
     expect(events.filter((e) => e.teamId === "A")).toEqual([]);
     expect(room.state.teams.A.dinoRun.livesByPlayer[playerA]).toBe(METEOR_DODGE_LIVES);
     const player = room.state.players.find((p) => p.id === playerA)!;
@@ -196,7 +215,7 @@ describe("dino run (meteor dodge)", () => {
     room.state.teams.A.dinoRun.skyObjects = [fruit];
     rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: fruit.x, clientTime: now }, now);
 
-    const events = rooms.tickDinoCollisions(room, now + fruit.hitAtMs + 1);
+    const events = rooms.tickDinoCollisions(room, now + fruit.hitAtMs + SKY_OBJECT_COLLISION_GRACE_MS + 1);
     const caught = events.find((e) => e.teamId === "A" && e.event.kind === "BONUS");
     expect(caught).toBeDefined();
     if (caught && caught.event.kind === "BONUS") {
@@ -215,7 +234,7 @@ describe("dino run (meteor dodge)", () => {
     room.state.teams.A.dinoRun.skyObjects = [heart];
     rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: heart.x, clientTime: now }, now);
 
-    const events = rooms.tickDinoCollisions(room, now + heart.hitAtMs + 1);
+    const events = rooms.tickDinoCollisions(room, now + heart.hitAtMs + SKY_OBJECT_COLLISION_GRACE_MS + 1);
     const caught = events.find((e) => e.teamId === "A" && e.event.kind === "BONUS");
     expect(caught).toBeDefined();
     if (caught && caught.event.kind === "BONUS") {
@@ -232,7 +251,7 @@ describe("dino run (meteor dodge)", () => {
     room.state.teams.A.dinoRun.skyObjects = [heart];
     rooms.applyDinoPositionInput(room, "A", playerA, { seq: 1, x: heart.x, clientTime: now }, now);
 
-    rooms.tickDinoCollisions(room, now + heart.hitAtMs + 1);
+    rooms.tickDinoCollisions(room, now + heart.hitAtMs + SKY_OBJECT_COLLISION_GRACE_MS + 1);
     expect(room.state.teams.A.dinoRun.livesByPlayer[playerA]).toBe(METEOR_DODGE_LIVES);
   });
 
@@ -249,7 +268,7 @@ describe("dino run (meteor dodge)", () => {
     let deathEvent: { teamId: string; event: { kind: string } } | undefined;
     for (const meteor of meteors) {
       rooms.applyDinoPositionInput(room, "A", playerA, { seq: meteor.id + 1, x: meteor.x, clientTime: now }, now);
-      const events = rooms.tickDinoCollisions(room, now + meteor.hitAtMs + 1);
+      const events = rooms.tickDinoCollisions(room, now + meteor.hitAtMs + SKY_OBJECT_COLLISION_GRACE_MS + 1);
       const death = events.find((e) => e.teamId === "A" && e.event.kind === "DEATH");
       if (death) deathEvent = death;
     }
@@ -277,7 +296,7 @@ describe("dino run (meteor dodge)", () => {
       room.state.teams.B.dinoRun.skyObjects = [];
       for (const fruit of fruits) {
         rooms.applyDinoPositionInput(room, "A", playerA, { seq: fruit.id + 1, x: fruit.x, clientTime: now }, now);
-        rooms.tickDinoCollisions(room, now + fruit.hitAtMs + 1);
+        rooms.tickDinoCollisions(room, now + fruit.hitAtMs + SKY_OBJECT_COLLISION_GRACE_MS + 1);
       }
 
       const evalNow = now + DINO_RUN_DURATION_MS + 1;
