@@ -1618,6 +1618,44 @@ body {
   flex-shrink: 0;
 }
 
+/* 레이아웃에 영향을 주지 않도록 절대 위치로 겹쳐 띄운다 — 뜨고 사라져도 HUD/트랙이 밀리지 않는다. */
+.dino-run__toast {
+  position: absolute;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  margin: 0;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: rgba(15, 9, 4, 0.78);
+  border: 1px solid rgba(255, 240, 220, 0.35);
+  color: #fff8ec;
+  font-family: "Baloo 2", sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: dino-toast-pop 1.8s ease-out;
+}
+
+@keyframes dino-toast-pop {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-6px);
+  }
+  12% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  78% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 .dino-run__track {
   position: relative;
   flex: 1;
