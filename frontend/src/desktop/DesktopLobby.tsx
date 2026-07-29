@@ -47,6 +47,8 @@ import {
 
 const CROSSHAIR_STALE_MS = 700;
 const TEAM_EMBLEM: Record<TeamId, string> = { A: "🔥", B: "❄️" };
+const LOBBY_BGM_VOLUME = 0.26;
+const LOBBY_BGM_FADE_MS = 900;
 
 function ReadyCheckIcon(): JSX.Element {
   return (
@@ -59,6 +61,8 @@ function ReadyCheckIcon(): JSX.Element {
 
 export function DesktopLobby(): JSX.Element {
   const socketRef = useRef<AppSocket | null>(null);
+  const lobbyBgmRef = useRef<HTMLAudioElement | null>(null);
+  const lobbyBgmFadeRef = useRef<number | null>(null);
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [joinUrl, setJoinUrl] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -66,6 +70,7 @@ export function DesktopLobby(): JSX.Element {
   const [connected, setConnected] = useState(false);
   const [homeStarted, setHomeStarted] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [bgmMuted, setBgmMuted] = useState(false);
   const [ephemeral, setEphemeral] = useState<ChargingEphemeral>({
     trexByTeam: {},
     crosshairsByPlayer: {},
@@ -78,6 +83,64 @@ export function DesktopLobby(): JSX.Element {
   const isChargingBattle =
     roomState?.roomPhase === "PLAYING" &&
     (roomState.teams.A.phase === "CHARGING" || roomState.teams.B.phase === "CHARGING");
+
+  useEffect(() => {
+    const audio = new Audio("/audio/lobby-bgm.mp3");
+    audio.loop = true;
+    audio.preload = "auto";
+    audio.volume = LOBBY_BGM_VOLUME;
+    lobbyBgmRef.current = audio;
+    const retryAutoplay = () => {
+      if (!bgmMuted && (!roomState || roomState.roomPhase === "LOBBY")) {
+        void audio.play().catch(() => undefined);
+      }
+    };
+    void audio.play().catch(() => undefined);
+    window.addEventListener("pointerdown", retryAutoplay, { once: true });
+    window.addEventListener("keydown", retryAutoplay, { once: true });
+
+    return () => {
+      if (lobbyBgmFadeRef.current !== null) window.clearInterval(lobbyBgmFadeRef.current);
+      window.removeEventListener("pointerdown", retryAutoplay);
+      window.removeEventListener("keydown", retryAutoplay);
+      audio.pause();
+      lobbyBgmRef.current = null;
+    };
+    // 최초 마운트 시 자동재생을 한 번 시도하고, 최신 상태 반영은 아래 effect가 담당한다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    const audio = lobbyBgmRef.current;
+    if (!audio) return;
+    if (lobbyBgmFadeRef.current !== null) {
+      window.clearInterval(lobbyBgmFadeRef.current);
+      lobbyBgmFadeRef.current = null;
+    }
+
+    const lobbyActive = !roomState || roomState.roomPhase === "LOBBY";
+    audio.muted = bgmMuted;
+    if (lobbyActive) {
+      audio.volume = LOBBY_BGM_VOLUME;
+      if (!bgmMuted) void audio.play().catch(() => undefined);
+      return;
+    }
+
+    if (audio.paused) return;
+    const startVolume = audio.volume;
+    const startedAt = performance.now();
+    lobbyBgmFadeRef.current = window.setInterval(() => {
+      const ratio = Math.min(1, (performance.now() - startedAt) / LOBBY_BGM_FADE_MS);
+      audio.volume = startVolume * (1 - ratio);
+      if (ratio >= 1) {
+        if (lobbyBgmFadeRef.current !== null) window.clearInterval(lobbyBgmFadeRef.current);
+        lobbyBgmFadeRef.current = null;
+        audio.pause();
+        audio.currentTime = 0;
+        audio.volume = LOBBY_BGM_VOLUME;
+      }
+    }, 50);
+  }, [bgmMuted, roomState?.roomPhase]);
 
   useEffect(() => {
     const socket = connectSocket("HOST");
@@ -330,6 +393,8 @@ export function DesktopLobby(): JSX.Element {
   }, [roomState, bridge]);
 
   const handleEnterFromHome = () => {
+    const audio = lobbyBgmRef.current;
+    if (audio && !bgmMuted) void audio.play().catch(() => undefined);
     setHomeStarted(true);
   };
 
@@ -345,8 +410,13 @@ export function DesktopLobby(): JSX.Element {
       <main className="desktop-lobby">
         <div className="home-screen">
           <div className="home-screen__scrim" />
-          <button type="button" className="home-screen__settings" aria-label="설정">
-            ⚙️
+          <button
+            type="button"
+            className="home-screen__settings"
+            aria-label={bgmMuted ? "로비 음악 켜기" : "로비 음악 끄기"}
+            onClick={() => setBgmMuted((muted) => !muted)}
+          >
+            {bgmMuted ? "🔇" : "🔊"}
           </button>
           <img className="home-screen__logo-mark" src="/images/logo.png" alt="내 티라노를 살려내!" />
           <div className="home-screen__corner">
@@ -362,6 +432,16 @@ export function DesktopLobby(): JSX.Element {
 
   return (
     <main className="desktop-lobby">
+      {(!roomState || roomState.roomPhase === "LOBBY") && (
+        <button
+          type="button"
+          className="lobby-bgm-toggle"
+          aria-label={bgmMuted ? "로비 음악 켜기" : "로비 음악 끄기"}
+          onClick={() => setBgmMuted((muted) => !muted)}
+        >
+          {bgmMuted ? "🔇" : "🔊"}
+        </button>
+      )}
       {/* 사격 화면은 별도 Three.js WebGL을 사용한다. 이때 Godot까지 뒤에서 계속 렌더링하면
           GPU 컨텍스트 두 개가 경쟁하므로 사격 동안 iframe을 언마운트해 자원을 해제한다. */}
       {!isChargingBattle && <GodotStage />}

@@ -6,11 +6,11 @@ const SEGS := 64
 const DIG_ZONE_RADIUS := 3.8
 const SCOOP_RADIUS_MIN := 1.3
 const SCOOP_RADIUS_MAX := 2.3
-const SCOOP_DEPTH_MIN := 0.4
-const SCOOP_DEPTH_MAX := 0.95
+const SCOOP_DEPTH_MIN := 0.48
+const SCOOP_DEPTH_MAX := 1.14
 # 같은 지점이 여러 번 겹쳐 파여도 이 이상 깊어지지 않게 막아, 한 곳만 뾰족하게
 # 깊어지는 대신 구덩이 전체가 고르게 울퉁불퉁한 깊이를 유지하게 한다.
-const MAX_DIG_DEPTH := 1.9
+const MAX_DIG_DEPTH := 2.8
 # 바닥이 이 최대 깊이를 "하나의 평평한 값"으로 막으면, 삽질이 계속 쌓일수록 점점 더 많은
 # 정점이 똑같은 값에 눌러붙어 결국 넓은 구간이 판판해진다 — 발굴이 진행될수록 오히려
 # 매끈해지던 원인이 이것이다. 막는 깊이 자체를 위치별로 들쭉날쭉하게 만들어, 다 파여
