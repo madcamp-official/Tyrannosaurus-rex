@@ -76,9 +76,9 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
         child.material = hadMultipleMaterials ? clonedMaterials : clonedMaterials[0]!;
       });
 
-      // 원본 모델의 긴 몸체 축은 Z축이다. 사격 화면에서는 회전하지 않은
-      // 정면 자세로 등장하고, 결과 화면만 가로로 걷기 위해 옆면으로 돌린다.
-      loadedModel.rotation.y = mode === "battle" ? 0 : Math.PI / 2;
+      // 원본 모델의 긴 몸체 축은 Z축이다. 사격과 승리 화면 모두 회전하지
+      // 않은 정면 자세를 사용하고, 정적인 와이라노만 기존 옆면 구도를 유지한다.
+      loadedModel.rotation.y = mode === "yranno" ? Math.PI / 2 : 0;
       let bounds = new THREE.Box3().setFromObject(loadedModel);
       let center = bounds.getCenter(new THREE.Vector3());
 
@@ -149,8 +149,8 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
         return;
       }
 
-      // 원본 육체 티라노에는 리그/걷기 클립이 없다. 실제 3D 모델을 초원 위에서 이동시키고,
-      // 보폭에 맞춘 상하·앞뒤 흔들림과 방향 전환을 조합해 걷는 움직임을 만든다.
+      // 육체 티라노는 카메라 정면을 계속 바라본 채 제자리에서 폴짝인다.
+      // 좌우 이동과 Y축 회전을 없애 결과 화면에서 빙글 도는 인상을 제거한다.
       const animateWinner = (time: number) => {
         if (disposed) return;
         animationFrame = window.requestAnimationFrame(animateWinner);
@@ -160,14 +160,13 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
         previousRenderTime = time - ((time - previousRenderTime) % interval);
 
         const elapsed = (time - animationStartedAt) / 1000;
-        const travel = Math.sin(elapsed * 0.72);
-        const direction = Math.cos(elapsed * 0.72);
-        const step = elapsed * 5.6;
-        motionRoot.position.x = travel * size.x * 0.34;
-        motionRoot.position.y = Math.abs(Math.sin(step)) * size.y * 0.025;
-        motionRoot.rotation.z = Math.sin(step) * 0.018;
-        const targetFacing = direction >= 0 ? 0 : Math.PI;
-        motionRoot.rotation.y = THREE.MathUtils.lerp(motionRoot.rotation.y, targetFacing, 0.16);
+        const jump = Math.sin(elapsed * Math.PI * 1.6);
+        const jumpHeight = Math.max(0, jump) ** 2;
+        motionRoot.position.x = 0;
+        motionRoot.position.y = jumpHeight * size.y * 0.12;
+        motionRoot.rotation.x = -jumpHeight * 0.035;
+        motionRoot.rotation.y = 0;
+        motionRoot.rotation.z = Math.sin(elapsed * Math.PI * 3.2) * 0.006;
         renderer.render(scene, camera);
       };
       animationFrame = window.requestAnimationFrame(animateWinner);

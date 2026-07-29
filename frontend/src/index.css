@@ -2411,14 +2411,16 @@ body {
 
 .result-view::before {
   z-index: -2;
-  background: #68412f url("/images/kaist_front_sunset.png") center center / cover no-repeat;
-  filter: blur(9px) saturate(85%) brightness(58%);
-  transform: scale(1.035);
+  background:
+    linear-gradient(180deg, rgba(4, 9, 21, 0.05) 0%, rgba(7, 11, 14, 0.1) 44%, rgba(19, 29, 16, 0.22) 100%),
+    url("/images/excavation-grass.jpg") center bottom / 100% 58% no-repeat,
+    #07101f url("/images/night-sky.jpg") center top / cover no-repeat;
+  filter: saturate(90%) brightness(72%);
 }
 
 .result-view::after {
   z-index: -1;
-  background: linear-gradient(180deg, rgba(20, 12, 9, 0.16), rgba(9, 8, 7, 0.48));
+  background: linear-gradient(180deg, rgba(2, 5, 12, 0.1), rgba(8, 10, 7, 0.34));
 }
 
 .result-view__top-logo {
