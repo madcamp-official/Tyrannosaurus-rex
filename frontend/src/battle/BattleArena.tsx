@@ -54,7 +54,7 @@ export function BattleArena({
         style={{
           left: pct(trex.x),
           top: pct(TREX_BASELINE),
-          transform: `translate(-50%, -50%) scaleX(${trex.facing})`,
+          transform: "translate(-50%, -50%)",
         }}
       >
         <BattleTrexModel />

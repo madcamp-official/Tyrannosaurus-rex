@@ -2,9 +2,9 @@ import { useEffect, useRef } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-const CANVAS_WIDTH = 1240;
-const CANVAS_HEIGHT = 720;
-const BATTLE_WALK_FPS = 15;
+const CANVAS_WIDTH = 1600;
+const CANVAS_HEIGHT = 900;
+const BATTLE_WALK_FPS = 24;
 const RESULT_WALK_FPS = 15;
 
 type TrexModelMode = "battle" | "winner" | "yranno";
@@ -20,7 +20,7 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
     const renderer = new THREE.WebGLRenderer({
       canvas,
       alpha: true,
-      antialias: isWinner,
+      antialias: true,
       powerPreference: "high-performance",
     });
     // CSS 확대 시 원본 620×360 비트맵이 그대로 늘어나던 현상을 막기 위해
@@ -110,7 +110,7 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
 
       // 원본 모델의 긴 몸체 축은 Z축이다. 사격과 승리 화면 모두 회전하지
       // 않은 정면 자세를 사용하고, 정적인 와이라노만 기존 옆면 구도를 유지한다.
-      loadedModel.rotation.y = mode === "yranno" ? Math.PI / 2 : isWinner ? Math.PI * 0.1 : 0;
+      loadedModel.rotation.y = mode === "yranno" ? Math.PI / 2 : 0;
       let bounds = new THREE.Box3().setFromObject(loadedModel);
       let center = bounds.getCenter(new THREE.Vector3());
 
@@ -145,7 +145,7 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
       const cameraDistance = Math.max(distanceForHeight, distanceForWidth) * 1.18 + size.z * 0.5;
       const viewDistance = isWinner ? cameraDistance * 0.84 : cameraDistance;
       camera.position.set(0, isWinner ? size.y * 0.2 : size.y * 0.04, viewDistance);
-      camera.lookAt(0, isWinner ? -size.y * 0.12 : 0, 0);
+      camera.lookAt(0, isWinner ? size.y * 0.08 : 0, 0);
       camera.near = Math.max(0.01, viewDistance - size.z * 1.5);
       camera.far = viewDistance + size.z * 2;
       camera.updateProjectionMatrix();
@@ -174,10 +174,9 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
 
           const elapsed = (time - animationStartedAt) / 1000;
           const step = elapsed * 5.2;
-          const turnWave = Math.sin(elapsed * 0.5);
-          // sin³ 곡선은 정면(0도) 부근에 더 오래 머물고 방향 전환 지점의 속도가
-          // 자연스럽게 0이 된다. 최대 각도도 45도 안쪽으로 제한해 옆면보다 정면을 강조한다.
-          motionRoot.rotation.y = turnWave * turnWave * turnWave * 0.78;
+          // 단일 사인 곡선으로 -30°부터 +30°까지 연속 회전한다. 서버 facing
+          // 값으로 캔버스를 순간 반전하지 않으므로 방향 전환 중 각도가 끊기지 않는다.
+          motionRoot.rotation.y = Math.sin(elapsed * 0.42) * Math.PI / 6;
           motionRoot.rotation.z = Math.sin(step) * 0.008;
           motionRoot.position.y = Math.abs(Math.sin(step)) * size.y * 0.006;
           renderer.render(scene, camera);
@@ -202,7 +201,7 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
         motionRoot.position.x = 0;
         motionRoot.position.y = jumpHeight * size.y * 0.12;
         motionRoot.rotation.x = -jumpHeight * 0.035;
-        motionRoot.rotation.y = 0;
+        motionRoot.rotation.y = Math.sin(elapsed * 0.75) * Math.PI / 6;
         motionRoot.rotation.z = Math.sin(elapsed * Math.PI * 3.2) * 0.006;
         renderer.render(scene, camera);
       };
