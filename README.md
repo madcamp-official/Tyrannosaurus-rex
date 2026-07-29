@@ -91,6 +91,10 @@ curl http://localhost:3001/api/ready
 curl http://localhost:3001/api/version
 ```
 
+## 서드파티 에셋 크레딧
+
+- **Low Poly Trees - Free Asset Pack** by [PeToDes](https://sketchfab.com/PeToDes) — [출처](https://sketchfab.com/3d-models/low-poly-trees-free-asset-pack-13968bae706b4d6ba5074be9a0a0f974), [CC-BY-4.0](http://creativecommons.org/licenses/by/4.0/) 라이선스. `frontend/public/models/low_poly_trees/`에 포함되어 있으며, 사격 화면의 KAIST 정문 3D 배경(`frontend/src/battle/kaistGateStage.ts`)에서 배경 나무로 사용한다. 라이선스 전문은 같은 폴더의 `LICENSE.txt` 참고.
+
 ## 커밋 컨벤션
 
 `type: 설명` 형식을 쓴다 (`feat`, `fix`, `docs`, `chore`, `test` 등). 기능 단위로 나눠 커밋한다.
