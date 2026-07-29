@@ -16,6 +16,8 @@ export interface BattleTeam {
   energy: number;
   totalHits: number;
   coreHits: number;
+  /** 부활 에너지를 먼저 채운 팀이 WIN. */
+  result: "WIN" | "LOSE" | "DRAW" | null;
 }
 
 export interface BattleTrex {
@@ -52,7 +54,7 @@ export interface BattleShotEvent {
 }
 
 export function emptyTeam(): BattleTeam {
-  return { name: "", players: [], energy: 0, totalHits: 0, coreHits: 0 };
+  return { name: "", players: [], energy: 0, totalHits: 0, coreHits: 0, result: null };
 }
 
 export function hitRate(team: BattleTeam): number {

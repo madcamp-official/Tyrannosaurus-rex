@@ -25,6 +25,10 @@ export const ROUND_TRANSITION_MS = 3_000;
 // 입력이 100ms(MOBILE_INPUT_FLUSH_MS) 단위로 배치 전송되다 보니 실력이 비슷하면 두 팀이 거의 동시에
 // 끝나는 일이 실제로 있다 — 그 체감을 살려 이 시간 안에 이어서 끝나면 둘 다 DRAW로 정정한다.
 export const EXCAVATION_DRAW_WINDOW_MS = 300;
+// 사격도 발굴과 같은 패턴 — 부활 에너지를 먼저 채운 팀이 WIN이지만, 배경 틱(10Hz, 100ms)
+// 단위로 판정되다 보니 실력이 비슷하면 두 팀이 거의 동시에 채우는 일이 있다 — 이 시간 안에
+// 이어서 채우면 둘 다 DRAW로 정정한다.
+export const CHARGING_DRAW_WINDOW_MS = 300;
 // Plan.md §4는 "완만한 효율 감소"라고만 서술하고 정확한 수치는 주지 않는다. 팀 합산 초당 입력이
 // EXCAVATION_MAX_INPUTS_PER_SECOND(1인분 최대치)를 넘는 초과분에 이 배율을 곱해 점수로 인정한다.
 export const EXCAVATION_TEAM_OVERFLOW_EFFICIENCY = 0.5;

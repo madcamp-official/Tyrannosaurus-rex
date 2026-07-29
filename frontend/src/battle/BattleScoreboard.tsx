@@ -21,6 +21,11 @@ export function BattleScoreboard({ team, teamId }: { team: BattleTeam; teamId: T
       <div className="battle-board__header">
         <span className="battle-board__emblem">{TEAM_EMBLEM[teamId]}</span>
         <span className="battle-board__name">{team.name}</span>
+        {team.result && (
+          <span className={`battle-board__result battle-board__result--${team.result.toLowerCase()}`}>
+            {team.result === "WIN" ? "🏆 부활 성공" : team.result === "DRAW" ? "무승부" : "부활 실패"}
+          </span>
+        )}
         <span className="battle-board__sub">
           {team.players.length}명 · 명중률 {hitRate(team)}%
         </span>
