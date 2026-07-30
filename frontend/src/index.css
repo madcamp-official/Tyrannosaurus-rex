@@ -2130,6 +2130,7 @@ body {
   font-size: clamp(34px, 4.4vw, 64px);
   font-weight: 400;
   line-height: 1.4;
+  white-space: pre-line;
   text-shadow: 0 8px 28px rgba(0, 0, 0, 0.62);
 }
 
@@ -2946,7 +2947,7 @@ body {
     padding: 28px 20px;
   }
 
-  .sensor-gate__countdown {
+.sensor-gate__countdown {
     font-size: clamp(42px, 12vw, 58px);
   }
 
@@ -2998,6 +2999,10 @@ body {
     min-height: 110px;
     font-size: clamp(31px, 9vw, 42px);
   }
+}
+
+.sensor-gate .mobile-game__hint {
+  white-space: pre-line;
 }
 
 @media (max-width: 640px) and (max-height: 700px) {
