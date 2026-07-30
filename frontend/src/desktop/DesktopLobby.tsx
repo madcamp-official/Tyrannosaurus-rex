@@ -124,11 +124,15 @@ export function DesktopLobby(): JSX.Element {
   const socketRef = useRef<AppSocket | null>(null);
   const lobbyBgmRef = useRef<HTMLAudioElement | null>(null);
   const lobbyBgmFadeRef = useRef<number | null>(null);
+  // 방을 만든 뒤 room:create 응답으로 받은 토큰 — 소켓이 잠깐 끊겼다 돌아오면(와이파이 순단,
+  // 노트북 절전 등) 이 값으로 같은 방을 다시 붙잡는다(§room:hostReconnect).
+  const hostSessionRef = useRef<{ roomCode: string; hostReconnectToken: string } | null>(null);
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [joinUrl, setJoinUrl] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [startError, setStartError] = useState<string | null>(null);
   const [connected, setConnected] = useState(false);
+  const [hostReconnectStatus, setHostReconnectStatus] = useState<"idle" | "reconnecting" | "failed">("idle");
   const [homeStarted, setHomeStarted] = useState(false);
   const [creating, setCreating] = useState(false);
   const [bgmMuted, setBgmMuted] = useState(false);
@@ -210,7 +214,32 @@ export function DesktopLobby(): JSX.Element {
     const socket = connectSocket("HOST");
     socketRef.current = socket;
 
-    socket.on("connect", () => setConnected(true));
+    socket.on("connect", () => {
+      setConnected(true);
+      // hostSessionRef가 있으면 이번 connect는 방을 만든 뒤 일어난 재연결이다 — Socket.IO가
+      // 새 소켓으로 다시 붙어도 서버 쪽 socket.data(roomCode 등)는 이어지지 않으므로, 토큰으로
+      // 같은 방을 다시 붙잡아야 한다.
+      const session = hostSessionRef.current;
+      if (!session) return;
+      setHostReconnectStatus("reconnecting");
+      socket.emit(
+        "room:hostReconnect",
+        { requestId: newRequestId(), roomCode: session.roomCode, hostReconnectToken: session.hostReconnectToken },
+        (ack: Ack<{ state: RoomState }>) => {
+          if (!ack.ok) {
+            hostSessionRef.current = null;
+            setHostReconnectStatus("failed");
+            return;
+          }
+          setRoomState(ack.data.state);
+          setHostReconnectStatus("idle");
+        },
+      );
+    });
+    socket.on("disconnect", () => {
+      setConnected(false);
+      if (hostSessionRef.current) setHostReconnectStatus("reconnecting");
+    });
 
     socket.on("room:state", (evt) => {
       setRoomState(evt.data);
@@ -423,6 +452,7 @@ export function DesktopLobby(): JSX.Element {
           setStartError(describeAckError(ack.error.code));
           return;
         }
+        hostSessionRef.current = { roomCode: ack.data.roomCode, hostReconnectToken: ack.data.hostReconnectToken };
         setJoinUrl(ack.data.joinUrl);
         setRoomState(ack.data.state);
       },
@@ -480,6 +510,14 @@ export function DesktopLobby(): JSX.Element {
 
   return (
     <main className="desktop-lobby">
+      {hostReconnectStatus === "reconnecting" && (
+        <div className="host-reconnect-banner host-reconnect-banner--pending">서버와 연결이 끊어졌어요. 재연결 시도 중…</div>
+      )}
+      {hostReconnectStatus === "failed" && (
+        <div className="host-reconnect-banner host-reconnect-banner--failed">
+          방 연결을 되살리지 못했어요. 새로고침해서 다시 시작해주세요.
+        </div>
+      )}
       {(!roomState || roomState.roomPhase === "LOBBY") && (
         <button
           type="button"

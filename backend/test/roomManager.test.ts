@@ -174,4 +174,78 @@ describe("RoomManager", () => {
       expect(finalized).toBe(false);
     });
   });
+
+  describe("host reconnect", () => {
+    it("issues a hostReconnectToken on creation", () => {
+      const rooms = makeManager();
+      const created = rooms.createRoom("host-socket-token", "테스트 방", 5)!;
+      expect(created.room.hostReconnectToken).toMatch(/^[0-9a-f-]{36}$/);
+      expect(created.room.hostDisconnectedAt).toBeNull();
+    });
+
+    it("markHostDisconnected keeps the room alive but clears hostSocketId", () => {
+      const rooms = makeManager();
+      const created = rooms.createRoom("host-socket-a", "테스트 방", 5)!;
+      const now = Date.now();
+
+      rooms.markHostDisconnected(created.room, now);
+
+      expect(created.room.hostSocketId).toBeNull();
+      expect(created.room.hostDisconnectedAt).toBe(now);
+      expect(rooms.getRoom(created.room.state.roomCode)).not.toBeUndefined();
+    });
+
+    it("reconnectHost re-binds a new socket id when the token matches", () => {
+      const rooms = makeManager();
+      const created = rooms.createRoom("host-socket-b", "테스트 방", 5)!;
+      const roomCode = created.room.state.roomCode;
+      rooms.markHostDisconnected(created.room, Date.now());
+
+      const reconnected = rooms.reconnectHost(roomCode, created.room.hostReconnectToken, "host-socket-b-new");
+
+      expect(reconnected).not.toBeNull();
+      expect(reconnected!.hostSocketId).toBe("host-socket-b-new");
+      expect(reconnected!.hostDisconnectedAt).toBeNull();
+    });
+
+    it("reconnectHost rejects a wrong token", () => {
+      const rooms = makeManager();
+      const created = rooms.createRoom("host-socket-c", "테스트 방", 5)!;
+      const roomCode = created.room.state.roomCode;
+      rooms.markHostDisconnected(created.room, Date.now());
+
+      const reconnected = rooms.reconnectHost(roomCode, "not-the-real-token", "host-socket-c-new");
+
+      expect(reconnected).toBeNull();
+      // 실패한 재연결 시도가 기존 disconnect 상태를 건드리면 안 된다.
+      expect(created.room.hostSocketId).toBeNull();
+    });
+
+    it("reconnectHost rejects a room code that no longer exists", () => {
+      const rooms = makeManager();
+      const reconnected = rooms.reconnectHost("9999", "any-token", "some-socket");
+      expect(reconnected).toBeNull();
+    });
+
+    it("sweepDisconnectedHostRooms closes only rooms whose host has been gone past the grace period", () => {
+      const rooms = makeManager();
+      const graceMs = 30_000;
+      const now = Date.now();
+
+      const staleCreated = rooms.createRoom("host-stale", "오래된 방", 5)!;
+      rooms.markHostDisconnected(staleCreated.room, now - graceMs - 1);
+
+      const freshCreated = rooms.createRoom("host-fresh", "방금 끊긴 방", 5)!;
+      rooms.markHostDisconnected(freshCreated.room, now - 1_000);
+
+      const untouchedCreated = rooms.createRoom("host-untouched", "멀쩡한 방", 5)!;
+
+      const closed = rooms.sweepDisconnectedHostRooms(graceMs);
+
+      expect(closed.map((r) => r.state.roomCode)).toEqual([staleCreated.room.state.roomCode]);
+      expect(rooms.getRoom(staleCreated.room.state.roomCode)).toBeUndefined();
+      expect(rooms.getRoom(freshCreated.room.state.roomCode)).not.toBeUndefined();
+      expect(rooms.getRoom(untouchedCreated.room.state.roomCode)).not.toBeUndefined();
+    });
+  });
 });
