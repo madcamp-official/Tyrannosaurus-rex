@@ -29,6 +29,12 @@ const MAX_FRAME_DELTA_DEG = 75;
 // 아예 필터 갱신을 건너뛰고 마지막 안정값을 유지한다 — 조준점이 그 구간에서 튀는 대신
 // 가장자리에서 멈춰 있는 것처럼 보인다.
 const GAMMA_UNSTABLE_ZONE_DEG = 80;
+// DeviceOrientationEvent는 alpha(Z)→beta(X')→gamma(Y'') 순서로 회전을 분해하는데, 가운데
+// 회전인 beta가 ±90도에 가까워지면 alpha와 gamma가 서로 뒤엉키는 진짜 짐벌락 지점이다 —
+// 화면을 위로 많이 젖힐 때(beta가 90도 쪽으로 붙을 때) 조준점이 위/아래는 멀쩡한데 좌우로
+// 튀는 게 바로 이 증상이다(좌우=gamma가 그 근방에서 불안정해짐). beta가 90도(또는 -90도)
+// 근처 이 마진 안에 들어오면 마찬가지로 그 프레임의 필터 반영을 건너뛴다.
+const BETA_GIMBAL_LOCK_MARGIN_DEG = 12;
 
 type OrientationPermissionApi = { requestPermission?: () => Promise<"granted" | "denied"> };
 
@@ -87,12 +93,13 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
         const rawDeltaBeta = Math.abs(event.beta - lastRawRef.current.beta);
         const rawDeltaGamma = Math.abs(event.gamma - lastRawRef.current.gamma);
         const isGlitch = rawDeltaBeta > MAX_FRAME_DELTA_DEG || rawDeltaGamma > MAX_FRAME_DELTA_DEG;
-        const isNearGimbalLock = Math.abs(event.gamma) > GAMMA_UNSTABLE_ZONE_DEG;
+        const isNearGammaGimbalLock = Math.abs(event.gamma) > GAMMA_UNSTABLE_ZONE_DEG;
+        const isNearBetaGimbalLock = Math.abs(Math.abs(event.beta) - 90) < BETA_GIMBAL_LOCK_MARGIN_DEG;
         // raw 추적값은 글리치/불안정 여부와 무관하게 항상 갱신한다 — 그래야 다음 프레임의
         // 비교 기준이 실제 기기 자세를 계속 따라가고, 정상적인 빠른 움직임이 연쇄적으로
         // 계속 걸러지는 일이 없다. 딱 이 프레임의 필터 반영만 건너뛴다.
         lastRawRef.current = { beta: event.beta, gamma: event.gamma };
-        if (isGlitch || isNearGimbalLock) return;
+        if (isGlitch || isNearGammaGimbalLock || isNearBetaGimbalLock) return;
         filteredRef.current = {
           beta: filteredRef.current.beta + (event.beta - filteredRef.current.beta) * LOW_PASS_ALPHA,
           gamma: filteredRef.current.gamma + (event.gamma - filteredRef.current.gamma) * LOW_PASS_ALPHA,
