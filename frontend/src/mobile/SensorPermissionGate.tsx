@@ -11,7 +11,7 @@ import { useCountdownSound } from "../audio/useCountdownSound";
 
 const GUIDE_BY_PHASE: Record<TeamPhase, string> = {
   ASSEMBLY: "운석을 피하고\n과일과 하트를 획득하세요!",
-  EXCAVATION: "휴대폰을 흔들어 티라노의 뼈를 발굴하세요!",
+  EXCAVATION: "휴대폰을 흔들거나 버튼을 눌러\n티라노의 뼈를 발굴하세요!",
   CHARGING_PRACTICE: "조준점을 중앙에 맞춰\n레이저 영점을 조정하세요!",
   CHARGING: "조준하고 발사해 부활 에너지를 채우세요!",
   REVIVED: "데스크탑에서 결과를 확인하세요!",
