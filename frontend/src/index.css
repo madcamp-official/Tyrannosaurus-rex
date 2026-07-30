@@ -1486,26 +1486,74 @@ body {
   justify-content: center;
   gap: 20px;
   padding: 32px 24px;
+  touch-action: manipulation;
+  transition: background 0.1s ease-out;
 }
 
-.dig-button {
-  width: clamp(240px, 78vw, 340px);
-  height: clamp(240px, 78vw, 340px);
-  border-radius: 50%;
-  font-size: clamp(2.2rem, 11vw, 3rem);
-  background: #e8c34a;
-  box-shadow: 0 8px 0 #b8933a;
-  border: none;
-  color: #3d2a12;
-  transition: transform 0.1s ease-out;
+/* 흔들거나(또는 화면을 탭해) 발굴 입력이 들어갈 때마다 아주 짧게 배경이 밝아진다 —
+   예전엔 "파기" 버튼 하나에만 주던 효과를 화면 전체로 옮겼다. */
+.excavation-controls--shake-flash {
+  background: rgba(245, 216, 115, 0.14);
+}
+
+/* 뼈를 새로 발견했을 때는 훨씬 크고 뚜렷하게 번쩍인다. */
+.excavation-controls--bone-flash {
+  animation: excavation-bone-flash 1.4s ease-out;
+}
+
+@keyframes excavation-bone-flash {
+  0% { background: rgba(245, 216, 115, 0.55); }
+  20% { background: rgba(245, 216, 115, 0.1); }
+  35% { background: rgba(245, 216, 115, 0.45); }
+  100% { background: transparent; }
+}
+
+.excavation-controls__found-toast {
+  margin: 0;
+  padding: 10px 20px;
+  border-radius: 999px;
+  background: rgba(61, 42, 18, 0.75);
+  color: #ffe9b0;
   font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
-  font-weight: 400;
+  font-size: clamp(1.1rem, 4.5vw, 1.4rem);
+  text-align: center;
+  animation: excavation-found-toast-pop 0.3s ease-out;
 }
 
-.dig-button:active,
-.dig-button--flash {
-  transform: scale(0.92);
-  background: #f5d873;
+@keyframes excavation-found-toast-pop {
+  0% { transform: scale(0.85); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.excavation-controls__bone-list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  width: 100%;
+  max-width: 360px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.excavation-controls__bone {
+  padding: 8px 4px;
+  border-radius: 10px;
+  background: rgba(15, 9, 4, 0.4);
+  border: 1px solid rgba(255, 240, 220, 0.2);
+  color: rgba(255, 240, 220, 0.45);
+  font-size: 0.8rem;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.excavation-controls__bone--found {
+  background: rgba(232, 195, 74, 0.25);
+  border-color: #e8c34a;
+  color: #ffe9b0;
+  font-weight: 700;
 }
 
 .puzzle-view__canvas {
@@ -3010,12 +3058,6 @@ body {
   .excavation-controls {
     gap: clamp(22px, 4vh, 34px);
     padding: 24px 18px;
-  }
-
-  .dig-button {
-    width: min(82vw, 380px);
-    height: min(82vw, 380px);
-    font-size: clamp(2.6rem, 12vw, 3.6rem);
   }
 
   .dino-run {
