@@ -61,7 +61,7 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
   const [calibrated, setCalibrated] = useState(false);
   const [point, setPoint] = useState<NormalizedPoint>({ x: 0.5, y: 0.5 });
   const [cooldownActive, setCooldownActive] = useState(false);
-  const [lastResult, setLastResult] = useState<"HIT" | "MISS" | null>(null);
+  const [lastResult, setLastResult] = useState<"HIT" | "CORE_HIT" | "MISS" | null>(null);
 
   const pointRef = useRef(point);
   pointRef.current = point;
@@ -179,8 +179,12 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
     }
     socket.emit("energy:fire", { requestId: newRequestId(), shotId: newRequestId(), clientTime: Date.now() }, (ack) => {
       if (!ack.ok) return;
-      setLastResult(ack.data.hit ? "HIT" : "MISS");
-      window.setTimeout(() => setLastResult(null), 400);
+      // hitZone이 "BONE"이면 몸통에 맞은 일반 명중이고, 그 외(HEART/SKULL/SPINE)면 그 순간의
+      // 활성 코어(약점)를 맞춘 것 — 이때만 진동과 함께 더 강하게 번쩍이게 한다.
+      const isCoreHit = ack.data.hit && ack.data.hitZone !== null && ack.data.hitZone !== "BONE";
+      setLastResult(isCoreHit ? "CORE_HIT" : ack.data.hit ? "HIT" : "MISS");
+      if (isCoreHit) navigator.vibrate?.([70, 40, 70]);
+      window.setTimeout(() => setLastResult(null), isCoreHit ? 500 : 400);
     });
   };
 
@@ -201,7 +205,9 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
         </button>
       )}
 
-      <div className={`aim-pad${lastResult === "HIT" ? " aim-pad--hit" : ""}${lastResult === "MISS" ? " aim-pad--miss" : ""}`}>
+      <div
+        className={`aim-pad${lastResult === "HIT" ? " aim-pad--hit" : ""}${lastResult === "CORE_HIT" ? " aim-pad--core-hit" : ""}${lastResult === "MISS" ? " aim-pad--miss" : ""}`}
+      >
         <div className="aim-pad__crosshair" style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }} />
       </div>
 

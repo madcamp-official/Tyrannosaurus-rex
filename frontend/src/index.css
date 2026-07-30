@@ -2325,6 +2325,18 @@ body {
   box-shadow: inset 0 0 0 4px rgba(255, 240, 220, 0.4);
 }
 
+/* 코어(약점) 명중 — 일반 명중보다 더 강하게, 두 번 번쩍이며 화면 전체가 밝아진다. */
+.aim-pad--core-hit {
+  animation: aim-pad-core-hit-flash 0.5s ease-out;
+}
+
+@keyframes aim-pad-core-hit-flash {
+  0% { box-shadow: inset 0 0 60px 18px rgba(255, 224, 102, 0.95); background: rgba(255, 224, 102, 0.35); }
+  35% { box-shadow: inset 0 0 10px 4px rgba(255, 224, 102, 0.5); background: rgba(255, 224, 102, 0.08); }
+  55% { box-shadow: inset 0 0 60px 18px rgba(255, 224, 102, 0.95); background: rgba(255, 224, 102, 0.35); }
+  100% { box-shadow: inset 0 0 0 4px rgba(255, 224, 102, 0); background: transparent; }
+}
+
 .aim-pad__crosshair {
   position: absolute;
   width: 24px;
