@@ -304,9 +304,9 @@
 
 .battle-stage-banner {
   position: absolute;
-  top: 102px;
+  top: 128px;
   left: 50%;
-  z-index: 5;
+  z-index: 6;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -785,7 +785,7 @@
 
 .battle-boards {
   position: absolute;
-  top: 150px;
+  top: 178px;
   left: 32px;
   right: 32px;
   z-index: 4;
