@@ -73,6 +73,7 @@ export function boneWaveSizes(waveCount: number): number[] {
 
 export type TeamId = "A" | "B";
 export const TEAM_IDS: readonly TeamId[] = ["A", "B"];
+export type TeamStyle = { emoji: string; color: string };
 
 export type SensorPermission = "UNKNOWN" | "GRANTED" | "DENIED" | "UNSUPPORTED";
 export type AimMode = "GYRO" | "TOUCHPAD";
@@ -286,6 +287,8 @@ export type RoomState = {
   maxPlayersPerTeam: number;
   /** Plan.md §2.2. 호스트가 방 생성 시 지정한 팀 표시 이름. 미지정 시 TEAM_DISPLAY_NAMES 기본값. */
   teamNames: Record<TeamId, string>;
+  /** 방 생성 시 무작위로 정해지며, 모든 클라이언트가 같은 팀 이모티콘과 색상을 사용한다. */
+  teamStyles: Record<TeamId, TeamStyle>;
   roomPhase: RoomPhase;
   createdAt: number;
   roundStartedAt: number | null;

@@ -6,6 +6,18 @@ export const TEAM_DISPLAY_NAMES: Record<"A" | "B", string> = {
   B: "F라노 팀",
 };
 
+/** 이모티콘의 대표색을 팀 UI 색으로 함께 사용한다. 한 방에서는 서로 다른 테마 두 개를 뽑는다. */
+export const TEAM_STYLE_OPTIONS = [
+  { emoji: "🔥", color: "#ff8a4c" },
+  { emoji: "❄️", color: "#78cfff" },
+  { emoji: "⚡", color: "#ffd84d" },
+  { emoji: "🌿", color: "#72d98b" },
+  { emoji: "💜", color: "#c995ff" },
+  { emoji: "🌊", color: "#54b9ff" },
+  { emoji: "🌸", color: "#ff91bd" },
+  { emoji: "🌙", color: "#a9a7ff" },
+] as const;
+
 // 팀 phase가 바뀔 때마다(발굴→조립→영점연습→사격) 이만큼은 모바일 화면에 "준비 중" 안내만
 // 보여주고 실제 조작 화면은 그 뒤에 드러낸다 — 처음엔 iOS 센서 권한 요청이 탭(제스처) 안에서만
 // 되므로 그 시간을 벌어주려고 넣었지만, 매 전환마다 숨 고를 시간을 주는 용도로도 쓴다.

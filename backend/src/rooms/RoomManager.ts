@@ -1,6 +1,6 @@
 /** Plan.md §17.1~17.4, §21. 방·팀·플레이어의 유일한 진실 소스. Day1 범위: 로비부터 게임 시작까지. */
 
-import { randomUUID } from "node:crypto";
+import { randomInt, randomUUID } from "node:crypto";
 import {
   CHARGING_DRAW_WINDOW_MS,
   CHARGING_PRACTICE_DURATION_MS,
@@ -28,6 +28,7 @@ import {
   SHOOTING_SCORE_CORE_HITS_FOR_FULL_MARKS,
   TEAM_DISPLAY_NAMES,
   TEAM_IDS,
+  TEAM_STYLE_OPTIONS,
   teamAveragePlayerScore,
   type AimUpdateInput,
   type BoneId,
@@ -266,6 +267,9 @@ export class RoomManager {
     if (!roomCode) return null;
 
     const now = Date.now();
+    const styleAIndex = randomInt(TEAM_STYLE_OPTIONS.length);
+    let styleBIndex = randomInt(TEAM_STYLE_OPTIONS.length - 1);
+    if (styleBIndex >= styleAIndex) styleBIndex += 1;
     const state: RoomState = {
       schemaVersion: 1,
       revision: 1,
@@ -275,6 +279,10 @@ export class RoomManager {
       teamNames: {
         A: teamNames?.A ?? TEAM_DISPLAY_NAMES.A,
         B: teamNames?.B ?? TEAM_DISPLAY_NAMES.B,
+      },
+      teamStyles: {
+        A: { ...TEAM_STYLE_OPTIONS[styleAIndex]! },
+        B: { ...TEAM_STYLE_OPTIONS[styleBIndex]! },
       },
       roomPhase: "LOBBY",
       createdAt: now,
