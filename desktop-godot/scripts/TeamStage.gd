@@ -24,6 +24,8 @@ var _pending_discovered: Array[String] = []
 var _phase: String = "EXCAVATION"
 var _hit_particles: CPUParticles3D
 var _dirt_particles: CPUParticles3D
+var _scoop_particles: CPUParticles3D
+var _rival_splash_particles: CPUParticles3D
 var _label: Label3D
 var _bone_highlight_material: StandardMaterial3D
 var _last_dig_progress := -EXCAVATION_DIG_STEP
@@ -35,6 +37,8 @@ func setup(id: String) -> void:
 	_build_model()
 	_build_hit_particles()
 	_build_dirt_particles()
+	_build_scoop_particles()
+	_build_rival_splash_particles()
 	_build_label()
 
 func _build_bone_highlight_material() -> void:
@@ -61,7 +65,7 @@ func _build_hit_particles() -> void:
 	_hit_particles = CPUParticles3D.new()
 	_hit_particles.emitting = false
 	_hit_particles.one_shot = true
-	_hit_particles.amount = 24
+	_hit_particles.amount = 36
 	_hit_particles.lifetime = 0.6
 	_hit_particles.explosiveness = 1.0
 	_hit_particles.direction = Vector3(0, 1, 0)
@@ -82,7 +86,7 @@ func _build_dirt_particles() -> void:
 	_dirt_particles.emitting = false
 	_dirt_particles.one_shot = true
 	# 양 팀이 동시에 발굴할 때 WebGL 파티클 오버드로우가 급증하지 않도록 제한한다.
-	_dirt_particles.amount = 26
+	_dirt_particles.amount = 40
 	_dirt_particles.lifetime = 1.05
 	_dirt_particles.explosiveness = 0.92
 	_dirt_particles.randomness = 0.38
@@ -98,6 +102,54 @@ func _build_dirt_particles() -> void:
 	dirt_chunk.size = Vector3(0.09, 0.07, 0.09)
 	_dirt_particles.mesh = dirt_chunk
 	add_child(_dirt_particles)
+
+## 삽질 한 번 한 번마다 타격감을 주는 짧은 흙 튐 — 뼈 발견 때 터지는 _dirt_particles와는
+## 별개 노드다. 삽질은 훨씬 자주 일어나서(§EXCAVATION_DIG_STEP) 같은 노드를 쓰면 뼈 발견
+## 연출과 겹칠 때 서로 restart()가 취소돼버린다.
+func _build_scoop_particles() -> void:
+	_scoop_particles = CPUParticles3D.new()
+	_scoop_particles.emitting = false
+	_scoop_particles.one_shot = true
+	_scoop_particles.amount = 22
+	_scoop_particles.lifetime = 0.5
+	_scoop_particles.explosiveness = 1.0
+	_scoop_particles.randomness = 0.35
+	_scoop_particles.direction = Vector3(0, 1, 0)
+	_scoop_particles.spread = 58.0
+	_scoop_particles.gravity = Vector3(0, -10.0, 0)
+	_scoop_particles.initial_velocity_min = 1.8
+	_scoop_particles.initial_velocity_max = 4.4
+	_scoop_particles.scale_amount_min = 0.35
+	_scoop_particles.scale_amount_max = 0.9
+	_scoop_particles.color = Color(0.36, 0.24, 0.13, 1.0)
+	var chunk := BoxMesh.new()
+	chunk.size = Vector3(0.07, 0.05, 0.07)
+	_scoop_particles.mesh = chunk
+	add_child(_scoop_particles)
+
+## 상대 팀이 뼈를 찾으면 우리 화면에 큼직한 흙먼지가 튀어 잠깐 시야를 어지럽힌다 —
+## 판정에는 전혀 영향 없는 순수 연출(방해 규칙: 화면 훼방).
+func _build_rival_splash_particles() -> void:
+	_rival_splash_particles = CPUParticles3D.new()
+	_rival_splash_particles.emitting = false
+	_rival_splash_particles.one_shot = true
+	_rival_splash_particles.amount = 70
+	_rival_splash_particles.lifetime = 1.3
+	_rival_splash_particles.explosiveness = 0.85
+	_rival_splash_particles.randomness = 0.5
+	_rival_splash_particles.position = Vector3(0, 1.6, 1.5)
+	_rival_splash_particles.direction = Vector3(0, 1, 0.4)
+	_rival_splash_particles.spread = 68.0
+	_rival_splash_particles.gravity = Vector3(0, -5.5, 0)
+	_rival_splash_particles.initial_velocity_min = 3.2
+	_rival_splash_particles.initial_velocity_max = 7.5
+	_rival_splash_particles.scale_amount_min = 0.9
+	_rival_splash_particles.scale_amount_max = 1.9
+	_rival_splash_particles.color = Color(0.32, 0.20, 0.11, 1.0)
+	var chunk := BoxMesh.new()
+	chunk.size = Vector3(0.1, 0.08, 0.1)
+	_rival_splash_particles.mesh = chunk
+	add_child(_rival_splash_particles)
 
 func _build_label() -> void:
 	_label = Label3D.new()
@@ -176,10 +228,22 @@ func on_excavation_progress(progress: float) -> void:
 	if absf(progress - _last_dig_progress) < EXCAVATION_DIG_STEP:
 		return
 	_last_dig_progress = progress
-	_ground.dig_random_scoop(progress)
+	var scoop_pos := _ground.dig_random_scoop(progress)
+	_burst_scoop_dirt(scoop_pos)
+
+func _burst_scoop_dirt(scoop_pos: Vector2) -> void:
+	if not _scoop_particles:
+		return
+	_scoop_particles.position = Vector3(scoop_pos.x, 0.15, scoop_pos.y)
+	_scoop_particles.restart()
 
 func on_bone_discovered(bone_id: String) -> void:
 	_reveal_piece(bone_id, true)
+
+func trigger_rival_dirt_splash() -> void:
+	if not _rival_splash_particles or _phase != "EXCAVATION":
+		return
+	_rival_splash_particles.restart()
 
 func _reveal_piece(bone_id: String, animate: bool) -> void:
 	if not _model_ready:
