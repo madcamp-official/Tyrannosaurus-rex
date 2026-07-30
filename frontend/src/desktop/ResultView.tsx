@@ -98,7 +98,7 @@ function TeamPanel({
         </div>
         <div className="result-view__team-score">
           <strong>{score}</strong>
-          <span>인당 평균점</span>
+          <span>인당 평균 점수</span>
         </div>
       </div>
       <ul className="result-view__stat-list">

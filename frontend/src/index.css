@@ -2528,7 +2528,6 @@ body {
   pointer-events: none;
   border-radius: inherit;
   background: rgba(255, 255, 255, 0.025);
-  backdrop-filter: blur(1.1px);
 }
 
 .result-view__trex--yranno {
