@@ -11,6 +11,7 @@ import {
   type PublicPlayer,
   type RoomState,
   type TeamId,
+  type TeamPhase,
   type TeamState,
 } from "@trex/shared";
 import { useEffect, useState } from "react";
@@ -107,7 +108,15 @@ function PhaseTimer({ roomState }: { roomState: RoomState }): JSX.Element | null
   );
 }
 
-function ServerPhaseCountdown({ roomState }: { roomState: RoomState }): JSX.Element | null {
+const PHASE_GUIDE: Record<TeamPhase, string> = {
+  ASSEMBLY: "좌우로 움직여 운석을 피하고 과일과 하트를 획득하세요!",
+  EXCAVATION: "휴대폰을 흔들거나 버튼을 눌러 티라노의 뼈를 발굴하세요!",
+  CHARGING_PRACTICE: "조준점을 화면 중앙에 맞춰 레이저 영점을 조정하세요!",
+  CHARGING: "휴대폰으로 조준하고 발사해 뼈라노에게 부활 에너지를 채우세요!",
+  REVIVED: "부활 결과를 확인하세요!",
+};
+
+function GameIntroOverlay({ roomState }: { roomState: RoomState }): JSX.Element | null {
   // 폰과 데스크탑의 시스템 시계가 서로 어긋나 있으면 같은 phaseStartedAt을 기준으로 해도
   // 카운트다운이 서로 다르게 보인다 — raw Date.now() 대신 서버 기준으로 보정된 serverNow()를 쓴다.
   const [nowMs, setNowMs] = useState(() => serverNow());
@@ -117,16 +126,36 @@ function ServerPhaseCountdown({ roomState }: { roomState: RoomState }): JSX.Elem
   }, []);
 
   const teams = TEAM_IDS.map((teamId) => roomState.teams[teamId]).filter((team) => team.phase !== "REVIVED");
-  const remainingSec = teams.length === 0
-    ? null
-    : Math.max(...teams.map((team) => Math.max(0, Math.ceil((team.phaseStartedAt + PHASE_START_GRACE_MS - nowMs) / 1000))));
+  const primary = teams[0];
+  const remainingSec = primary
+    ? Math.max(0, Math.ceil((primary.phaseStartedAt + PHASE_START_GRACE_MS - nowMs) / 1000))
+    : null;
   useCountdownSound(remainingSec);
-  if (remainingSec === null || remainingSec <= 0) return null;
+  if (!primary || remainingSec === null || remainingSec <= 0) return null;
+  const elapsedMs = Math.max(0, nowMs - primary.phaseStartedAt);
+
+  const eraText =
+    primary.phase === "ASSEMBLY"
+      ? "약 6,600만 년 전, 백악기 말…"
+      : primary.phase === "EXCAVATION"
+        ? "2026년의 대한민국…"
+        : null;
+  const showEra = eraText !== null && elapsedMs < 2_000;
+  const showGuide = !showEra && elapsedMs >= PHASE_START_GRACE_MS - 3_000;
 
   return (
-    <div className="server-phase-countdown">
-      <strong>{remainingSec}</strong>
-      <span>초 후 시작</span>
+    <div className="game-intro-overlay">
+      {showEra ? (
+        <p key={`era-${primary.phase}`} className="game-intro-overlay__era">{eraText}</p>
+      ) : showGuide ? (
+        <div key={`guide-${primary.phase}`} className="game-intro-overlay__guide">
+          <span>게임 방법</span>
+          <strong>{PHASE_GUIDE[primary.phase]}</strong>
+          <small>{remainingSec}초 후 시작</small>
+        </div>
+      ) : (
+        <span className="game-intro-overlay__eyebrow">다음 게임 준비</span>
+      )}
     </div>
   );
 }
@@ -287,7 +316,7 @@ export function PlayArea({ roomState, ephemeral }: { roomState: RoomState; ephem
     return (
       <>
         <BattleScreen battle={battle} shotEvents={ephemeral.battleShotEvents} aimPoints={aimPoints} />
-        <ServerPhaseCountdown roomState={roomState} />
+        <GameIntroOverlay roomState={roomState} />
       </>
     );
   }
@@ -333,7 +362,7 @@ export function PlayArea({ roomState, ephemeral }: { roomState: RoomState; ephem
       )}
       {teamPanel("B")}
       <PhaseTimer roomState={roomState} />
-      <ServerPhaseCountdown roomState={roomState} />
+      <GameIntroOverlay roomState={roomState} />
       {isDinoRunActive && <DinoRunOverlay roomState={roomState} />}
       {isPracticeActive && <PracticeAimOverlay roomState={roomState} crosshairs={practiceCrosshairs} />}
     </section>

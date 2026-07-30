@@ -10,6 +10,7 @@ import {
   type TeamId,
 } from "@trex/shared";
 import type { AppSocket } from "../socket";
+import { useState } from "react";
 import { newRequestId } from "../util/requestId";
 import { BattleTrexModel } from "../battle/BattleTrexModel";
 
@@ -127,14 +128,27 @@ export function ResultView({
   roomState,
   gameResult,
   socket,
+  onRematch,
 }: {
   roomState: RoomState;
   gameResult: GameResultEvent | null;
   socket: AppSocket | null;
+  onRematch: (state: RoomState) => void;
 }): JSX.Element {
+  const [rematchPending, setRematchPending] = useState(false);
+  const [rematchError, setRematchError] = useState<string | null>(null);
+
   const handleRematch = () => {
-    socket?.emit("game:rematch", { requestId: newRequestId() }, (ack: Ack<GameRematchResponse>) => {
-      void ack;
+    if (!socket || rematchPending) return;
+    setRematchPending(true);
+    setRematchError(null);
+    socket.emit("game:rematch", { requestId: newRequestId() }, (ack: Ack<GameRematchResponse>) => {
+      setRematchPending(false);
+      if (!ack.ok) {
+        setRematchError("재경기를 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.");
+        return;
+      }
+      onRematch(ack.data.state);
     });
   };
 
@@ -183,8 +197,9 @@ export function ResultView({
         </div>
       )}
 
-      <button type="button" className="lobby-start__button" onClick={handleRematch}>
-        재경기
+      {rematchError && <p className="result-view__rematch-error">{rematchError}</p>}
+      <button type="button" className="lobby-start__button" onClick={handleRematch} disabled={rematchPending || !socket}>
+        {rematchPending ? "로비로 돌아가는 중…" : "재경기"}
       </button>
     </section>
   );

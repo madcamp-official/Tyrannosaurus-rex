@@ -353,7 +353,7 @@ export function MobileJoin(): JSX.Element {
       <main className={`mobile-join mobile-join--team-${teamId.toLowerCase()}`}>
         <div className="mobile-join__bg" />
         <div className="mobile-join__scrim" />
-        <SensorPermissionGate phaseStartedAt={team.phaseStartedAt}>{content}</SensorPermissionGate>
+        <SensorPermissionGate phaseStartedAt={team.phaseStartedAt} phase={team.phase}>{content}</SensorPermissionGate>
       </main>
     );
   }

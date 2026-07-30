@@ -551,7 +551,16 @@ export function DesktopLobby(): JSX.Element {
 
         {roomState && roomState.roomPhase === "PLAYING" && <PlayArea roomState={roomState} ephemeral={ephemeral} />}
         {roomState && roomState.roomPhase === "RESULT" && (
-          <ResultView roomState={roomState} gameResult={gameResult} socket={socketRef.current} />
+          <ResultView
+            roomState={roomState}
+            gameResult={gameResult}
+            socket={socketRef.current}
+            onRematch={(state) => {
+              setRoomState(state);
+              setGameResult(null);
+              setStartError(null);
+            }}
+          />
         )}
 
         <DebugPanel bridge={bridge} />

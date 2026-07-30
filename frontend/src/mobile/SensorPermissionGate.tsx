@@ -5,11 +5,27 @@
  */
 
 import { useEffect, useState, type ReactNode } from "react";
-import { PHASE_START_GRACE_MS } from "@trex/shared";
+import { PHASE_START_GRACE_MS, type TeamPhase } from "@trex/shared";
 import { serverNow } from "../socket";
 import { useCountdownSound } from "../audio/useCountdownSound";
 
-export function SensorPermissionGate({ phaseStartedAt, children }: { phaseStartedAt: number; children: ReactNode }): JSX.Element {
+const GUIDE_BY_PHASE: Record<TeamPhase, string> = {
+  ASSEMBLY: "좌우로 움직여 운석을 피하세요!",
+  EXCAVATION: "휴대폰을 흔들어 티라노의 뼈를 발굴하세요!",
+  CHARGING_PRACTICE: "조준점을 중앙에 맞춰 영점을 조정하세요!",
+  CHARGING: "조준하고 발사해 부활 에너지를 채우세요!",
+  REVIVED: "데스크탑에서 결과를 확인하세요!",
+};
+
+export function SensorPermissionGate({
+  phaseStartedAt,
+  phase,
+  children,
+}: {
+  phaseStartedAt: number;
+  phase: TeamPhase;
+  children: ReactNode;
+}): JSX.Element {
   // 폰과 데스크탑의 시스템 시계가 서로 어긋나 있으면 같은 phaseStartedAt을 기준으로 해도
   // 카운트다운이 서로 다르게 보인다 — 각 기기의 raw Date.now() 대신 서버 기준으로 보정된
   // serverNow()를 써서 모든 화면이 같은 숫자를 보게 한다.
@@ -31,8 +47,8 @@ export function SensorPermissionGate({ phaseStartedAt, children }: { phaseStarte
       </div>
       {remainingSec > 0 && (
         <div className="sensor-gate">
-          <p className="mobile-game__title">🎮 준비 중…</p>
-          <p className="mobile-game__hint">서버 카운트다운 후 시작합니다.</p>
+          <p className="mobile-game__title">게임 방법</p>
+          <p className="mobile-game__hint">{GUIDE_BY_PHASE[phase]}</p>
           <p className="sensor-gate__countdown">{remainingSec}초 후 시작</p>
         </div>
       )}
