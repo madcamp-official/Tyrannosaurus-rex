@@ -1649,8 +1649,7 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 5%;
-  min-height: 18px;
+  height: clamp(18px, 5%, 34px);
   background-image: url("/images/dino-ground-tile.png");
   background-repeat: repeat;
   background-size: 120px auto;
@@ -1659,7 +1658,8 @@ body {
 
 .dino-run__dino {
   position: absolute;
-  bottom: 6%;
+  /* 발이 바닥 타일(.dino-run__ground) 윗면에 정확히 붙도록 같은 값을 쓴다. */
+  bottom: clamp(18px, 5%, 34px);
   transform: translateX(-50%);
   /* 위치는 매 애니메이션 프레임마다 델타 타임 기준으로 갱신되므로(§DinoRunControls),
      여기서 또 CSS 트랜지션을 걸면 오히려 갱신을 뒤쫓아가며 렉처럼 보인다 — 트랜지션 없이

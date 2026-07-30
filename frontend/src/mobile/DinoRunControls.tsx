@@ -35,9 +35,9 @@ const FRUIT_IMAGES = [
 ];
 /**
  * 운석·보너스가 착지하는(판정되는) 세로 위치 — 공룡이 서 있는 자리와 같은 줄이 되도록
- * 맞춘다. .dino-run__dino의 CSS bottom(6%)과 정확히 대응하는 값(100 - 6)이다.
+ * 맞춘다. .dino-run__dino의 CSS bottom(clamp(18px, 5%, 34px))과 대응하는 값(100 - 5)이다.
  */
-const LANDING_TOP_PERCENT = 94;
+const LANDING_TOP_PERCENT = 95;
 
 function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
