@@ -50,15 +50,6 @@ const CROSSHAIR_STALE_MS = 700;
 const TEAM_EMBLEM: Record<TeamId, string> = { A: "🔥", B: "❄️" };
 const LOBBY_BGM_VOLUME = 0.26;
 const LOBBY_BGM_FADE_MS = 900;
-// 파는 소리는 다 같이 보는 데스크탑 화면에서만 들린다(폰에서는 안 남) — 파기 이벤트마다
-// 매번 틀지 않고, 발굴 중엔 계속 반복 재생하다가 일정 시간(IDLE_TIMEOUT) 동안 새 이벤트가
-// 없으면(=아무도 안 파는 중) 멈춘다.
-// 발굴 BGM이 새로 깔리면서 파기 효과음은 배경음악 위로 튀지 않게 조금 낮췄다.
-const DIG_LOOP_VOLUME = 0.25;
-const DIG_LOOP_FADE_MS = 250;
-// excavation:progress는 모바일이 100ms(MOBILE_INPUT_FLUSH_MS)마다 배치 전송하는 입력에서
-// 나온다 — 그보다 넉넉히 길게 잡아야 연속으로 파는 중에 패킷 사이 텀만으로 소리가 끊기지 않는다.
-const DIG_LOOP_IDLE_TIMEOUT_MS = 350;
 const EXCAVATION_BGM_VOLUME = 0.28;
 const EXCAVATION_BGM_FADE_MS = 900;
 const DINO_RUN_BGM_VOLUME = 0.3;
@@ -132,9 +123,6 @@ export function DesktopLobby(): JSX.Element {
   const socketRef = useRef<AppSocket | null>(null);
   const lobbyBgmRef = useRef<HTMLAudioElement | null>(null);
   const lobbyBgmFadeRef = useRef<number | null>(null);
-  const digLoopAudioRef = useRef<HTMLAudioElement | null>(null);
-  const digLoopFadeRef = useRef<number | null>(null);
-  const digLoopStopTimerRef = useRef<number | null>(null);
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [joinUrl, setJoinUrl] = useState<string | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
@@ -216,43 +204,6 @@ export function DesktopLobby(): JSX.Element {
   }, [bgmMuted, roomState?.roomPhase]);
 
   useEffect(() => {
-    const audio = new Audio("/audio/excavation-dig-loop.mp3");
-    audio.loop = true;
-    audio.preload = "auto";
-    audio.volume = DIG_LOOP_VOLUME;
-    digLoopAudioRef.current = audio;
-    return () => {
-      if (digLoopFadeRef.current !== null) window.clearInterval(digLoopFadeRef.current);
-      if (digLoopStopTimerRef.current !== null) window.clearTimeout(digLoopStopTimerRef.current);
-      audio.pause();
-      digLoopAudioRef.current = null;
-    };
-  }, []);
-
-  /** excavation:progress마다 호출한다 — 안 재생 중이면 시작하고, "멈춤" 타이머를 계속 미룬다. */
-  const pingDigLoop = () => {
-    const audio = digLoopAudioRef.current;
-    if (!audio) return;
-    if (digLoopStopTimerRef.current !== null) {
-      window.clearTimeout(digLoopStopTimerRef.current);
-      digLoopStopTimerRef.current = null;
-    }
-    if (audio.paused) {
-      if (digLoopFadeRef.current !== null) {
-        window.clearInterval(digLoopFadeRef.current);
-        digLoopFadeRef.current = null;
-      }
-      audio.volume = DIG_LOOP_VOLUME;
-      void audio.play().catch(() => undefined);
-    }
-    digLoopStopTimerRef.current = window.setTimeout(() => {
-      digLoopStopTimerRef.current = null;
-      const current = digLoopAudioRef.current;
-      if (current) fadeOutAndPause(current, digLoopFadeRef, DIG_LOOP_FADE_MS, DIG_LOOP_VOLUME);
-    }, DIG_LOOP_IDLE_TIMEOUT_MS);
-  };
-
-  useEffect(() => {
     const socket = connectSocket("HOST");
     socketRef.current = socket;
 
@@ -264,7 +215,6 @@ export function DesktopLobby(): JSX.Element {
     });
     socket.on("excavation:progress", (evt) => {
       setRoomState((prev) => (prev ? applyExcavationProgress(prev, evt.data) : prev));
-      pingDigLoop();
       // 뼈 구간(0~100%)이 아니라 팀의 발굴 전체 목표치 대비 누적 진행도를 넘긴다 — 웨이브
       // 수(=뼈 구간 개수)가 인원수에 비례해 줄어들다 보니(§boneCountForTeam), 구간 단위로
       // 넘기면 인원이 적을수록 땅 파는 연출이 총 몇 번 안 일어나 같은 발굴지가 유독 조금만

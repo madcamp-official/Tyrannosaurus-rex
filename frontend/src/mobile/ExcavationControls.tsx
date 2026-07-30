@@ -18,8 +18,34 @@ const SHAKE_AXIS_THRESHOLD = 10;
 // event.acceleration을 못 주는 기기용 폴백 — 중력 포함 벡터 크기(accelerationIncludingGravity) 기준이라 방향 구분은 없다.
 const SHAKE_MAGNITUDE_THRESHOLD = 14;
 const MAX_COUNT_PER_PACKET = 5;
+// 파기 효과음은 내 폰에서, 내가 실제로 흔들거나 탭할 때만 난다(팀 전체 진행이 아니라 내 동작
+// 기준) — 이벤트마다 새로 트는 게 아니라 계속 반복 재생하다가, 마지막 동작 후 일정 시간
+// 동안 새 동작이 없으면(=내가 멈췄으면) 페이드아웃하고 정지한다.
+const DIG_LOOP_VOLUME = 0.5;
+const DIG_LOOP_FADE_MS = 250;
+// 흔들기는 EXCAVATION_SHAKE_COOLDOWN_MS(200ms)마다 최대 한 번만 인정되므로, 연속으로
+// 흔드는 중에도 그 텀만으로 소리가 끊기지 않도록 넉넉히 잡는다.
+const DIG_LOOP_IDLE_TIMEOUT_MS = 450;
 
 type MotionPermissionApi = { requestPermission?: () => Promise<"granted" | "denied"> };
+
+/** 데스크탑 발굴 BGM·운석 BGM과 같은 페이드아웃(볼륨 서서히 0으로 → 일시정지 → 볼륨 복원). */
+function fadeOutAndPause(audio: HTMLAudioElement, fadeRef: { current: number | null }, fadeMs: number, restoreVolume: number): void {
+  if (audio.paused) return;
+  const startVolume = audio.volume;
+  const startedAt = performance.now();
+  fadeRef.current = window.setInterval(() => {
+    const ratio = Math.min(1, (performance.now() - startedAt) / fadeMs);
+    audio.volume = startVolume * (1 - ratio);
+    if (ratio >= 1) {
+      if (fadeRef.current !== null) window.clearInterval(fadeRef.current);
+      fadeRef.current = null;
+      audio.pause();
+      audio.currentTime = 0;
+      audio.volume = restoreVolume;
+    }
+  }, 50);
+}
 
 export function ExcavationControls({
   socket,
@@ -36,6 +62,64 @@ export function ExcavationControls({
   const tapCountRef = useRef(0);
   const seqRef = useRef(0);
   const lastShakeAtRef = useRef(0);
+  const digLoopAudioRef = useRef<HTMLAudioElement | null>(null);
+  const digLoopFadeRef = useRef<number | null>(null);
+  const digLoopStopTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const audio = new Audio("/audio/excavation-dig-loop.mp3");
+    audio.loop = true;
+    audio.preload = "auto";
+    audio.volume = DIG_LOOP_VOLUME;
+    digLoopAudioRef.current = audio;
+    return () => {
+      if (digLoopFadeRef.current !== null) window.clearInterval(digLoopFadeRef.current);
+      if (digLoopStopTimerRef.current !== null) window.clearTimeout(digLoopStopTimerRef.current);
+      audio.pause();
+      digLoopAudioRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    // 모바일 브라우저(특히 iOS Safari)는 사용자 제스처 밖에서 처음 트는 audio.play()를
+    // 조용히 거부한다 — 화면 첫 터치에서 짧게 틀었다 멈춰 미리 잠금 해제해둔다.
+    const unlockOnce = () => {
+      const audio = digLoopAudioRef.current;
+      if (!audio) return;
+      void audio
+        .play()
+        .then(() => {
+          audio.pause();
+          audio.currentTime = 0;
+        })
+        .catch(() => undefined);
+    };
+    window.addEventListener("pointerdown", unlockOnce, { once: true });
+    return () => window.removeEventListener("pointerdown", unlockOnce);
+  }, []);
+
+  /** 흔들거나 탭할 때마다 호출한다 — 안 재생 중이면 시작하고, "멈춤" 타이머를 계속 미룬다. */
+  const pingDigLoop = () => {
+    const audio = digLoopAudioRef.current;
+    if (!audio) return;
+    if (digLoopStopTimerRef.current !== null) {
+      window.clearTimeout(digLoopStopTimerRef.current);
+      digLoopStopTimerRef.current = null;
+    }
+    if (audio.paused) {
+      if (digLoopFadeRef.current !== null) {
+        window.clearInterval(digLoopFadeRef.current);
+        digLoopFadeRef.current = null;
+      }
+      audio.volume = DIG_LOOP_VOLUME;
+      void audio.play().catch(() => undefined);
+    }
+    digLoopStopTimerRef.current = window.setTimeout(() => {
+      digLoopStopTimerRef.current = null;
+      const current = digLoopAudioRef.current;
+      if (current) fadeOutAndPause(current, digLoopFadeRef, DIG_LOOP_FADE_MS, DIG_LOOP_VOLUME);
+    }, DIG_LOOP_IDLE_TIMEOUT_MS);
+  };
 
   useEffect(() => {
     if (typeof window.DeviceMotionEvent === "undefined") {
@@ -77,6 +161,7 @@ export function ExcavationControls({
       lastShakeAtRef.current = now;
       motionCountRef.current += 1;
       setShakeFlash(true);
+      pingDigLoop();
       window.setTimeout(() => setShakeFlash(false), 150);
     };
     window.addEventListener("devicemotion", handleMotion);
@@ -124,6 +209,7 @@ export function ExcavationControls({
   const handleTap = () => {
     tapCountRef.current += 1;
     setShakeFlash(true);
+    pingDigLoop();
     window.setTimeout(() => setShakeFlash(false), 150);
   };
 
