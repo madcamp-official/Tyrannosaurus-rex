@@ -65,12 +65,14 @@ body {
   background: linear-gradient(180deg, rgba(15, 9, 4, 0.55) 0%, rgba(15, 9, 4, 0.55) 40%, rgba(15, 9, 4, 0.85) 100%);
 }
 
-.mobile-join--team-a .mobile-join__scrim {
-  background: linear-gradient(180deg, rgba(60, 30, 10, 0.55) 0%, rgba(40, 20, 10, 0.6) 40%, rgba(20, 10, 5, 0.9) 100%);
-}
-
+.mobile-join--team-a .mobile-join__scrim,
 .mobile-join--team-b .mobile-join__scrim {
-  background: linear-gradient(180deg, rgba(10, 35, 50, 0.55) 0%, rgba(8, 25, 40, 0.6) 40%, rgba(5, 15, 25, 0.9) 100%);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--team-color) 30%, rgba(15, 9, 4, 0.55)) 0%,
+    rgba(15, 9, 4, 0.62) 48%,
+    rgba(8, 5, 3, 0.92) 100%
+  );
 }
 
 .mobile-join__content {
@@ -652,14 +654,9 @@ body {
   box-sizing: border-box;
 }
 
-.lobby-team-card--a {
-  background: rgba(255, 245, 235, 0.22);
-  border: 1px solid rgba(255, 230, 210, 0.4);
-}
-
-.lobby-team-card--b {
-  background: rgba(225, 240, 250, 0.2);
-  border: 1px solid rgba(200, 225, 240, 0.4);
+.lobby-team-card {
+  background: color-mix(in srgb, var(--team-color) 16%, rgba(25, 24, 22, 0.58));
+  border: 1px solid color-mix(in srgb, var(--team-color) 58%, transparent);
 }
 
 .lobby-team-card__header {
@@ -676,12 +673,8 @@ body {
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
 }
 
-.lobby-team-card--a .lobby-team-card__name {
-  color: #ffb27a;
-}
-
-.lobby-team-card--b .lobby-team-card__name {
-  color: #8ecdf0;
+.lobby-team-card__name {
+  color: var(--team-color);
 }
 
 .lobby-team-card__count {
@@ -823,6 +816,7 @@ body {
   font-size: 16px;
   font-weight: 700;
   color: rgba(255, 248, 236, 0.75);
+  font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
 }
 
 .lobby-create-card__input {
@@ -832,7 +826,8 @@ body {
   background: rgba(0, 0, 0, 0.28);
   color: #fff8ec;
   font-size: 18px;
-  font-family: inherit;
+  font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
+  font-weight: 400;
 }
 
 .lobby-room-name {
@@ -916,12 +911,8 @@ body {
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset;
 }
 
-.play-area__team-header--a {
-  border-bottom: 1px solid oklch(55% 0.1 40 / 0.4);
-}
-
-.play-area__team-header--b {
-  border-bottom: 1px solid oklch(50% 0.08 235 / 0.4);
+.play-area__team-header {
+  border-bottom: 1px solid color-mix(in srgb, var(--team-color) 48%, transparent);
 }
 
 .play-area__team-stats,
@@ -957,12 +948,12 @@ body {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25), 0 2px 4px rgba(0, 0, 0, 0.4);
 }
 
-.play-area__team-header--a .play-area__team-icon {
-  background: linear-gradient(160deg, oklch(62% 0.17 42), oklch(42% 0.15 40));
-}
-
-.play-area__team-header--b .play-area__team-icon {
-  background: linear-gradient(160deg, oklch(58% 0.12 235), oklch(38% 0.1 235));
+.play-area__team-icon {
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--team-color) 80%, white),
+    color-mix(in srgb, var(--team-color) 65%, black)
+  );
 }
 
 .play-area__team-icon-dot {
@@ -981,6 +972,12 @@ body {
   font-size: 20px;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
   letter-spacing: 0.3px;
+  font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
+}
+
+.play-area__team-emoji {
+  margin-right: 8px;
+  font-size: 25px;
 }
 
 .play-area__team-count {
@@ -1957,12 +1954,8 @@ body {
   background: rgba(255, 255, 255, 0.07);
 }
 
-.dino-overlay__team--a {
-  border-color: rgba(255, 178, 122, 0.36);
-}
-
-.dino-overlay__team--b {
-  border-color: rgba(142, 205, 240, 0.36);
+.dino-overlay__team {
+  border-color: color-mix(in srgb, var(--team-color) 48%, transparent);
 }
 
 .dino-overlay__team h2 {
@@ -1973,6 +1966,7 @@ body {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: #fff8ec;
+  font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
   font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
   font-weight: 400;
   text-align: center;
@@ -2352,12 +2346,8 @@ body {
   font-size: 20px;
 }
 
-.practice-aim__team--a {
-  color: #ffb27a;
-}
-
-.practice-aim__team--b {
-  color: #8ecdf0;
+.practice-aim__team {
+  color: var(--team-color);
 }
 
 .aim-controls {
@@ -2653,15 +2643,16 @@ body {
 }
 
 .result-view__team-panel--a {
-  background: rgba(255, 245, 235, 0.16);
-  border: 1px solid rgba(255, 178, 122, 0.45);
   text-align: right;
 }
 
 .result-view__team-panel--b {
-  background: rgba(225, 240, 250, 0.14);
-  border: 1px solid rgba(142, 205, 240, 0.45);
   text-align: left;
+}
+
+.result-view__team-panel {
+  background: color-mix(in srgb, var(--team-color) 13%, rgba(20, 22, 21, 0.62));
+  border: 1px solid color-mix(in srgb, var(--team-color) 58%, transparent);
 }
 
 .result-view__team-name {
@@ -2792,12 +2783,8 @@ body {
   font-size: 18px;
 }
 
-.result-view__team-panel--a .result-view__team-name {
-  color: #ffb27a;
-}
-
-.result-view__team-panel--b .result-view__team-name {
-  color: #8ecdf0;
+.result-view__team-name {
+  color: var(--team-color);
 }
 
 .result-view__form {
@@ -2937,16 +2924,11 @@ body {
       linear-gradient(160deg, #24170c 0%, #100b08 72%);
   }
 
-  .mobile-join--team-a .mobile-join__bg {
-    background:
-      radial-gradient(circle at 50% 18%, rgba(217, 89, 31, 0.24), transparent 42%),
-      linear-gradient(160deg, #32170c 0%, #120a07 72%);
-  }
-
+  .mobile-join--team-a .mobile-join__bg,
   .mobile-join--team-b .mobile-join__bg {
     background:
-      radial-gradient(circle at 50% 18%, rgba(55, 159, 211, 0.24), transparent 42%),
-      linear-gradient(160deg, #0c2332 0%, #070d13 72%);
+      radial-gradient(circle at 50% 18%, color-mix(in srgb, var(--team-color) 34%, transparent), transparent 42%),
+      linear-gradient(160deg, color-mix(in srgb, var(--team-color) 14%, #17100a) 0%, #0d0907 72%);
   }
 
   .mobile-join__scrim,
