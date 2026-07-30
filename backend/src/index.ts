@@ -3,7 +3,13 @@
 import { createServer } from "node:http";
 import express from "express";
 import { Server, type Socket } from "socket.io";
-import { API_VERSION, MUSEUM_MAX_ENTRIES, type ClientToServerEvents, type ServerToClientEvents } from "@trex/shared";
+import {
+  API_VERSION,
+  HOST_RECONNECT_GRACE_MS,
+  MUSEUM_MAX_ENTRIES,
+  type ClientToServerEvents,
+  type ServerToClientEvents,
+} from "@trex/shared";
 import { loadEnv } from "./env.js";
 import { listMuseumEntries } from "./db/museumDb.js";
 import { RoomManager } from "./rooms/RoomManager.js";
@@ -13,6 +19,8 @@ import { registerDinoHandlers, tickRoomDinoRun, tickDinoRunHandoff } from "./roo
 import { registerAimHandlers } from "./rooms/aimHandlers.js";
 import { registerEnergyHandlers, tickRoomCharging } from "./rooms/energyHandlers.js";
 import { finalizeVotingTick } from "./rooms/votingHandlers.js";
+import { roomChannel } from "./rooms/channels.js";
+import { toServerEvent } from "./rooms/broadcast.js";
 import type { InterServerEvents, SocketData } from "./rooms/socketData.js";
 
 const env = loadEnv();
@@ -119,7 +127,16 @@ io.on("connection", (socket) => {
 
 const idleSweepInterval = setInterval(() => {
   rooms.sweepIdleRooms(env.ROOM_IDLE_TTL_MS);
-}, 60_000);
+  // 호스트 소켓이 끊긴 채 유예 시간(HOST_RECONNECT_GRACE_MS)을 넘긴 방은 재연결을
+  // 포기하고 닫는다 — 그 전까지는 room:hostReconnect로 같은 방을 다시 붙잡을 수 있다.
+  for (const closedRoom of rooms.sweepDisconnectedHostRooms(HOST_RECONNECT_GRACE_MS)) {
+    const roomCode = closedRoom.state.roomCode;
+    io.to(roomChannel(roomCode)).emit(
+      "room:closed",
+      toServerEvent(roomCode, closedRoom.state.revision, { reason: "HOST_DISCONNECTED" }),
+    );
+  }
+}, 5_000);
 idleSweepInterval.unref();
 
 const chargingTickInterval = setInterval(() => {

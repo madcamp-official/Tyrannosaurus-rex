@@ -5,6 +5,7 @@ import {
   gameStartRequestSchema,
   playerSetReadyRequestSchema,
   roomCreateRequestSchema,
+  roomHostReconnectRequestSchema,
   roomJoinRequestSchema,
   roomRequestStateRequestSchema,
   TEAM_IDS,
@@ -60,10 +61,36 @@ export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: Ro
     const res = ackOk(parsed.data.requestId, {
       roomCode: created.room.state.roomCode,
       joinUrl: created.joinUrl,
+      hostReconnectToken: created.room.hostReconnectToken,
       state: rooms.getPublicState(created.room),
     });
     idempotency.set(socket.id, parsed.data.requestId, res);
     ack(res);
+  });
+
+  /**
+   * 호스트 소켓이 일시적으로 끊겼다 돌아왔을 때(§HOST_RECONNECT_GRACE_MS) room:create 없이
+   * 같은 방을 다시 붙잡는다. 새 소켓이라 room:create의 hostSocketId 기반 중복 체크로는
+   * 못 알아보므로 별도 토큰으로 검증한다.
+   */
+  socket.on("room:hostReconnect", (req, ack) => {
+    const parsed = roomHostReconnectRequestSchema.safeParse(req);
+    if (!parsed.success) {
+      return ack(ackErr(req?.requestId ?? "unknown", "INVALID_PAYLOAD", parsed.error.message, true));
+    }
+    if (socket.data.role !== "HOST") {
+      return ack(ackErr(parsed.data.requestId, "HOST_ONLY", "only desktop hosts may reconnect a room", false));
+    }
+    const room = rooms.reconnectHost(parsed.data.roomCode, parsed.data.hostReconnectToken, socket.id);
+    if (!room) {
+      return ack(ackErr(parsed.data.requestId, "ROOM_NOT_FOUND", "room no longer exists", false));
+    }
+    socket.data.roomCode = room.state.roomCode;
+    void socket.join([roomChannel(room.state.roomCode), hostChannel(room.state.roomCode)]);
+
+    const res = ackOk(parsed.data.requestId, { state: rooms.getPublicState(room) });
+    ack(res);
+    broadcastRoomState(io, rooms, room.state.roomCode);
   });
 
   socket.on("room:join", (req, ack) => {
@@ -251,14 +278,10 @@ export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: Ro
 
     if (socket.data.role === "HOST") {
       const room = rooms.findRoomByHostSocket(socket.id);
-      if (room) {
-        const roomCode = room.state.roomCode;
-        io.to(roomChannel(roomCode)).emit(
-          "room:closed",
-          toServerEvent(roomCode, room.state.revision, { reason: "HOST_DISCONNECTED" }),
-        );
-        rooms.closeRoom(roomCode);
-      }
+      // 와이파이 순단·노트북 절전 같은 일시적 끊김이면 room:hostReconnect로 금방 돌아온다 —
+      // 바로 방을 지우지 않고 유예 시간을 준다. 유예를 넘긴 방은 tickRoomBackground의
+      // 배경 스윕(§HOST_RECONNECT_GRACE_MS)이 그때 가서 room:closed를 보내고 정리한다.
+      if (room) rooms.markHostDisconnected(room, Date.now());
       return;
     }
 

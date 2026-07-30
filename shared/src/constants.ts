@@ -11,6 +11,10 @@ export const TEAM_DISPLAY_NAMES: Record<"A" | "B", string> = {
 // 되므로 그 시간을 벌어주려고 넣었지만, 매 전환마다 숨 고를 시간을 주는 용도로도 쓴다.
 // 봇(autoplay.ts)도 같은 시간만큼 기다렸다가 조작을 시작해 사람과 동일한 조건으로 플레이한다.
 export const PHASE_START_GRACE_MS = 5_000;
+// 호스트(데스크탑) 소켓이 끊겨도 이만큼은 방을 바로 없애지 않고 기다린다 — 와이파이 순단·
+// 노트북 절전 등 일시적인 끊김이면 대부분 이 안에 재연결된다. 넘기면 방을 닫고 플레이어들에게
+// room:closed를 보낸다.
+export const HOST_RECONNECT_GRACE_MS = 30_000;
 // 팀 발굴 목표 뼈 개수는 고정값이 아니라 팀 인원수 × BONES_PER_PLAYER로 정해진다(boneCountForTeam 참고).
 export const BONES_PER_PLAYER = 4;
 export const EXCAVATION_POINTS_PER_BONE = 60;
