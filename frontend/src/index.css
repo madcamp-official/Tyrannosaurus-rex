@@ -2468,6 +2468,52 @@ body {
   border-radius: 50%;
 }
 
+.ending-sequence {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #020305;
+  color: #fff;
+  font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
+}
+
+.ending-sequence__message {
+  max-width: min(1500px, 88vw);
+  margin: 0;
+  font-size: clamp(38px, 4.8vw, 72px);
+  font-weight: 400;
+  line-height: 1.45;
+  text-align: center;
+  letter-spacing: 0.02em;
+  text-shadow: 0 4px 28px rgba(255, 255, 255, 0.12);
+  animation: ending-message-reveal 2.6s ease-in-out both;
+}
+
+.ending-sequence__image {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  /* 승리 팡파레 길이(약 15.1초, EndingSequence.tsx의 IMAGE_DURATION_MS)에 맞춰 페이드
+     아웃 타이밍도 같이 늘렸다 — 안 그러면 노래가 끝나기 한참 전에 사진이 먼저 사라진다. */
+  animation: ending-image-reveal 15.1s ease-in-out both;
+}
+
+@keyframes ending-message-reveal {
+  0% { opacity: 0; transform: translateY(14px); }
+  18%, 76% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(-8px); }
+}
+
+@keyframes ending-image-reveal {
+  0% { opacity: 0; transform: scale(1.025); }
+  5%, 92% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1); }
+}
+
 .result-view {
   max-width: min(1400px, 96vw);
   margin: 0 auto;

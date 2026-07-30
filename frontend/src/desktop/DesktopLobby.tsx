@@ -27,6 +27,7 @@ import { newRequestId } from "../util/requestId";
 import { describeAckError } from "../util/errorMessages";
 import { PlayArea, type ChargingEphemeral } from "./PlayArea";
 import { ResultView } from "./ResultView";
+import { EndingSequence } from "./EndingSequence";
 import {
   applyBoneFound,
   applyCoreChanged,
@@ -55,6 +56,8 @@ const DINO_RUN_BGM_VOLUME = 0.3;
 const DINO_RUN_BGM_FADE_MS = 900;
 const CHARGING_BGM_VOLUME = 0.3;
 const CHARGING_BGM_FADE_MS = 900;
+const RESULT_BGM_VOLUME = 0.28;
+const RESULT_BGM_FADE_MS = 900;
 
 /** 로비 BGM·운석 피하기 BGM이 공유하는 페이드아웃(볼륨 서서히 0으로 → 일시정지 → 볼륨 복원). */
 function fadeOutAndPause(audio: HTMLAudioElement, fadeRef: { current: number | null }, fadeMs: number, restoreVolume: number): void {
@@ -150,6 +153,12 @@ export function DesktopLobby(): JSX.Element {
   const pendingCrosshairsRef = useRef<ChargingEphemeral["crosshairsByPlayer"]>({});
   const crosshairFlushTimerRef = useRef<number | null>(null);
   const [gameResult, setGameResult] = useState<GameResultEvent | null>(null);
+  // 결과 화면 배경음악은 (있다면) 부활 엔딩 연출이 끝나고 실제 결과 화면이 보일 때부터
+  // 재생한다 — 엔딩 연출 동안은 승리 팡파레(EndingSequence)만 들려야 하므로.
+  const [resultBodyVisible, setResultBodyVisible] = useState(false);
+  useEffect(() => {
+    setResultBodyVisible(false);
+  }, [gameResult?.finishedAt]);
   const { bridge } = useGodotBridge();
   const isChargingBattle =
     roomState?.roomPhase === "PLAYING" &&
@@ -160,9 +169,11 @@ export function DesktopLobby(): JSX.Element {
   const isExcavationActive =
     roomState?.roomPhase === "PLAYING" &&
     (roomState.teams.A.phase === "EXCAVATION" || roomState.teams.B.phase === "EXCAVATION");
+  const isResultBodyActive = roomState?.roomPhase === "RESULT" && resultBodyVisible;
   usePhaseBgm("/audio/dino-run-bgm.mp3", DINO_RUN_BGM_VOLUME, DINO_RUN_BGM_FADE_MS, isDinoRunActive, bgmMuted);
   usePhaseBgm("/audio/excavation-bgm.mp3", EXCAVATION_BGM_VOLUME, EXCAVATION_BGM_FADE_MS, isExcavationActive, bgmMuted);
   usePhaseBgm("/audio/charging-bgm.mp3", CHARGING_BGM_VOLUME, CHARGING_BGM_FADE_MS, isChargingBattle, bgmMuted);
+  usePhaseBgm("/audio/result-bgm.mp3", RESULT_BGM_VOLUME, RESULT_BGM_FADE_MS, isResultBodyActive, bgmMuted);
 
   useEffect(() => {
     const audio = new Audio("/audio/lobby-bgm.mp3");
@@ -171,7 +182,7 @@ export function DesktopLobby(): JSX.Element {
     audio.volume = LOBBY_BGM_VOLUME;
     lobbyBgmRef.current = audio;
     const retryAutoplay = () => {
-      if (!bgmMuted && (!roomState || roomState.roomPhase === "LOBBY" || roomState.roomPhase === "RESULT")) {
+      if (!bgmMuted && (!roomState || roomState.roomPhase === "LOBBY")) {
         void audio.play().catch(() => undefined);
       }
     };
@@ -198,8 +209,7 @@ export function DesktopLobby(): JSX.Element {
       lobbyBgmFadeRef.current = null;
     }
 
-    // 결과 화면도 로비와 같은 BGM을 그대로 이어서 쓴다 — 별도 트랙 없이 로비 음악을 재사용.
-    const lobbyActive = !roomState || roomState.roomPhase === "LOBBY" || roomState.roomPhase === "RESULT";
+    const lobbyActive = !roomState || roomState.roomPhase === "LOBBY";
     audio.muted = bgmMuted;
     if (lobbyActive) {
       audio.volume = LOBBY_BGM_VOLUME;
@@ -581,7 +591,13 @@ export function DesktopLobby(): JSX.Element {
 
         {roomState && roomState.roomPhase === "PLAYING" && <PlayArea roomState={roomState} ephemeral={ephemeral} />}
         {roomState && (roomState.roomPhase === "RESULT" || roomState.roomPhase === "DECORATION") && (
-          <ResultView roomState={roomState} gameResult={gameResult} socket={socketRef.current} />
+          <EndingSequence
+            key={gameResult?.finishedAt ?? "pending"}
+            enabled={gameResult !== null && gameResult.teams.some((team) => team.form !== "NONE")}
+            onDone={() => setResultBodyVisible(true)}
+          >
+            <ResultView roomState={roomState} gameResult={gameResult} socket={socketRef.current} />
+          </EndingSequence>
         )}
 
         <DebugPanel bridge={bridge} />
