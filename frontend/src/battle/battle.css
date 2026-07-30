@@ -814,12 +814,8 @@
   font-size: 18px;
 }
 
-.battle-board--a {
-  border-top: 3px solid var(--a);
-}
-
-.battle-board--b {
-  border-top: 3px solid var(--b);
+.battle-board {
+  border-top: 3px solid var(--team-color);
 }
 
 .battle-board__header {
@@ -839,12 +835,9 @@
   font-size: 22px;
 }
 
-.battle-board--a .battle-board__name {
-  color: var(--a-light);
-}
-
-.battle-board--b .battle-board__name {
-  color: var(--b-light);
+.battle-board__name {
+  color: var(--team-color);
+  font-family: "YeogiOttaeJalnan", "Gothic A1", sans-serif;
 }
 
 .battle-board__result {
@@ -923,12 +916,8 @@
   transition: background-color 0.3s ease-out;
 }
 
-.battle-board--a .battle-board__row--top {
-  background: rgba(242, 153, 74, 0.18);
-}
-
-.battle-board--b .battle-board__row--top {
-  background: rgba(111, 195, 232, 0.18);
+.battle-board__row--top {
+  background: color-mix(in srgb, var(--team-color) 18%, transparent);
 }
 
 .battle-board__footer {
