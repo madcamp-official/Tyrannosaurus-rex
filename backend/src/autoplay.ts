@@ -3,7 +3,7 @@
  *
  * 데스크탑에서 방을 만들어 두고:
  *   npm run autoplay -w backend -- --room 9233
- * 봇들이 입장·준비하면 데스크탑에서 "게임 시작"을 누른다. 이후 발굴 → 퍼즐 →
+ * 봇들이 입장·준비하면 데스크탑에서 "게임 시작"을 누른다. 이후 운석 피하기 → 발굴 →
  * 사격 → 부활/결과까지 봇이 전부 플레이하고, 사람은 화면만 본다.
  *
  * --room 없이 실행하면 스크립트가 호스트까지 직접 맡아 headless로 한 판을
@@ -41,6 +41,9 @@ const DINO_POLL_MS = 80;
 const OVERALL_TIMEOUT_MS = 6 * 60_000;
 // 결과 화면 뒤 이만큼 시간 안에 "재경기"가 눌리지 않으면 더 기다리지 않고 봇을 종료한다.
 const REMATCH_GRACE_MS = 3 * 60_000;
+// 소켓을 결과 확정 즉시 닫으면 서버가 방을 바로 정리해버려서, 데스크탑에서 결과 화면을
+// 확인할 틈도 없이 방이 사라진다 — 잠깐 열어둔 채로 기다린다.
+const RESULT_VIEW_WAIT_MS = 5_000;
 
 /**
  * BAD 봇은 일부러 못한다 — 조준이 부정확하고, 다이노런에서 가끔 아예 반응을 안 하거나
@@ -246,6 +249,8 @@ async function playOneRound(bots: Bot[], board: Blackboard, log: (msg: string) =
   await Promise.all([resultPromise, ...bots.map((bot) => runBotLoop(bot, board, log))]);
   clearTimeout(timeout);
 
+  log("결과 화면 대기 중…");
+  await sleep(RESULT_VIEW_WAIT_MS);
   log("대기 완료. 데스크탑 결과 화면을 확인하세요.");
 }
 
