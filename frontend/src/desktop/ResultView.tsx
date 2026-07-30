@@ -103,12 +103,12 @@ function TeamPanel({
       </div>
       <ul className="result-view__stat-list">
         <li>
-          <span>발굴 시 땅을 판 횟수</span>
-          <strong>{summary.digs}회{topDigger && ` · MVP ${topDigger.nickname}`}</strong>
-        </li>
-        <li>
           <span>운석을 피한 수</span>
           <strong>{summary.dodged}/{dodgeMax}</strong>
+        </li>
+        <li>
+          <span>발굴 시 땅을 판 횟수</span>
+          <strong>{summary.digs}회{topDigger && ` · MVP ${topDigger.nickname}`}</strong>
         </li>
         <li>
           <span>에너지 사격 적중 수</span>
@@ -116,7 +116,7 @@ function TeamPanel({
         </li>
         <li>
           <span>시간 보너스</span>
-          <strong>{excavationSec} + {assemblySec} = {totalSec}초</strong>
+          <strong>{assemblySec} + {excavationSec} = {totalSec}초</strong>
         </li>
       </ul>
       {roomState.roomPhase === "DECORATION" && <p className="result-view__voting">박물관에 기록 중…</p>}
