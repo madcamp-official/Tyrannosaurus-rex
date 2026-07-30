@@ -2512,8 +2512,12 @@ body {
 }
 
 .result-view__trex--yranno {
-  width: 100%;
+  width: min(100%, 480px);
+  aspect-ratio: 31 / 18;
   height: auto;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.42);
   opacity: 0.92;
   transform: translateY(2px);
 }
@@ -2531,8 +2535,7 @@ body {
 
 .result-view__yranno-image {
   display: block;
-  height: auto;
-  object-fit: contain;
+  object-fit: cover;
   filter: drop-shadow(0 14px 16px rgba(0, 0, 0, 0.45));
 }
 
