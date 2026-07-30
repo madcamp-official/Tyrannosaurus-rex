@@ -159,18 +159,6 @@ export function ResultView({
 
       <h2 className="result-view__title">{roomState.winner.teamId ? `${roomState.teamNames[roomState.winner.teamId]} 승리!` : "무승부"}</h2>
 
-      {roomState.winner.teamId && (
-        <div className="result-view__epilogue" aria-label="부활 이후 이야기">
-          <p>
-            우리의 티라노사우루스 <strong>&lt;카이&gt;</strong>가
-            <br />
-            우리의 곁으로 돌아왔습니다.
-            <br />
-            <strong>&lt;카이&gt;</strong>는 이제 우리를 지켜줄 것입니다.
-          </p>
-        </div>
-      )}
-
       <div className="result-view__stage-row">
         <TeamResultTrex teamId="A" isWinner={roomState.winner.teamId === "A"} />
         <TeamResultTrex teamId="B" isWinner={roomState.winner.teamId === "B"} />

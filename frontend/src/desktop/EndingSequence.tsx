@@ -65,11 +65,22 @@ export function EndingSequence({
           부활에 성공했습니다
         </p>
       ) : (
-        <img
-          className="ending-sequence__image"
-          src="/images/ending.png"
-          alt="KAIST 정문에 부활한 티라노사우루스"
-        />
+        <div className="ending-sequence__scene">
+          <img
+            className="ending-sequence__image"
+            src="/images/ending.png"
+            alt="KAIST 정문에 부활한 티라노사우루스"
+          />
+          <div className="ending-sequence__story" aria-label="부활 이후 이야기">
+            <p>
+              우리는 우리의 티라노사우루스,
+              <br />
+              <strong>&lt;카이&gt;</strong>를 부활시키는데 성공했습니다.
+              <br />
+              카이는 앞으로도 카이스트를 지켜줄 것입니다.
+            </p>
+          </div>
+        </div>
       )}
     </section>
   );
