@@ -106,6 +106,27 @@ describe("RoomManager", () => {
     expect(rooms.canStart(created.room)).toBeNull();
     rooms.startGame(created.room);
     expect(created.room.state.roomPhase).toBe("PLAYING");
+    expect(created.room.state.teams.A.charging.finalLives).toBe(5);
+    expect(created.room.state.teams.B.charging.finalLives).toBe(5);
+  });
+
+  it("matches both teams' final-stage lives to three per player on the larger team", () => {
+    const rooms = makeManager();
+    const created = rooms.createRoom("host-unbalanced", "홀수 인원 방", 5)!;
+    for (let index = 0; index < 3; index += 1) {
+      const joined = rooms.joinRoom(created.room.state.roomCode, `P${index}`, `socket-${index}`);
+      if (!joined.ok) throw new Error("join failed");
+      rooms.setReady(created.room.state.roomCode, joined.playerId, true);
+    }
+
+    rooms.startGame(created.room);
+
+    expect([
+      created.room.state.teams.A.playerIds.length,
+      created.room.state.teams.B.playerIds.length,
+    ].sort()).toEqual([1, 2]);
+    expect(created.room.state.teams.A.charging.finalLives).toBe(6);
+    expect(created.room.state.teams.B.charging.finalLives).toBe(6);
   });
 
   describe("finalizeIfTeamFullyDisconnected", () => {

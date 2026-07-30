@@ -87,8 +87,8 @@ export function BattleArena({
 
       {battle.chargingStage === 3 && (
         <>
-          <FinalTeamStatus team="A" lives={battle.teamAFinalLives} secondsLeft={battle.teamAFinalSecondsLeft} />
-          <FinalTeamStatus team="B" lives={battle.teamBFinalLives} secondsLeft={battle.teamBFinalSecondsLeft} />
+          <FinalTeamStatus team="A" lives={battle.teamAFinalLives} maxLives={finalStageMaxLives(battle)} secondsLeft={battle.teamAFinalSecondsLeft} />
+          <FinalTeamStatus team="B" lives={battle.teamBFinalLives} maxLives={finalStageMaxLives(battle)} secondsLeft={battle.teamBFinalSecondsLeft} />
         </>
       )}
 
@@ -114,12 +114,22 @@ export function BattleArena({
   );
 }
 
-function FinalTeamStatus({ team, lives, secondsLeft }: { team: TeamId; lives: number; secondsLeft: number }): JSX.Element {
+function finalStageMaxLives(battle: BattleState): number {
+  const teamACount = battle.teamA.players.length;
+  const teamBCount = battle.teamB.players.length;
+  return teamACount === 1 && teamBCount === 1 ? 5 : Math.max(teamACount, teamBCount, 1) * 3;
+}
+
+function FinalTeamStatus({ team, lives, maxLives, secondsLeft }: { team: TeamId; lives: number; maxLives: number; secondsLeft: number }): JSX.Element {
   return (
     <div className={`battle-final-status battle-final-status--${team.toLowerCase()}`}>
       <strong className="battle-final-status__team">{team}팀</strong>
-      <div className="battle-final-status__lives" aria-label={`${team}팀 남은 목숨 ${lives}개`}>
-        {Array.from({ length: 5 }, (_, index) => (
+      <div
+        className="battle-final-status__lives"
+        aria-label={`${team}팀 남은 목숨 ${lives}개`}
+        style={{ fontSize: `${Math.max(18, Math.min(34, 270 / maxLives))}px`, gap: `${maxLives > 9 ? 5 : 10}px` }}
+      >
+        {Array.from({ length: maxLives }, (_, index) => (
           <span key={index} className={index < lives ? "is-alive" : "is-lost"}>♥</span>
         ))}
       </div>

@@ -219,6 +219,13 @@ function isNicknameSafe(nickname: string): boolean {
   return true;
 }
 
+function finalStageLivesForRoom(room: RoomRecord): number {
+  const teamACount = room.state.teams.A.playerIds.length;
+  const teamBCount = room.state.teams.B.playerIds.length;
+  if (teamACount === 1 && teamBCount === 1) return FINAL_STAGE_STARTING_LIVES;
+  return Math.max(teamACount, teamBCount, 1) * 3;
+}
+
 export class RoomManager {
   private readonly rooms = new Map<RoomCode, RoomRecord>();
 
@@ -492,9 +499,11 @@ export class RoomManager {
     room.dinoPositionState = new Map();
     room.dinoMeteorLockState = new Map();
     room.shotTracking = new Map();
+    const finalStageLives = finalStageLivesForRoom(room);
     for (const teamId of TEAM_IDS) {
       const team = room.state.teams[teamId];
       resetTeamGameplayState(team, now);
+      team.charging.finalLives = finalStageLives;
       // 운석 피하기(ASSEMBLY)가 이제 첫 판이라 라운드 시작과 동시에 바로 시작해야 한다 —
       // 예전엔 이 설정이 발굴 완료 후 전환 시점(tickExcavationTransition)에서 이뤄졌다.
       team.phaseEndsAt = now + PHASE_START_GRACE_MS + DINO_RUN_DURATION_MS;
