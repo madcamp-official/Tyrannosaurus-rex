@@ -934,19 +934,24 @@ export class RoomManager {
     const totalA = teamPlayerScore(room.state.players, "A");
     const totalB = teamPlayerScore(room.state.players, "B");
     if (totalA === totalB) {
-      this.finalizeRoundWinner(room, null, "DRAW");
+      this.finalizeRoundWinner(room, null, "DRAW", now);
     } else {
-      this.finalizeRoundWinner(room, totalA > totalB ? "A" : "B", "SCORE_TOTAL");
+      this.finalizeRoundWinner(room, totalA > totalB ? "A" : "B", "SCORE_TOTAL", now);
     }
     return true;
   }
 
-  private finalizeRoundWinner(room: RoomRecord, teamId: TeamId | null, reason: NonNullable<RoomState["winner"]["reason"]>): void {
+  private finalizeRoundWinner(
+    room: RoomRecord,
+    teamId: TeamId | null,
+    reason: NonNullable<RoomState["winner"]["reason"]>,
+    now: number,
+  ): void {
     room.state.roomPhase = "RESULT";
     room.state.winner = { teamId, reason };
     // §7 "결과 화면에서 20초 동안 진행한다": 결과 확정과 동시에 티꾸 투표 창을 연다.
     room.state.roomPhase = "DECORATION";
-    room.votingEndsAt = Date.now() + DECORATION_VOTE_DURATION_MS;
+    room.votingEndsAt = now + DECORATION_VOTE_DURATION_MS;
     this.touch(room);
     this.bumpRevision(room);
   }
@@ -981,7 +986,7 @@ export class RoomManager {
    * 게임이 진행 중(PLAYING)일 때만 적용하고, 상대 팀에도 연결된 플레이어가 없으면(둘 다 끊김)
    * 승자를 정할 수 없으니 손대지 않는다.
    */
-  finalizeIfTeamFullyDisconnected(room: RoomRecord, teamId: TeamId): boolean {
+  finalizeIfTeamFullyDisconnected(room: RoomRecord, teamId: TeamId, now: number): boolean {
     if (room.state.roomPhase !== "PLAYING") return false;
     const teamPlayers = room.state.players.filter((p) => p.teamId === teamId);
     if (teamPlayers.length === 0 || teamPlayers.some((p) => p.connected)) return false;
@@ -990,7 +995,7 @@ export class RoomManager {
     const opponentConnected = room.state.players.some((p) => p.teamId === opponent && p.connected);
     if (!opponentConnected) return false;
 
-    this.finalizeRoundWinner(room, opponent, "OPPONENT_DISCONNECTED");
+    this.finalizeRoundWinner(room, opponent, "OPPONENT_DISCONNECTED", now);
     return true;
   }
 

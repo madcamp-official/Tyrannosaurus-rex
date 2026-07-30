@@ -120,7 +120,7 @@ describe("RoomManager", () => {
       const { rooms, room, playerA } = setUpPlayingRoom("host-disc-1");
       rooms.setPlayerConnected(room, playerA, false);
 
-      const finalized = rooms.finalizeIfTeamFullyDisconnected(room, "A");
+      const finalized = rooms.finalizeIfTeamFullyDisconnected(room, "A", Date.now());
       expect(finalized).toBe(true);
       expect(room.state.roomPhase).toBe("DECORATION");
       expect(room.state.winner).toEqual({ teamId: "B", reason: "OPPONENT_DISCONNECTED" });
@@ -150,7 +150,7 @@ describe("RoomManager", () => {
       const [firstPlayerId] = byTeam[multiPlayerTeam]!;
 
       rooms.setPlayerConnected(created.room, firstPlayerId!, false);
-      const finalized = rooms.finalizeIfTeamFullyDisconnected(created.room, multiPlayerTeam);
+      const finalized = rooms.finalizeIfTeamFullyDisconnected(created.room, multiPlayerTeam, Date.now());
       expect(finalized).toBe(false);
       expect(created.room.state.roomPhase).toBe("PLAYING");
     });
@@ -160,7 +160,7 @@ describe("RoomManager", () => {
       rooms.setPlayerConnected(room, playerA, false);
       rooms.setPlayerConnected(room, playerB, false);
 
-      const finalized = rooms.finalizeIfTeamFullyDisconnected(room, "A");
+      const finalized = rooms.finalizeIfTeamFullyDisconnected(room, "A", Date.now());
       expect(finalized).toBe(false);
       expect(room.state.roomPhase).toBe("PLAYING");
     });
@@ -170,7 +170,7 @@ describe("RoomManager", () => {
       room.state.roomPhase = "LOBBY";
       rooms.setPlayerConnected(room, playerA, false);
 
-      const finalized = rooms.finalizeIfTeamFullyDisconnected(room, "A");
+      const finalized = rooms.finalizeIfTeamFullyDisconnected(room, "A", Date.now());
       expect(finalized).toBe(false);
     });
   });

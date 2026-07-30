@@ -132,6 +132,10 @@ describe("dino run (meteor dodge)", () => {
       const meteor = { id: 0, hitAtMs: 1000, x: 0.5, kind: "METEOR" as const };
       room.state.teams.A.phaseStartedAt = now;
       room.state.teams.A.dinoRun.skyObjects = [meteor];
+      // B팀은 setupAssemblyRoom()이 실제 시드 기반 스케줄을 그대로 넣어두는데, 그 스케줄이
+      // 우연히 이 좁은 유예 구간 안에 운석을 떨어뜨리면 이 테스트가 A팀만 보는 게 아니라
+      // 전체 events를 검사하다가 가끔 깨진다(플레이키) — B팀은 빈 스케줄로 고정해둔다.
+      room.state.teams.B.dinoRun.skyObjects = [];
       // 플레이어는 아직 위치를 한 번도 보고하지 않았다(모바일 화면이 아직 "준비 중").
 
       const events = rooms.tickDinoCollisions(room, now + PHASE_START_GRACE_MS - 1);

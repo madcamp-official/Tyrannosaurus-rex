@@ -12,7 +12,7 @@ import { newRequestId } from "../util/requestId";
 // 값이 클수록 화면 끝까지 가는 데 더 많이 기울여야 해서 덜 민감해진다. 너무 예민하다는
 // 피드백에 따라 좌우/상하 모두 올렸다.
 const GYRO_SENSITIVITY_X_DEG = 60;
-const GYRO_SENSITIVITY_Y_DEG = 46;
+const GYRO_SENSITIVITY_Y_DEG = 45;
 // 0.75는 속도 방식 시절 값이다 — 그때는 이 필터 뒤로 속도 감쇠·위치 적분 단계가 하나 더
 // 있어 센서 잡음을 한 번 더 걸러줬다. 절대 위치 방식은 이 필터 값을 바로 화면 위치로
 // 쓰므로, 그대로 두면 잡음이 걸러지지 않고 조준점이 가만히 있어도 떨리는("튕김") 원인이
@@ -22,7 +22,29 @@ const LOW_PASS_ALPHA = 0.18;
 // 기울이면 한 프레임 만에 값이 반대 부호로 튈 수 있다(짐벌락류 불연속) — 조준점이 순간적으로
 // 반대 방향으로 튀는 버그의 원인. 한 프레임에 물리적으로 있을 수 없는 큰 변화(사람이 손으로
 // 그렇게 빨리 못 돌림)가 감지되면 그 프레임은 필터에 반영하지 않고 그냥 버린다.
-const MAX_FRAME_DELTA_DEG = 60;
+const MAX_FRAME_DELTA_DEG = 75;
+// gamma는 스펙상 ±90도로 클램프되는데, 그 경계 근처는 오일러각 특성상 값 자체가
+// 불안정해진다(짐벌락류) — 한 프레임 튐이 아니라 여러 프레임에 걸쳐 계속 흔들릴 수도 있어
+// MAX_FRAME_DELTA_DEG 필터만으로는 못 잡는다. raw gamma가 이 한계를 넘으면 그 프레임은
+// 아예 필터 갱신을 건너뛰고 마지막 안정값을 유지한다 — 조준점이 그 구간에서 튀는 대신
+// 가장자리에서 멈춰 있는 것처럼 보인다.
+// 처음엔 80으로 뒀는데, GYRO_SENSITIVITY_X_DEG(60)와의 여유가 20도뿐이었다 — 영점(zeroRef)은
+// "그 순간 손에 들고 있던 자세"를 그대로 잡으므로 gamma가 0이 아닌 채로 잡히는 게 흔하다.
+// 영점이 예를 들어 +20이면 왼쪽 끝(dGamma=+60)에서 실제 gamma는 80으로 이 문턱에 바로
+// 걸리는데, 오른쪽 끝(dGamma=-60)은 gamma=-40이라 전혀 안 걸린다 — 똑같이 움직여도 한쪽만
+// 이 안전장치에 갇혀 "그쪽으로는 안 움직인다"로 보였다. 진짜 특이점 각도 근처의 아주
+// 좁은 구간만 잡도록 여유를 넉넉히 뒀다.
+const GAMMA_UNSTABLE_ZONE_DEG = 87;
+// DeviceOrientationEvent는 alpha(Z)→beta(X')→gamma(Y'') 순서로 회전을 분해하는데, 가운데
+// 회전인 beta가 ±90도에 가까워지면 alpha와 gamma가 서로 뒤엉키는 진짜 짐벌락 지점이다 —
+// 화면을 위로 많이 젖힐 때(beta가 90도 쪽으로 붙을 때) 조준점이 위/아래는 멀쩡한데 좌우로
+// 튀는 게 바로 이 증상이다(좌우=gamma가 그 근방에서 불안정해짐). beta가 90도(또는 -90도)
+// 근처 이 마진 안에 들어오면 마찬가지로 그 프레임의 필터 반영을 건너뛴다.
+// 처음엔 12도로 뒀는데 — GYRO_SENSITIVITY_Y_DEG(45)를 고려하면, 영점이 33~57도 근처에서
+// 잡힌 흔한 파지 각도에서는 위쪽을 조준하는 정상적인 움직임 대부분이 이 구간에 걸려버려서
+// 계속 얼어붙는 게 "렉"처럼 느껴졌다 — 진짜 특이점(정확히 90도) 근처의 아주 좁은 구간만
+// 잡도록 대폭 줄였다.
+const BETA_GIMBAL_LOCK_MARGIN_DEG = 5;
 
 type OrientationPermissionApi = { requestPermission?: () => Promise<"granted" | "denied"> };
 
@@ -98,11 +120,13 @@ export function AimControls({
         const rawDeltaBeta = Math.abs(event.beta - lastRawRef.current.beta);
         const rawDeltaGamma = Math.abs(event.gamma - lastRawRef.current.gamma);
         const isGlitch = rawDeltaBeta > MAX_FRAME_DELTA_DEG || rawDeltaGamma > MAX_FRAME_DELTA_DEG;
-        // raw 추적값은 글리치 여부와 무관하게 항상 갱신한다 — 그래야 다음 프레임의 비교
-        // 기준이 실제 기기 자세를 계속 따라가고, 정상적인 빠른 움직임이 연쇄적으로 계속
-        // 걸러지는 일이 없다. 글리치로 판단된 딱 그 한 프레임만 필터 반영에서 제외한다.
+        const isNearGammaGimbalLock = Math.abs(event.gamma) > GAMMA_UNSTABLE_ZONE_DEG;
+        const isNearBetaGimbalLock = Math.abs(Math.abs(event.beta) - 90) < BETA_GIMBAL_LOCK_MARGIN_DEG;
+        // raw 추적값은 글리치/불안정 여부와 무관하게 항상 갱신한다 — 그래야 다음 프레임의
+        // 비교 기준이 실제 기기 자세를 계속 따라가고, 정상적인 빠른 움직임이 연쇄적으로
+        // 계속 걸러지는 일이 없다. 딱 이 프레임의 필터 반영만 건너뛴다.
         lastRawRef.current = { beta: event.beta, gamma: event.gamma };
-        if (isGlitch) return;
+        if (isGlitch || isNearGammaGimbalLock || isNearBetaGimbalLock) return;
         filteredRef.current = {
           beta: filteredRef.current.beta + (event.beta - filteredRef.current.beta) * LOW_PASS_ALPHA,
           gamma: filteredRef.current.gamma + (event.gamma - filteredRef.current.gamma) * LOW_PASS_ALPHA,

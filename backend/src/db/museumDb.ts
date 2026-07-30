@@ -85,10 +85,12 @@ function openDatabase(): DatabaseSyncType {
     )
   `);
   // 팀 커스텀 이름 컬럼은 나중에 추가됐다 — 기존 DB 파일엔 없을 수 있어 있으면 조용히 실패한다.
+  // "컬럼이 이미 있다" 에러만 무시하고, 디스크/잠금 등 다른 진짜 DB 에러는 그대로 던진다.
   try {
     database.exec(`ALTER TABLE museum_tyrannos ADD COLUMN team_name TEXT`);
-  } catch {
-    // 이미 컬럼이 있으면 무시한다.
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (!message.includes("duplicate column name")) throw err;
   }
   return database;
 }
