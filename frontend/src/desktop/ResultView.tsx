@@ -10,11 +10,9 @@ import {
   type TeamId,
 } from "@trex/shared";
 import type { AppSocket } from "../socket";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 import { newRequestId } from "../util/requestId";
 import { BattleTrexModel } from "../battle/BattleTrexModel";
-
-const TEAM_EMBLEM: Record<TeamId, string> = { A: "🔥", B: "❄️" };
 
 function formatScore(score: number | null | undefined): string {
   return score === null || score === undefined ? "-" : String(Math.round(score));
@@ -89,11 +87,14 @@ function TeamPanel({
   const isWinner = roomState.winner.teamId === teamId;
 
   return (
-    <div className={`result-view__team-panel result-view__team-panel--${teamId.toLowerCase()}`}>
+    <div
+      className={`result-view__team-panel result-view__team-panel--${teamId.toLowerCase()}`}
+      style={{ "--team-color": roomState.teamStyles[teamId].color } as CSSProperties}
+    >
       <div className="result-view__team-summary">
         <div className="result-view__team-identity">
           <h3 className="result-view__team-name">
-            {TEAM_EMBLEM[teamId]} {roomState.teamNames[teamId]}
+            {roomState.teamStyles[teamId].emoji} {roomState.teamNames[teamId]}
           </h3>
           <p className="result-view__form">{isWinner ? "🦖 티라노사우루스" : "🦖 와이라노..."}</p>
         </div>

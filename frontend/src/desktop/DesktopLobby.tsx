@@ -1,6 +1,6 @@
 /** Plan.md §5.1, §17.1, §17.4. 데스크탑 로비: 방 생성, QR, 팀 배정, 게임 시작. */
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import QRCode from "qrcode";
 import {
   BONE_IDS,
@@ -47,7 +47,6 @@ import {
 } from "../roomStateReducer";
 
 const CROSSHAIR_STALE_MS = 700;
-const TEAM_EMBLEM: Record<TeamId, string> = { A: "🔥", B: "❄️" };
 const LOBBY_BGM_VOLUME = 0.26;
 const LOBBY_BGM_FADE_MS = 900;
 const EXCAVATION_BGM_VOLUME = 0.45;
@@ -718,10 +717,13 @@ function TeamCard({ roomState, teamId }: { roomState: RoomState; teamId: TeamId 
   const players = roomState.players.filter((p) => p.teamId === teamId);
   const emptySlots = Math.max(0, roomState.maxPlayersPerTeam - players.length);
   return (
-    <div className={`lobby-team-card lobby-team-card--${teamId.toLowerCase()}`}>
+    <div
+      className={`lobby-team-card lobby-team-card--${teamId.toLowerCase()}`}
+      style={{ "--team-color": roomState.teamStyles[teamId].color } as CSSProperties}
+    >
       <div className="lobby-team-card__header">
         <span className="lobby-team-card__name">
-          {TEAM_EMBLEM[teamId]} {roomState.teamNames[teamId]}
+          {roomState.teamStyles[teamId].emoji} {roomState.teamNames[teamId]}
         </span>
         <span className="lobby-team-card__count">
           {players.length}/{roomState.maxPlayersPerTeam}명

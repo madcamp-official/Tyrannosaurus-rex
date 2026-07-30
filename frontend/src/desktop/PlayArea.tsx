@@ -14,7 +14,7 @@ import {
   type TeamPhase,
   type TeamState,
 } from "@trex/shared";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { serverNow } from "../socket";
 import { ExcavationTeamPanel } from "./ExcavationView";
 import { DinoRunOverlay, DinoRunTeamPanel } from "./DinoRunView";
@@ -192,8 +192,12 @@ function PracticeAimOverlay({
       <p className="practice-aim__guide">휴대폰을 움직여 과녁판 중앙을 맞추어, 영점을 조정하세요!</p>
       <div className="practice-aim__legend">
         {TEAM_IDS.map((teamId) => (
-          <span key={teamId} className={`practice-aim__team practice-aim__team--${teamId.toLowerCase()}`}>
-            {roomState.teamNames[teamId]}
+          <span
+            key={teamId}
+            className={`practice-aim__team practice-aim__team--${teamId.toLowerCase()}`}
+            style={{ "--team-color": roomState.teamStyles[teamId].color } as CSSProperties}
+          >
+            {roomState.teamStyles[teamId].emoji} {roomState.teamNames[teamId]}
           </span>
         ))}
       </div>
@@ -206,11 +210,13 @@ function TeamHeader({
   teamName,
   players,
   team,
+  teamStyle,
 }: {
   teamId: TeamId;
   teamName: string;
   players: PublicPlayer[];
   team: TeamState;
+  teamStyle: RoomState["teamStyles"][TeamId];
 }): JSX.Element {
   const connected = players.filter((p) => p.connected).length;
   const totalExcavationInputs = players.reduce((sum, player) => sum + player.stats.excavationInputs, 0);
@@ -263,7 +269,11 @@ function TeamHeader({
     </div>
   );
   return (
-    <div className={`play-area__team-header play-area__team-header--${teamId.toLowerCase()}`}>
+    <div
+      className={`play-area__team-header play-area__team-header--${teamId.toLowerCase()}`}
+      style={{ "--team-color": teamStyle.color } as CSSProperties}
+    >
+      <span className="play-area__team-emoji">{teamStyle.emoji}</span>
       {teamId === "A" ? <>{teamIdentity}{teamStats}</> : <>{teamStats}{teamIdentity}</>}
     </div>
   );
@@ -343,7 +353,13 @@ export function PlayArea({ roomState, ephemeral }: { roomState: RoomState; ephem
         className={`play-area__team play-area__team--${teamId}${hasSharedArena ? " play-area__team--sidebar" : ""}`}
       >
         {team.phase !== "EXCAVATION" && (
-          <TeamHeader teamId={teamId} teamName={roomState.teamNames[teamId]} players={players} team={team} />
+          <TeamHeader
+            teamId={teamId}
+            teamName={roomState.teamNames[teamId]}
+            players={players}
+            team={team}
+            teamStyle={roomState.teamStyles[teamId]}
+          />
         )}
         <div className="play-area__team-body">
           <TeamPhaseContent team={team} roomState={roomState} />

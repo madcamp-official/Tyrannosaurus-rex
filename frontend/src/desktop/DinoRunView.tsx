@@ -3,7 +3,7 @@
  * 다이노런(장애물 점프) 대신 운석 피하기로 바뀌었지만 패널 이름은 그대로 유지.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import {
   DINO_RUN_DURATION_MS,
   METEOR_DODGE_LIVES,
@@ -54,7 +54,7 @@ export function DinoRunTeamPanel({ team, players }: { team: TeamState; players: 
   return (
     <div className="dino-view">
       <p className="dino-view__timer">☄️ 운석 피하기 진행 중 — {remainingSec}초 남음</p>
-      <p className="dino-view__phone-hint">📱 이제 폰을 봐주세요! 화면에서 운석을 피하세요!</p>
+      <p className="dino-view__phone-hint">📱 휴대폰에서 게임을 진행해주세요.</p>
       <ul className="excavation-view__players">
         {players.map((p) => {
           const lives = team.dinoRun.livesByPlayer[p.id] ?? METEOR_DODGE_LIVES;
@@ -116,7 +116,7 @@ export function DinoRunOverlay({ roomState }: { roomState: RoomState }): JSX.Ele
         </div>
 
         <p className="dino-overlay__phone-hint">
-          이제 폰을 봐주세요!
+          휴대폰에서 게임을 진행해주세요.
           <br />
           화면에서 운석을 피하세요!
         </p>
@@ -128,8 +128,14 @@ export function DinoRunOverlay({ roomState }: { roomState: RoomState }): JSX.Ele
             const teamName = roomState.teamNames[teamId];
             const teamNameSize = Math.max(16, Math.min(32, 260 / Math.max(1, Array.from(teamName).length)));
             return (
-              <section key={teamId} className={`dino-overlay__team dino-overlay__team--${teamId.toLowerCase()}`}>
-                <h2 style={{ fontSize: `${teamNameSize}px` }} title={teamName}>{teamName}</h2>
+              <section
+                key={teamId}
+                className={`dino-overlay__team dino-overlay__team--${teamId.toLowerCase()}`}
+                style={{ "--team-color": roomState.teamStyles[teamId].color } as CSSProperties}
+              >
+                <h2 style={{ fontSize: `${teamNameSize}px` }} title={teamName}>
+                  {roomState.teamStyles[teamId].emoji} {teamName}
+                </h2>
                 <ul>
                   {players.map((player) => (
                     <PlayerLives key={player.id} player={player} team={team} />

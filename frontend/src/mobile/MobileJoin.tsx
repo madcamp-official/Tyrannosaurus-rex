@@ -1,6 +1,6 @@
 /** Plan.md §5.2, §17.2, §17.3. 모바일 입장과 준비 상태 (Day1 로비 범위). */
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from "react";
 import { useParams } from "react-router-dom";
 import {
   METEOR_FRUIT_SCORE_REWARD,
@@ -32,7 +32,6 @@ import {
 } from "../roomStateReducer";
 
 type JoinStatus = "FORM" | "JOINING" | "JOINED" | "ERROR";
-const TEAM_EMBLEM: Record<TeamId, string> = { A: "🔥", B: "❄️" };
 const reconnectStorageKey = (roomCode: string) => `trex:player-session:${roomCode}`;
 type StoredPlayerSession = { nickname: string; reconnectToken: string };
 
@@ -350,7 +349,10 @@ export function MobileJoin(): JSX.Element {
       </>
     );
     return (
-      <main className={`mobile-join mobile-join--team-${teamId.toLowerCase()}`}>
+      <main
+        className={`mobile-join mobile-join--team-${teamId.toLowerCase()}`}
+        style={{ "--team-color": roomState.teamStyles[teamId].color } as CSSProperties}
+      >
         <div className="mobile-join__bg" />
         <div className="mobile-join__scrim" />
         <SensorPermissionGate phaseStartedAt={team.phaseStartedAt} phase={team.phase}>{content}</SensorPermissionGate>
@@ -359,13 +361,16 @@ export function MobileJoin(): JSX.Element {
   }
 
   return (
-    <main className={`mobile-join${teamId ? ` mobile-join--team-${teamId.toLowerCase()}` : ""}`}>
+    <main
+      className={`mobile-join${teamId ? ` mobile-join--team-${teamId.toLowerCase()}` : ""}`}
+      style={teamId && roomState ? { "--team-color": roomState.teamStyles[teamId].color } as CSSProperties : undefined}
+    >
       <div className="mobile-join__bg" />
       <div className="mobile-join__scrim" />
       <div className="mobile-join__content">
         <img className="mobile-join__logo mobile-join__logo--small" src="/images/logo.png" alt="내 티라노를 살려내!" />
         <p className="mobile-join__team-label">
-          {teamId ? TEAM_EMBLEM[teamId] : ""} {teamId && roomState ? roomState.teamNames[teamId] : ""}
+          {teamId && roomState ? roomState.teamStyles[teamId].emoji : ""} {teamId && roomState ? roomState.teamNames[teamId] : ""}
         </p>
         <p className="mobile-join__team-sublabel">으로 입장했습니다</p>
         <button
