@@ -27,6 +27,7 @@ import { newRequestId } from "../util/requestId";
 import { describeAckError } from "../util/errorMessages";
 import { PlayArea, type ChargingEphemeral } from "./PlayArea";
 import { ResultView } from "./ResultView";
+import { EndingSequence } from "./EndingSequence";
 import {
   applyBoneFound,
   applyCoreChanged,
@@ -589,16 +590,20 @@ export function DesktopLobby(): JSX.Element {
 
         {roomState && roomState.roomPhase === "PLAYING" && <PlayArea roomState={roomState} ephemeral={ephemeral} />}
         {roomState && roomState.roomPhase === "RESULT" && (
-          <ResultView
-            roomState={roomState}
-            gameResult={gameResult}
-            socket={socketRef.current}
-            onRematch={(state) => {
-              setRoomState(state);
-              setGameResult(null);
-              setStartError(null);
-            }}
-          />
+          <EndingSequence
+            enabled={roomState.teams.A.charging.form === "NORMAL" || roomState.teams.B.charging.form === "NORMAL"}
+          >
+            <ResultView
+              roomState={roomState}
+              gameResult={gameResult}
+              socket={socketRef.current}
+              onRematch={(state) => {
+                setRoomState(state);
+                setGameResult(null);
+                setStartError(null);
+              }}
+            />
+          </EndingSequence>
         )}
 
         <DebugPanel bridge={bridge} />
