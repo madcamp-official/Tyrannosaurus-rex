@@ -161,6 +161,9 @@ export function DesktopLobby(): JSX.Element {
   const isExcavationActive =
     roomState?.roomPhase === "PLAYING" &&
     (roomState.teams.A.phase === "EXCAVATION" || roomState.teams.B.phase === "EXCAVATION");
+  const shouldRenderGodotStage =
+    (!roomState || roomState.roomPhase === "LOBBY" || roomState.roomPhase === "PLAYING") &&
+    !isChargingBattle;
   usePhaseBgm("/audio/dino-run-bgm.mp3", DINO_RUN_BGM_VOLUME, DINO_RUN_BGM_FADE_MS, isDinoRunActive, bgmMuted);
   usePhaseBgm("/audio/excavation-bgm.mp3", EXCAVATION_BGM_VOLUME, EXCAVATION_BGM_FADE_MS, isExcavationActive, bgmMuted);
   usePhaseBgm("/audio/charging-bgm.mp3", CHARGING_BGM_VOLUME, CHARGING_BGM_FADE_MS, isChargingBattle, bgmMuted);
@@ -531,7 +534,7 @@ export function DesktopLobby(): JSX.Element {
       )}
       {/* 사격 화면은 별도 Three.js WebGL을 사용한다. 이때 Godot까지 뒤에서 계속 렌더링하면
           GPU 컨텍스트 두 개가 경쟁하므로 사격 동안 iframe을 언마운트해 자원을 해제한다. */}
-      {!isChargingBattle && <GodotStage />}
+      {shouldRenderGodotStage && <GodotStage />}
       <div className="desktop-lobby__scrim" />
 
       <div className="desktop-lobby__overlay">
@@ -595,7 +598,7 @@ export function DesktopLobby(): JSX.Element {
           ) : (
             <EndingSequence
               key={gameResult.finishedAt}
-              enabled={gameResult.teams.some((team) => team.form === "NORMAL")}
+              enabled={gameResult.teams.some((team) => team.form !== "NONE")}
             >
               <ResultView
                 roomState={roomState}
