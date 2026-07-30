@@ -1,6 +1,6 @@
 /** Plan.md §17.10, §18. 사격 판정과 배경 충전 틱(10Hz) 브로드캐스트. */
 
-import { energyFireRequestSchema, teamPlayerScore } from "@trex/shared";
+import { energyFireRequestSchema, teamAveragePlayerScore } from "@trex/shared";
 import type { RoomManager, ChargingTickUpdate } from "./RoomManager.js";
 import type { AppServer, AppSocket } from "./types.js";
 import { roomChannel } from "./channels.js";
@@ -156,7 +156,7 @@ export function broadcastResultIfFinalized(io: AppServer, rooms: RoomManager, ro
           assemblyMs: durations.assemblyMs,
           chargingMs: durations.chargingMs,
           scores: team.scores,
-          totalScore: teamPlayerScore(room.state.players, teamId),
+          averageScore: teamAveragePlayerScore(room.state.players, teamId),
         };
       }),
       players: room.state.players,

@@ -244,7 +244,8 @@ export type GameResultEvent = {
     assemblyMs: number | null;
     chargingMs: number | null;
     scores: GameScores;
-    totalScore: number;
+    /** 팀 인원수와 무관하게 승패를 가릴 수 있도록, 팀 총점을 팀원 수로 나눈 인당 평균 점수. */
+    averageScore: number;
   }>;
   players: PublicPlayer[];
   /** Plan.md §2.3, §5.1. 개인 MVP 1~3위. */

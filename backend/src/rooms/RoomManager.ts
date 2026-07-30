@@ -29,7 +29,7 @@ import {
   SHOOTING_SCORE_CORE_HITS_FOR_FULL_MARKS,
   TEAM_DISPLAY_NAMES,
   TEAM_IDS,
-  teamPlayerScore,
+  teamAveragePlayerScore,
   type AimUpdateInput,
   type BoneId,
   type CoreZone,
@@ -932,7 +932,8 @@ export class RoomManager {
 
   /**
    * §3 누적 점수제. 경기 단위로 승패를 가리지 않고, 양 팀 모두 REVIVED(정상이든 와이라노든)에
-   * 도달했거나 라운드 시간이 끝났을 때만 3경기 누적 점수 총합을 비교해 승자를 확정한다.
+   * 도달했거나 라운드 시간이 끝났을 때만 3경기 누적 점수의 인당 평균을 비교해 승자를 확정한다.
+   * 인당 평균을 쓰는 이유는 팀 인원수가 달라도 공정하게 승패를 가리기 위해서다.
    * 부활 판정(정상/와이라노)은 이 비교와 무관한 팀별 개별 상태다 (§2.3 부활 판정).
    */
   checkRoundCompletion(room: RoomRecord, now: number): boolean {
@@ -942,12 +943,12 @@ export class RoomManager {
     const timedOut = room.state.roundEndsAt !== null && now >= room.state.roundEndsAt;
     if (!bothRevived && !timedOut) return false;
 
-    const totalA = teamPlayerScore(room.state.players, "A");
-    const totalB = teamPlayerScore(room.state.players, "B");
-    if (totalA === totalB) {
+    const avgA = teamAveragePlayerScore(room.state.players, "A");
+    const avgB = teamAveragePlayerScore(room.state.players, "B");
+    if (avgA === avgB) {
       this.finalizeRoundWinner(room, null, "DRAW", now);
     } else {
-      this.finalizeRoundWinner(room, totalA > totalB ? "A" : "B", "SCORE_TOTAL", now);
+      this.finalizeRoundWinner(room, avgA > avgB ? "A" : "B", "SCORE_TOTAL", now);
     }
     return true;
   }
