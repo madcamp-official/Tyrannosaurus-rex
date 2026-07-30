@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   BONE_IDS,
+  EXCAVATION_DUST_ATTACK_CHARGE,
   EXCAVATION_SHAKE_COOLDOWN_MS,
   MOBILE_INPUT_FLUSH_MS,
   type BoneId,
@@ -11,6 +12,7 @@ import {
   type TeamId,
 } from "@trex/shared";
 import type { AppSocket } from "../socket";
+import { newRequestId } from "../util/requestId";
 
 // Godot의 TrexPuzzleModel.gd PIECE_LABELS와 맞춘 한글 이름 — 발굴 화면에서 어떤 뼈를
 // 찾았는지 보여줄 때 쓴다.
@@ -71,21 +73,45 @@ export function ExcavationControls({
   socket,
   teamId,
   result,
+  initialCharge,
+  initialCooldownUntil,
+  initialDisruptedUntil,
 }: {
   socket: AppSocket;
   teamId: TeamId;
   result: "WIN" | "LOSE" | "DRAW" | null;
+  initialCharge: number;
+  initialCooldownUntil: number | null;
+  initialDisruptedUntil: number | null;
 }): JSX.Element {
   const [motionPermission, setMotionPermission] = useState<SensorPermission>("UNKNOWN");
   const [shakeFlash, setShakeFlash] = useState(false);
   const [collectedBones, setCollectedBones] = useState<BoneId[]>([]);
   const [recentBone, setRecentBone] = useState<BoneId | null>(null);
+  const [dustCharge, setDustCharge] = useState(initialCharge);
+  const [dustCooldownUntil, setDustCooldownUntil] = useState(initialCooldownUntil ?? 0);
+  const [disruptedUntil, setDisruptedUntil] = useState(initialDisruptedUntil ?? 0);
+  const [nowMs, setNowMs] = useState(Date.now());
+  const [attackPending, setAttackPending] = useState(false);
   const motionCountRef = useRef(0);
   const seqRef = useRef(0);
   const lastShakeAtRef = useRef(0);
   const digLoopAudioRef = useRef<HTMLAudioElement | null>(null);
   const digLoopFadeRef = useRef<number | null>(null);
   const digLoopStopTimerRef = useRef<number | null>(null);
+  const disruptedUntilRef = useRef(disruptedUntil);
+  disruptedUntilRef.current = disruptedUntil;
+
+  useEffect(() => {
+    setDustCharge(initialCharge);
+    setDustCooldownUntil(initialCooldownUntil ?? 0);
+    setDisruptedUntil(initialDisruptedUntil ?? 0);
+  }, [initialCharge, initialCooldownUntil, initialDisruptedUntil]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 200);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const audio = new Audio("/audio/excavation-dig-loop.mp3");
@@ -164,6 +190,7 @@ export function ExcavationControls({
     if (motionPermission !== "GRANTED") return undefined;
     const handleMotion = (event: DeviceMotionEvent) => {
       const now = Date.now();
+      if (now < disruptedUntilRef.current) return;
       if (now - lastShakeAtRef.current < EXCAVATION_SHAKE_COOLDOWN_MS) return;
 
       let triggered: boolean;
@@ -188,6 +215,36 @@ export function ExcavationControls({
     window.addEventListener("devicemotion", handleMotion);
     return () => window.removeEventListener("devicemotion", handleMotion);
   }, [motionPermission]);
+
+  useEffect(() => {
+    const onCharge = (evt: ServerEvent<{ teamId: TeamId; charge: number; cooldownUntil: number | null }>) => {
+      if (evt.data.teamId !== teamId) return;
+      setDustCharge(evt.data.charge);
+      setDustCooldownUntil(evt.data.cooldownUntil ?? 0);
+    };
+    const onAttacked = (evt: ServerEvent<{
+      attackerTeamId: TeamId;
+      targetTeamId: TeamId;
+      attackerPlayerId: string;
+      attackerNickname: string;
+      disruptedUntil: number;
+    }>) => {
+      if (evt.data.targetTeamId !== teamId) return;
+      motionCountRef.current = 0;
+      setDisruptedUntil(evt.data.disruptedUntil);
+      try {
+        navigator.vibrate?.([120, 50, 180]);
+      } catch {
+        // 진동을 지원하지 않는 기기에서는 시각 안내만 사용한다.
+      }
+    };
+    socket.on("excavation:dustCharge", onCharge);
+    socket.on("excavation:dustAttacked", onAttacked);
+    return () => {
+      socket.off("excavation:dustCharge", onCharge);
+      socket.off("excavation:dustAttacked", onAttacked);
+    };
+  }, [socket, teamId]);
 
   useEffect(() => {
     // 우리 팀이 뼈를 찾았을 때만 진동 — excavation:boneFound는 방 전체(양 팀)로 브로드캐스트되니
@@ -215,6 +272,7 @@ export function ExcavationControls({
     const interval = window.setInterval(() => {
       const motion = Math.min(MAX_COUNT_PER_PACKET, motionCountRef.current);
       motionCountRef.current = 0;
+      if (Date.now() < disruptedUntilRef.current) return;
       if (motion === 0) return;
       seqRef.current += 1;
       socket.emit("excavate:input", {
@@ -226,6 +284,22 @@ export function ExcavationControls({
     }, MOBILE_INPUT_FLUSH_MS);
     return () => window.clearInterval(interval);
   }, [socket]);
+
+  const useDustAttack = () => {
+    if (attackPending || dustCharge < EXCAVATION_DUST_ATTACK_CHARGE || dustCooldownUntil > Date.now()) return;
+    setAttackPending(true);
+    socket.emit("excavation:dustAttack", { requestId: newRequestId() }, (ack) => {
+      setAttackPending(false);
+      if (!ack.ok) return;
+      setDustCharge(0);
+    });
+  };
+
+  const isDisrupted = disruptedUntil > nowMs;
+  const attackReady =
+    dustCharge >= EXCAVATION_DUST_ATTACK_CHARGE &&
+    dustCooldownUntil <= nowMs &&
+    !isDisrupted;
 
   if (result) {
     const label = result === "WIN" ? "🏆 발굴 완료!" : result === "DRAW" ? "무승부" : "발굴 완료";
@@ -239,8 +313,14 @@ export function ExcavationControls({
 
   return (
     <div
-      className={`excavation-controls${shakeFlash ? " excavation-controls--shake-flash" : ""}${recentBone ? " excavation-controls--bone-flash" : ""}`}
+      className={`excavation-controls${shakeFlash ? " excavation-controls--shake-flash" : ""}${recentBone ? " excavation-controls--bone-flash" : ""}${isDisrupted ? " excavation-controls--disrupted" : ""}`}
     >
+      {isDisrupted && (
+        <div className="excavation-controls__disrupted">
+          <strong>흙먼지가 덮쳤습니다!</strong>
+          <span>잠시 후 다시 발굴할 수 있어요.</span>
+        </div>
+      )}
       <p className="mobile-game__title">흔들어서 뼈를 발굴하세요!</p>
       {motionPermission === "DENIED" && <p className="mobile-game__hint">센서 권한이 꺼져 있어요. 설정에서 동작 센서 권한을 켜주세요.</p>}
       {motionPermission === "UNSUPPORTED" && <p className="mobile-game__hint">이 기기는 흔들기를 지원하지 않아요.</p>}
@@ -259,6 +339,14 @@ export function ExcavationControls({
           );
         })}
       </ul>
+      <div className="excavation-controls__dust-attack">
+        <div className="excavation-controls__dust-meter">
+          <span style={{ width: `${Math.min(100, (dustCharge / EXCAVATION_DUST_ATTACK_CHARGE) * 100)}%` }} />
+        </div>
+        <button type="button" disabled={!attackReady || attackPending} onClick={useDustAttack}>
+          {attackPending ? "공격 중..." : attackReady ? "상대 팀에 흙먼지 날리기!" : `흙먼지 충전 ${Math.floor(dustCharge)}/${EXCAVATION_DUST_ATTACK_CHARGE}`}
+        </button>
+      </div>
     </div>
   );
 }
