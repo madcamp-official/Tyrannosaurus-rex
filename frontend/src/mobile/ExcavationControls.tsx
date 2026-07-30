@@ -1,4 +1,4 @@
-/** Plan.md §5.2, §6.1. 흔들기 센서 + 탭 폴백 발굴 컨트롤. */
+/** Plan.md §5.2, §6.1. 흔들기 센서 전용 발굴 컨트롤. */
 
 import { useEffect, useRef, useState } from "react";
 import {
@@ -38,7 +38,7 @@ const SHAKE_AXIS_THRESHOLD = 10;
 // event.acceleration을 못 주는 기기용 폴백 — 중력 포함 벡터 크기(accelerationIncludingGravity) 기준이라 방향 구분은 없다.
 const SHAKE_MAGNITUDE_THRESHOLD = 14;
 const MAX_COUNT_PER_PACKET = 5;
-// 파기 효과음은 내 폰에서, 내가 실제로 흔들거나 탭할 때만 난다(팀 전체 진행이 아니라 내 동작
+// 파기 효과음은 내 폰에서, 내가 실제로 흔들 때만 난다(팀 전체 진행이 아니라 내 동작
 // 기준) — 이벤트마다 새로 트는 게 아니라 계속 반복 재생하다가, 마지막 동작 후 일정 시간
 // 동안 새 동작이 없으면(=내가 멈췄으면) 페이드아웃하고 정지한다.
 const DIG_LOOP_VOLUME = 0.5;
@@ -81,7 +81,6 @@ export function ExcavationControls({
   const [collectedBones, setCollectedBones] = useState<BoneId[]>([]);
   const [recentBone, setRecentBone] = useState<BoneId | null>(null);
   const motionCountRef = useRef(0);
-  const tapCountRef = useRef(0);
   const seqRef = useRef(0);
   const lastShakeAtRef = useRef(0);
   const digLoopAudioRef = useRef<HTMLAudioElement | null>(null);
@@ -120,7 +119,7 @@ export function ExcavationControls({
     return () => window.removeEventListener("pointerdown", unlockOnce);
   }, []);
 
-  /** 흔들거나 탭할 때마다 호출한다 — 안 재생 중이면 시작하고, "멈춤" 타이머를 계속 미룬다. */
+  /** 흔들 때마다 호출한다 — 안 재생 중이면 시작하고, "멈춤" 타이머를 계속 미룬다. */
   const pingDigLoop = () => {
     const audio = digLoopAudioRef.current;
     if (!audio) return;
@@ -215,28 +214,18 @@ export function ExcavationControls({
   useEffect(() => {
     const interval = window.setInterval(() => {
       const motion = Math.min(MAX_COUNT_PER_PACKET, motionCountRef.current);
-      const tap = Math.min(MAX_COUNT_PER_PACKET - motion, tapCountRef.current);
       motionCountRef.current = 0;
-      tapCountRef.current = 0;
-      const count = motion + tap;
-      if (count === 0) return;
+      if (motion === 0) return;
       seqRef.current += 1;
       socket.emit("excavate:input", {
         seq: seqRef.current,
-        count,
-        sourceCounts: { motion, tap },
+        count: motion,
+        sourceCounts: { motion, tap: 0 },
         clientTime: Date.now(),
       });
     }, MOBILE_INPUT_FLUSH_MS);
     return () => window.clearInterval(interval);
   }, [socket]);
-
-  const handleTap = () => {
-    tapCountRef.current += 1;
-    setShakeFlash(true);
-    pingDigLoop();
-    window.setTimeout(() => setShakeFlash(false), 150);
-  };
 
   if (result) {
     const label = result === "WIN" ? "🏆 발굴 완료!" : result === "DRAW" ? "무승부" : "발굴 완료";
@@ -251,11 +240,10 @@ export function ExcavationControls({
   return (
     <div
       className={`excavation-controls${shakeFlash ? " excavation-controls--shake-flash" : ""}${recentBone ? " excavation-controls--bone-flash" : ""}`}
-      onClick={handleTap}
     >
       <p className="mobile-game__title">흔들어서 뼈를 발굴하세요!</p>
-      {motionPermission === "DENIED" && <p className="mobile-game__hint">센서 권한이 꺼져 있어요. 화면을 눌러 발굴하세요.</p>}
-      {motionPermission === "UNSUPPORTED" && <p className="mobile-game__hint">이 기기는 흔들기를 지원하지 않아요. 화면을 눌러 발굴하세요.</p>}
+      {motionPermission === "DENIED" && <p className="mobile-game__hint">센서 권한이 꺼져 있어요. 설정에서 동작 센서 권한을 켜주세요.</p>}
+      {motionPermission === "UNSUPPORTED" && <p className="mobile-game__hint">이 기기는 흔들기를 지원하지 않아요.</p>}
       {motionPermission === "GRANTED" && <p className="mobile-game__hint">흔드는 대로 자동으로 인식돼요.</p>}
       {recentBone && <p className="excavation-controls__found-toast">🦴 {BONE_LABELS[recentBone]} 발견!</p>}
       <ul className="excavation-controls__bone-list">

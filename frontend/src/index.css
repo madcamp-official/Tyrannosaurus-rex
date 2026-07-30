@@ -1492,12 +1492,11 @@ body {
   justify-content: center;
   gap: 20px;
   padding: 32px 24px;
-  touch-action: manipulation;
   transition: background 0.1s ease-out;
 }
 
-/* 흔들거나(또는 화면을 탭해) 발굴 입력이 들어갈 때마다 아주 짧게 배경이 밝아진다 —
-   예전엔 "파기" 버튼 하나에만 주던 효과를 화면 전체로 옮겼다. */
+/* 흔들어서 발굴 입력이 들어갈 때마다 아주 짧게 배경이 밝아진다 — 예전엔 "파기" 버튼
+   하나에만 주던 효과를 화면 전체로 옮겼다. */
 .excavation-controls--shake-flash {
   background: rgba(245, 216, 115, 0.14);
 }
