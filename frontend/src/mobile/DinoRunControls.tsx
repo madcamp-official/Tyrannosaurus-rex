@@ -51,6 +51,7 @@ export function DinoRunControls({
   result,
   serverTimeOffsetMs,
   meteorLocks,
+  caughtObjectIds,
   toast,
 }: {
   socket: AppSocket;
@@ -60,6 +61,8 @@ export function DinoRunControls({
   serverTimeOffsetMs: number;
   /** 서버가 확정한 운석 목표 좌표(objectId → x). 클라이언트 자체 추정치보다 우선한다. */
   meteorLocks: Map<number, number>;
+  /** 명중·과일·하트로 판정이 끝난 오브젝트 id — 공룡에 닿는 즉시 화면에서 지운다. */
+  caughtObjectIds: Set<number>;
   /** 명중·과일·하트 등 방금 일어난 이벤트를 짧게 알려주는 문구. */
   toast: string | null;
 }): JSX.Element {
@@ -182,6 +185,9 @@ export function DinoRunControls({
         onPointerLeave={stopMove}
       >
         {team.dinoRun.skyObjects.map((obj) => {
+          // 공룡과 닿아 판정(명중/과일/하트)이 이미 난 오브젝트는 유예 시간을 기다리지 않고
+          // 그 즉시 화면에서 지운다 — 바닥까지 떨어지는 대신 닿는 순간 사라지는 느낌을 준다.
+          if (caughtObjectIds.has(obj.id)) return null;
           const progress = (elapsed - (obj.hitAtMs - SKY_OBJECT_FALL_MS)) / SKY_OBJECT_FALL_MS;
           if (progress < -0.05 || progress > 1 + SKY_OBJECT_COLLISION_GRACE_MS / SKY_OBJECT_FALL_MS) return null;
           let objX = obj.x;
