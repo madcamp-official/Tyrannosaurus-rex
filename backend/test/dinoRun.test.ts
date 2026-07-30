@@ -51,7 +51,10 @@ function setupChargingPracticeRoom() {
   rooms.tickDinoCollisions(room, evalNow);
   rooms.tickDinoRun(room, evalNow);
   rooms.tickDinoRunTransition(room, evalNow + ROUND_TRANSITION_MS + 1);
+  // 운석 피하기 다음은 이제 발굴(EXCAVATION)이다 — 영점 연습 상태만 단독으로 테스트하려고
+  // 발굴을 실제로 진행하는 대신 곧장 CHARGING_PRACTICE로 강제 이동시킨다.
   for (const teamId of ["A", "B"] as const) {
+    room.state.teams[teamId].phase = "CHARGING_PRACTICE";
     room.state.teams[teamId].phaseStartedAt = Date.now() - PHASE_START_GRACE_MS;
     room.state.teams[teamId].phaseEndsAt =
       room.state.teams[teamId].phaseStartedAt + PHASE_START_GRACE_MS + CHARGING_PRACTICE_DURATION_MS;
@@ -382,7 +385,7 @@ describe("dino run (meteor dodge)", () => {
       expect(b.grade).toBe("MESSY");
       expect(b.startStability).toBe(CHARGING_START_STABILITY_BASE);
 
-      // 두 팀 다 끝나 승/패가 갈리면 이전 화면을 다시 보여주지 않고 즉시 영점 연습으로 넘어간다.
+      // 두 팀 다 끝나 승/패가 갈리면 이전 화면을 다시 보여주지 않고 즉시 다음 판(발굴)으로 넘어간다.
       expect(teamResults).toContainEqual({ teamId: "A", result: "WIN", score: room.state.teams.A.scores.dinoRun });
       expect(teamResults).toContainEqual({ teamId: "B", result: "LOSE", score: room.state.teams.B.scores.dinoRun });
       expect(room.state.teams.A.phase).toBe("ASSEMBLY");
@@ -390,14 +393,14 @@ describe("dino run (meteor dodge)", () => {
       expect(transitioned).toBe(true);
 
       for (const teamId of ["A", "B"] as const) {
-        expect(room.state.teams[teamId].phase).toBe("CHARGING_PRACTICE");
-        expect(room.state.teams[teamId].phaseEndsAt).not.toBeNull();
+        expect(room.state.teams[teamId].phase).toBe("EXCAVATION");
+        expect(room.state.teams[teamId].phaseEndsAt).toBeNull();
         expect(room.state.teams[teamId].dinoRun.result).toBeNull();
         expect(room.state.teams[teamId].dinoRun.performance).toBeNull();
       }
       expect(room.state.teams.B.charging.stability).toBe(CHARGING_START_STABILITY_BASE);
       expect(room.phaseDurations.A.assemblyMs).not.toBeNull();
-      // 연습 중에는 아직 공유 스켈레톤/충전 시작 시각이 잡히지 않는다 — 실제 CHARGING 진입 시점으로 미룬다.
+      // 발굴 중에는 아직 공유 스켈레톤/충전 시작 시각이 잡히지 않는다 — 실제 CHARGING 진입 시점으로 미룬다.
       expect(room.sharedTrexStartedAt).toBeNull();
       expect(room.chargingStartedAt.A).toBeNull();
 
