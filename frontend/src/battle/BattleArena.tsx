@@ -31,12 +31,15 @@ export function BattleArena({
 }): JSX.Element {
   const { trex, coreName } = battle;
   const chaseDepth = Math.min(1, Math.max(0, (trex.y - 0.5) / 0.29));
+  // 도로의 소실점(y=0.5)에서 카메라 쪽(y=0.79)으로 올수록 실제 원근 투영처럼
+  // 후반부에 더 빠르게 커진다. 위치와 크기는 같은 trex.y에서 계산해야 서로 어긋나지 않는다.
+  const chasePerspective = chaseDepth ** 1.35;
   const finalDepthScale = 1 + ((trex.y - 0.72) / 0.018) * 0.035;
   const stageScale =
     battle.chargingStage === 1
       ? 1
       : battle.chargingStage === 2
-        ? 0.1 + chaseDepth * 0.28
+        ? 0.08 + chasePerspective * 0.48
         : 1.665 * finalDepthScale;
   const roundDurationSec = CHARGING_DURATION_MS / 1000;
   const sunsetProgress = Math.min(1, Math.max(0, 1 - battle.remainingSec / roundDurationSec));

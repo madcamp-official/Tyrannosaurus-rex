@@ -267,7 +267,8 @@
   z-index: 1;
   width: 2480px;
   height: 1440px;
-  transition: left 0.25s linear, top 0.25s linear, transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: left 0.25s linear, top 0.25s linear, transform 0.25s linear;
+  will-change: left, top, transform;
 }
 
 .battle-trex__model {
@@ -304,7 +305,7 @@
 
 .battle-stage-banner {
   position: absolute;
-  top: 128px;
+  top: 154px;
   left: 50%;
   z-index: 6;
   display: flex;
@@ -788,7 +789,7 @@
 
 .battle-boards {
   position: absolute;
-  top: 178px;
+  top: 204px;
   left: 32px;
   right: 32px;
   z-index: 4;
