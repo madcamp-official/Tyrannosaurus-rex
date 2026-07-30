@@ -286,6 +286,10 @@ body {
   transform: scale(1.06);
 }
 
+.lobby-bgm-toggle--result {
+  z-index: 110;
+}
+
 /* ---------- 호스트 재연결 배너 ---------- */
 
 .host-reconnect-banner {

@@ -522,11 +522,11 @@ export function DesktopLobby(): JSX.Element {
           방 연결을 되살리지 못했어요. 새로고침해서 다시 시작해주세요.
         </div>
       )}
-      {(!roomState || roomState.roomPhase === "LOBBY") && (
+      {(!roomState || roomState.roomPhase === "LOBBY" || roomState.roomPhase === "RESULT") && (
         <button
           type="button"
-          className="lobby-bgm-toggle"
-          aria-label={bgmMuted ? "로비 음악 켜기" : "로비 음악 끄기"}
+          className={`lobby-bgm-toggle${roomState?.roomPhase === "RESULT" ? " lobby-bgm-toggle--result" : ""}`}
+          aria-label={bgmMuted ? "소리 켜기" : "소리 끄기"}
           onClick={() => setBgmMuted((muted) => !muted)}
         >
           {bgmMuted ? "🔇" : "🔊"}
