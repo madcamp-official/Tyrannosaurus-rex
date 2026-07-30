@@ -590,20 +590,25 @@ export function DesktopLobby(): JSX.Element {
 
         {roomState && roomState.roomPhase === "PLAYING" && <PlayArea roomState={roomState} ephemeral={ephemeral} />}
         {roomState && roomState.roomPhase === "RESULT" && (
-          <EndingSequence
-            enabled={roomState.teams.A.charging.form === "NORMAL" || roomState.teams.B.charging.form === "NORMAL"}
-          >
-            <ResultView
-              roomState={roomState}
-              gameResult={gameResult}
-              socket={socketRef.current}
-              onRematch={(state) => {
-                setRoomState(state);
-                setGameResult(null);
-                setStartError(null);
-              }}
-            />
-          </EndingSequence>
+          gameResult === null ? (
+            <section className="ending-sequence ending-sequence--pending" aria-label="결과를 불러오는 중" />
+          ) : (
+            <EndingSequence
+              key={gameResult.finishedAt}
+              enabled={gameResult.teams.some((team) => team.form === "NORMAL")}
+            >
+              <ResultView
+                roomState={roomState}
+                gameResult={gameResult}
+                socket={socketRef.current}
+                onRematch={(state) => {
+                  setRoomState(state);
+                  setGameResult(null);
+                  setStartError(null);
+                }}
+              />
+            </EndingSequence>
+          )
         )}
 
         <DebugPanel bridge={bridge} />
