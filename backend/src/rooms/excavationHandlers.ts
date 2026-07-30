@@ -72,7 +72,7 @@ export function registerExcavationHandlers(io: AppServer, socket: AppSocket, roo
   });
 }
 
-/** 100ms 배경 틱: 두 팀 다 발굴을 끝내고 대기 시간이 지나면 함께 다이노런으로 전환한다. */
+/** 100ms 배경 틱: 두 팀 다 발굴을 끝내고 대기 시간이 지나면 함께 영점 조정 연습으로 전환한다. */
 export function tickExcavationHandoff(io: AppServer, rooms: RoomManager, roomCode: string): void {
   const room = rooms.getRoom(roomCode);
   if (!room || room.state.roomPhase !== "PLAYING") return;
@@ -88,18 +88,9 @@ export function tickExcavationHandoff(io: AppServer, rooms: RoomManager, roomCod
       toServerEvent(roomCode, room.state.revision, {
         teamId,
         from: "EXCAVATION",
-        to: "ASSEMBLY",
+        to: "CHARGING_PRACTICE",
         startedAt: team.phaseStartedAt,
         endsAt: team.phaseEndsAt,
-      }),
-    );
-    io.to(channel).emit(
-      "dino:started",
-      toServerEvent(roomCode, room.state.revision, {
-        teamId,
-        skyObjects: team.dinoRun.skyObjects,
-        startedAt: team.phaseStartedAt,
-        endsAt: team.phaseEndsAt ?? 0,
       }),
     );
   }

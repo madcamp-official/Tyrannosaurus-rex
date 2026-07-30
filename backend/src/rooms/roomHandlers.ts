@@ -7,6 +7,7 @@ import {
   roomCreateRequestSchema,
   roomJoinRequestSchema,
   roomRequestStateRequestSchema,
+  TEAM_IDS,
   type ApiError,
   type RoomCreateResponse,
   type RoomJoinResponse,
@@ -176,6 +177,20 @@ export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: Ro
       "room:phaseChanged",
       toServerEvent(roomCode, state.revision, { from: "LOBBY", to: "PLAYING", endsAt: roundEndsAt }),
     );
+    // 운석 피하기(ASSEMBLY)가 이제 첫 판이라 라운드 시작과 동시에 두 팀 모두 바로 시작한다.
+    const channel = roomChannel(roomCode);
+    for (const teamId of TEAM_IDS) {
+      const team = room.state.teams[teamId];
+      io.to(channel).emit(
+        "dino:started",
+        toServerEvent(roomCode, state.revision, {
+          teamId,
+          skyObjects: team.dinoRun.skyObjects,
+          startedAt: team.phaseStartedAt,
+          endsAt: team.phaseEndsAt ?? 0,
+        }),
+      );
+    }
     broadcastRoomState(io, rooms, roomCode);
   });
 
