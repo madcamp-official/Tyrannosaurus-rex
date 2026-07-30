@@ -119,7 +119,6 @@ function TeamPanel({
           <strong>{assemblySec} + {excavationSec} = {totalSec}초</strong>
         </li>
       </ul>
-      {roomState.roomPhase === "DECORATION" && <p className="result-view__voting">박물관에 기록 중…</p>}
     </div>
   );
 }
@@ -133,8 +132,6 @@ export function ResultView({
   gameResult: GameResultEvent | null;
   socket: AppSocket | null;
 }): JSX.Element {
-  // 박물관 저장은 서버가 결과 확정 시점에 직접 DB에 기록한다
-  // (backend/src/rooms/votingHandlers.ts) — 클라이언트는 결과만 보여주면 된다.
   const handleRematch = () => {
     socket?.emit("game:rematch", { requestId: newRequestId() }, (ack: Ack<GameRematchResponse>) => {
       void ack;

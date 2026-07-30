@@ -37,12 +37,6 @@ body {
   overflow-x: hidden;
 }
 
-.museum-page {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 24px;
-}
-
 /* ---------- 모바일 입장/대기 화면 (데스크탑 홈·로비와 톤 맞춤) ---------- */
 
 .mobile-join {
@@ -2425,7 +2419,7 @@ body {
   margin: 0 0 16px;
 }
 
-/* 팀별 부활 티라노(빨강 박스)와 티꾸 완료 티라노(파랑 박스) 자리 — 아직 미구현, 자리만 예약해둔다. */
+/* 팀별 부활 결과를 나란히 배치한다. */
 .result-view__stage-row {
   display: flex;
   align-items: stretch;
@@ -2731,37 +2725,11 @@ body {
   color: #f5c542;
 }
 
-.result-view__voting {
-  margin-top: 12px;
-  font-size: 0.75rem;
-}
-
 .result-view__category {
   display: flex;
   justify-content: space-between;
   gap: 8px;
   opacity: 0.85;
-}
-
-.decoration-vote {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 16px;
-}
-
-.decoration-vote__categories,
-.decoration-vote__items {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  justify-content: center;
-}
-
-.decoration-vote__categories button.active,
-.decoration-vote__items button.active {
-  background: #43aa8b;
 }
 
 .result-view__mvp h3 {

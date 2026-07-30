@@ -11,7 +11,6 @@ import {
   FINAL_STAGE_STARTING_LIVES,
   FINAL_STAGE_STUN_MS,
   DINO_RUN_DURATION_MS,
-  DECORATION_VOTE_DURATION_MS,
   EXCAVATION_DRAW_WINDOW_MS,
   EXCAVATION_POINTS_PER_BONE,
   GAME_SCORE_MAX,
@@ -33,7 +32,6 @@ import {
   type AimUpdateInput,
   type BoneId,
   type CoreZone,
-  type DecorationCategory,
   type DinoPositionInput,
   type ExcavateInput,
   type PlayerId,
@@ -142,10 +140,6 @@ export type RoomRecord = {
   dinoMeteorLockState: Map<string, number>;
   /** 플레이어별 발사 쿨다운·shotId 중복 방지 상태 (§17.10). */
   shotTracking: Map<PlayerId, ShotTracking>;
-  /** 결과 화면에서 박물관 저장까지의 대기 창. 투표 기능은 없고 시간 경과만 확인한다. */
-  decorationSelections: Record<TeamId, Partial<Record<DecorationCategory, string>>>;
-  votingEndsAt: number | null;
-  votingFinalized: boolean;
 };
 
 /** 게임 시작·재경기 때마다 팀별 발굴·퍼즐·충전 상태를 초기값으로 되돌린다. id/playerIds는 건드리지 않는다. */
@@ -208,14 +202,6 @@ function makeEmptyTeamState(teamId: TeamId, now: number): TeamState {
   };
   resetTeamGameplayState(team, now);
   return team;
-}
-
-function makeVoteState(): Pick<RoomRecord, "decorationSelections" | "votingEndsAt" | "votingFinalized"> {
-  return {
-    decorationSelections: { A: {}, B: {} },
-    votingEndsAt: null,
-    votingFinalized: false,
-  };
 }
 
 function isNicknameSafe(nickname: string): boolean {
@@ -327,7 +313,6 @@ export class RoomManager {
       dinoPositionState: new Map(),
       dinoMeteorLockState: new Map(),
       shotTracking: new Map(),
-      ...makeVoteState(),
     };
     this.rooms.set(roomCode, room);
     return { room, joinUrl: this.joinUrlFor(roomCode) };
@@ -493,7 +478,6 @@ export class RoomManager {
     room.dinoPositionState = new Map();
     room.dinoMeteorLockState = new Map();
     room.shotTracking = new Map();
-    Object.assign(room, makeVoteState());
     for (const teamId of TEAM_IDS) {
       const team = room.state.teams[teamId];
       resetTeamGameplayState(team, now);
@@ -533,7 +517,6 @@ export class RoomManager {
     room.sharedCoreHitCount = 0;
     room.finalCoreStreakTeamId = null;
     room.finalCoreStreakCount = 0;
-    Object.assign(room, makeVoteState());
     this.touch(room);
     this.bumpRevision(room);
   }
@@ -961,22 +944,8 @@ export class RoomManager {
   ): void {
     room.state.roomPhase = "RESULT";
     room.state.winner = { teamId, reason };
-    // §7 "결과 화면에서 20초 동안 진행한다": 결과 확정과 동시에 티꾸 투표 창을 연다.
-    room.state.roomPhase = "DECORATION";
-    room.votingEndsAt = now + DECORATION_VOTE_DURATION_MS;
     this.touch(room);
     this.bumpRevision(room);
-  }
-
-  /** 결과 화면 대기 시각이 지나면 확정한다 (투표 없음). 두 번 실행되지 않는다. */
-  finalizeVotingIfDue(room: RoomRecord, now: number): boolean {
-    if (room.state.roomPhase !== "DECORATION" || room.votingFinalized) return false;
-    if (room.votingEndsAt === null || now < room.votingEndsAt) return false;
-
-    room.votingFinalized = true;
-    this.touch(room);
-    this.bumpRevision(room);
-    return true;
   }
 
   setHostConnected(room: RoomRecord, connected: boolean): void {

@@ -4,7 +4,7 @@
  * 데스크탑에서 방을 만들어 두고:
  *   npm run autoplay -w backend -- --room 9233
  * 봇들이 입장·준비하면 데스크탑에서 "게임 시작"을 누른다. 이후 발굴 → 퍼즐 →
- * 사격 → 부활/결과 → 이름 투표까지 봇이 전부 플레이하고, 사람은 화면만 본다.
+ * 사격 → 부활/결과까지 봇이 전부 플레이하고, 사람은 화면만 본다.
  *
  * --room 없이 실행하면 스크립트가 호스트까지 직접 맡아 headless로 한 판을
  * 완주한다 (CI/스모크 검증용).
@@ -13,7 +13,6 @@
 import { io, type Socket } from "socket.io-client";
 import { randomUUID } from "node:crypto";
 import {
-  DECORATION_VOTE_DURATION_MS,
   EXCAVATION_MAX_INPUTS_PER_SECOND,
   PHASE_START_GRACE_MS,
   SKY_OBJECT_FALL_MS,
@@ -247,11 +246,7 @@ async function playOneRound(bots: Bot[], board: Blackboard, log: (msg: string) =
   await Promise.all([resultPromise, ...bots.map((bot) => runBotLoop(bot, board, log))]);
   clearTimeout(timeout);
 
-  log("결과 화면 대기 중…");
-  // 소켓을 여기서 바로 닫으면 서버가 방을 즉시 정리해버려서, 대기 마감 전에 방이 사라져
-  // 박물관 저장 등 마감 시점 처리가 실행될 기회조차 없어진다.
-  await sleep(DECORATION_VOTE_DURATION_MS + 2_000);
-  log("대기 완료. 데스크탑 결과 화면과 박물관을 확인하세요.");
+  log("대기 완료. 데스크탑 결과 화면을 확인하세요.");
 }
 
 /** 결과 화면을 본 뒤 재경기가 눌려 라운드가 다시 시작되는지 잠시 기다린다. */

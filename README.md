@@ -43,7 +43,6 @@ Node/Socket.IO 서버(`:3001`)와 Vite(`:5173`)가 동시에 뜬다. 브라우�
 
 - `/` — 데스크탑 공유 화면 (방 생성·QR·팀 배정)
 - `/join/:code` — 모바일 입장 및 컨트롤러
-- `/museum` — 티라노박물관 (로컬 저장)
 - `/godot/index.html` — Godot Web 빌드 (아래 "Godot Web export" 참고)
 
 ## 실기기(모바일)로 테스트

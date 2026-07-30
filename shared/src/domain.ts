@@ -83,7 +83,7 @@ export type CoreZone = "HEART" | "SKULL" | "SPINE";
 export type PoseId = "IDLE" | "WALK" | "ROAR" | "HIT" | "REVIVE";
 export type Facing = "LEFT" | "RIGHT";
 
-export type RoomPhase = "LOBBY" | "PLAYING" | "RESULT" | "DECORATION";
+export type RoomPhase = "LOBBY" | "PLAYING" | "RESULT";
 export type TeamPhase = "EXCAVATION" | "ASSEMBLY" | "CHARGING_PRACTICE" | "CHARGING" | "REVIVED";
 
 export type NormalizedPoint = {
@@ -297,27 +297,4 @@ export type RoomState = {
     teamId: TeamId | null;
     reason: WinnerReason;
   };
-};
-
-export type DecorationCategory = "HAT" | "GLASSES" | "NECK" | "BACKGROUND";
-
-/** Plan.md §8. 서버 SQLite DB(backend/src/db/museumDb.ts)의 한 행과 1:1 대응하는 공유 계약. */
-export type MuseumTyranno = {
-  id: string;
-  roomName: string;
-  teamId: TeamId;
-  teamName: string;
-  isWinner: boolean;
-  form: RevivalForm;
-  tyrannoName: string | null;
-  teamMembers: string[];
-  mvpNickname: string | null;
-  mvpScore: number | null;
-  decorations: Partial<Record<DecorationCategory, string>>;
-  excavationMs: number | null;
-  assemblyMs: number | null;
-  chargingMs: number | null;
-  accuracy: number; // hits / shots, 0~1
-  fossils: number;
-  createdAt: number;
 };
