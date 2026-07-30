@@ -1680,14 +1680,12 @@ body {
 
 .dino-run__sky-object img {
   display: block;
-  /* 0.7배로 한 번 더 줄여달라는 피드백을 반영했다 — bonus(과일·하트)는 아래
-     --bonus 규칙이 이 값을 덮어써서 영향받지 않는다. */
-  width: clamp(1.5rem, 4.9vh, 2rem);
+  width: clamp(1.8rem, 5.9vh, 2.4rem);
   height: auto;
 }
 
 .dino-run__sky-object--bonus img {
-  width: clamp(1.4rem, 5vh, 1.9rem);
+  width: clamp(1.7rem, 6vh, 2.3rem);
 }
 
 .dino-run--flash-hit .dino-run__track {

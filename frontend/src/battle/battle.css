@@ -405,11 +405,14 @@
 }
 
 .battle-core__glow {
-  width: 34px;
-  height: 34px;
+  width: 48px;
+  height: 48px;
   border-radius: 50%;
-  background: radial-gradient(circle, #fff3cf 0%, var(--gold) 45%, rgba(245, 197, 66, 0) 72%);
-  box-shadow: 0 0 24px 8px rgba(245, 197, 66, 0.55);
+  background: radial-gradient(circle, #fff 0%, #69e7ff 28%, #008cff 54%, rgba(0, 140, 255, 0) 76%);
+  box-shadow:
+    0 0 18px 8px rgba(102, 231, 255, 0.95),
+    0 0 42px 18px rgba(0, 132, 255, 0.72),
+    0 0 72px 28px rgba(0, 88, 255, 0.36);
   animation: battle-core-pulse 1.6s ease-in-out infinite;
 }
 
@@ -422,8 +425,8 @@
   font-family: "IBM Plex Mono", monospace;
   font-size: 18px;
   font-weight: 600;
-  color: var(--gold);
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.8);
+  color: #5ee7ff;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9), 0 0 12px rgba(0, 166, 255, 0.95);
   white-space: nowrap;
 }
 
@@ -440,8 +443,8 @@
 }
 
 .battle-crosshair__ring {
-  width: 30px;
-  height: 30px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   border: 3px solid currentColor;
   box-shadow: 0 0 5px #000, 0 0 13px currentColor;
