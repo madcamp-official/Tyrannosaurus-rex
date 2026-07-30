@@ -32,6 +32,8 @@ export interface BattleTrex {
   facing: 1 | -1;
   /** 0..1, 0..1 — 무대 내 코어(약점) 정규화 좌표 */
   corePos: [number, number];
+  corePositions?: [number, number][];
+  coreNames?: string[];
 }
 
 export interface BattleState {

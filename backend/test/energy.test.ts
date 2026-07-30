@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { CHARGING_STAGE_DURATION_MS, CHARGING_STAGE_INTRO_MS, ENERGY_TARGET, FINAL_STAGE_CORE_TIMEOUT_MS, PHASE_START_GRACE_MS, SHOT_COOLDOWN_MS } from "@trex/shared";
 import { RoomManager, type RoomRecord } from "../src/rooms/RoomManager.js";
-import { computeActiveCore, computeTrexTransform, CORE_OFFSETS } from "../src/game/charging.js";
+import { activeCoreCountForPlayers, computeActiveCore, computeTrexTransform, CORE_OFFSETS, resolveHit } from "../src/game/charging.js";
 
 /** 방의 실제 roundSeed로 계산한 정확한 코어 좌표를 조준해, 시드 값과 무관하게 코어 명중을 보장한다. */
 function aimAtCore(room: RoomRecord, now: number) {
@@ -35,6 +35,27 @@ function setupChargingRoom() {
 }
 
 describe("energy:fire", () => {
+  it.each([
+    [1, 1],
+    [4, 1],
+    [5, 2],
+    [7, 2],
+    [8, 3],
+  ])("uses %i player(s) to expose %i active core(s)", (players, expected) => {
+    expect(activeCoreCountForPlayers(players)).toBe(expected);
+  });
+
+  it("accepts a hit on any core in the active core list", () => {
+    const trex = { x: 0.5, y: 0.5 };
+    const spine = CORE_OFFSETS.SPINE;
+
+    expect(resolveHit(
+      { x: trex.x + spine.x, y: trex.y + spine.y },
+      trex,
+      ["HEART", "SPINE"],
+    ).hitZone).toBe("SPINE");
+  });
+
   it("rejects fire outside CHARGING", () => {
     const { rooms, room, playerA } = setupChargingRoom();
     room.state.teams.A.phase = "ASSEMBLY";

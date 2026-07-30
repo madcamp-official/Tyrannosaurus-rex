@@ -311,6 +311,8 @@ export function DesktopLobby(): JSX.Element {
             facing: evt.data.facing,
             activeCore: evt.data.activeCore,
             corePosition: evt.data.corePosition,
+            activeCores: evt.data.activeCores,
+            corePositions: evt.data.corePositions,
             chargingStage: evt.data.chargingStage,
             finalLives: evt.data.finalLives,
             finalCoreDeadlineAt: evt.data.finalCoreDeadlineAt,

@@ -221,6 +221,8 @@ export type TrexTransformEvent = {
   /** 현재 활성 코어(약점) 이름과, 서버가 계산해 내려주는 그 코어의 절대 정규화 좌표. */
   activeCore: CoreZone;
   corePosition: NormalizedPoint;
+  activeCores: CoreZone[];
+  corePositions: NormalizedPoint[];
   chargingStage: ChargingStage;
   finalLives: number;
   finalCoreDeadlineAt: number | null;

@@ -85,7 +85,7 @@ export function battleStateFromRoom(
 
   return {
     remainingSec: Number.isFinite(remainingSec) ? remainingSec : 0,
-    coreName: CORE_LABEL[trex.activeCore],
+    coreName: (trex.activeCores ?? [trex.activeCore]).map((core) => CORE_LABEL[core]).join(" · "),
     stage: stageFor((teamA.energy + teamB.energy) / 2),
     siteName: roomState.roomName,
     teamAEnergyTarget: Math.max(1, teamA.players.length) * ENERGY_TARGET_PER_PLAYER,
@@ -106,6 +106,8 @@ export function battleStateFromRoom(
       y: trex.position.y,
       facing: trex.facing === "LEFT" ? -1 : 1,
       corePos: [trex.corePosition.x, trex.corePosition.y],
+      corePositions: (trex.corePositions ?? [trex.corePosition]).map((point) => [point.x, point.y]),
+      coreNames: (trex.activeCores ?? [trex.activeCore]).map((core) => CORE_LABEL[core]),
     },
   };
 }

@@ -8,6 +8,8 @@ export type TrexDisplay =
       facing: "LEFT" | "RIGHT";
       activeCore: CoreZone;
       corePosition: NormalizedPoint;
+      activeCores?: CoreZone[];
+      corePositions?: NormalizedPoint[];
       chargingStage?: ChargingStage;
       finalLives?: number;
       finalCoreDeadlineAt?: number | null;

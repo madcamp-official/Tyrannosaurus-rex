@@ -10,12 +10,13 @@ import {
   STABILITY_TARGET,
   type HitZone,
   type ChargingStage,
+  type CoreZone,
   type PlayerId,
   type TeamId,
   type TeamPhase,
 } from "@trex/shared";
 import type { RoomRecord } from "../rooms/RoomManager.js";
-import { advanceActiveCore, computeActiveCore, computeChargingStage, computeTrexTransform, CORE_OFFSETS, resolveStageHit } from "./charging.js";
+import { advanceActiveCore, computeActiveCores, computeChargingStage, computeTrexTransform, CORE_OFFSETS, resolveStageHit } from "./charging.js";
 
 export type ShotTracking = { lastShotAt: number; recentShotIds: Set<string> };
 
@@ -101,9 +102,9 @@ export function applyEnergyFire(
   }
 
   const trex = computeTrexTransform(room, now);
-  const { core } = computeActiveCore(room, now);
+  const cores = computeActiveCores(room);
   const chargingStage = computeChargingStage(room, teamId, now);
-  const { hitZone, energyDelta, stabilityDelta } = resolveStageHit(aim.point, trex.position, core, chargingStage);
+  const { hitZone, energyDelta, stabilityDelta } = resolveStageHit(aim.point, trex.position, cores, chargingStage);
   const isCoreHit = hitZone === "HEART" || hitZone === "SKULL" || hitZone === "SPINE";
 
   const energyTarget = energyTargetForTeam(room, teamId);
@@ -153,7 +154,7 @@ export function applyEnergyFire(
     teamPhaseAfter: team.phase,
     aimPoint: aim.point,
     hitPoint: isCoreHit
-      ? { x: trex.position.x + CORE_OFFSETS[core].x, y: trex.position.y + CORE_OFFSETS[core].y }
+      ? { x: trex.position.x + CORE_OFFSETS[hitZone as CoreZone].x, y: trex.position.y + CORE_OFFSETS[hitZone as CoreZone].y }
       : hitZone === "BONE" ? trex.position : null,
     justReachedRevived,
     coreChanged,

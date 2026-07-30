@@ -81,7 +81,14 @@ describe("battleStateFromRoom", () => {
     const roomState = makeRoomState();
     const battle = battleStateFromRoom(roomState, makeEphemeral(), ["A"]);
     expect(battle).not.toBeNull();
-    expect(battle!.trex).toEqual({ x: 0.5, y: 0.5, facing: 1, corePos: [0.5, 0.5] });
+    expect(battle!.trex).toEqual({
+      x: 0.5,
+      y: 0.5,
+      facing: 1,
+      corePos: [0.5, 0.5],
+      corePositions: [[0.5, 0.5]],
+      coreNames: ["심장"],
+    });
   });
 
   it("converts server data into BattleState — core label, facing sign, and team aggregates", () => {
@@ -98,7 +105,14 @@ describe("battleStateFromRoom", () => {
 
     expect(battle).not.toBeNull();
     expect(battle!.coreName).toBe("두개골");
-    expect(battle!.trex).toEqual({ x: 0.4, y: 0.5, facing: -1, corePos: [0.42, 0.46] });
+    expect(battle!.trex).toEqual({
+      x: 0.4,
+      y: 0.5,
+      facing: -1,
+      corePos: [0.42, 0.46],
+      corePositions: [[0.42, 0.46]],
+      coreNames: ["두개골"],
+    });
     expect(battle!.teamA.name).toBe("T라노 팀");
     expect(battle!.teamB.name).toBe("F라노 팀");
     expect(battle!.teamA.players).toEqual([{ id: "p1", name: "화염랩터", shots: 10, hits: 5, energy: 30, color: "#000000" }]);

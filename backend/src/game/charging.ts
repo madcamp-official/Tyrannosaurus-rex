@@ -117,6 +117,21 @@ export function computeActiveCore(room: RoomRecord, _now: number): { core: CoreZ
 }
 
 /** 현재 부위를 제외한 두 후보 중 라운드 시드와 명중 순번으로 다음 약점을 결정한다. */
+const CORE_ORDER: readonly CoreZone[] = ["HEART", "SKULL", "SPINE"];
+
+export function activeCoreCountForPlayers(playerCount: number): number {
+  if (playerCount >= 8) return 3;
+  if (playerCount >= 5) return 2;
+  return 1;
+}
+
+export function computeActiveCores(room: RoomRecord): CoreZone[] {
+  const playerCount = room.state.players.length;
+  const count = activeCoreCountForPlayers(playerCount);
+  const start = CORE_ORDER.indexOf(room.sharedActiveCore);
+  return Array.from({ length: count }, (_, index) => CORE_ORDER[(start + index) % CORE_ORDER.length]!);
+}
+
 export function advanceActiveCore(room: RoomRecord): { from: CoreZone; to: CoreZone } {
   const from = room.sharedActiveCore;
   const candidates = (["HEART", "SKULL", "SPINE"] as const).filter((core) => core !== from);
@@ -141,7 +156,7 @@ export function computeChargingStage(room: RoomRecord, teamId: "A" | "B", now: n
 export function resolveStageHit(
   aimPoint: NormalizedPoint,
   trexCenter: NormalizedPoint,
-  activeCore: CoreZone,
+  activeCores: CoreZone | readonly CoreZone[],
   stage: ChargingStage,
 ): HitResolution {
   if (stage === 2) {
@@ -151,18 +166,25 @@ export function resolveStageHit(
       : { hitZone: null, energyDelta: 0, stabilityDelta: 0 };
   }
 
-  const result = resolveHit(aimPoint, trexCenter, activeCore);
+  const result = resolveHit(aimPoint, trexCenter, activeCores);
   return stage === 3 && result.hitZone !== null
     ? { ...result, energyDelta: ENERGY_HIT_FINAL_CORE }
     : result;
 }
 
 /** 화면에 표시된 현재 약점만 유효 명중이다. 몸체나 이전 약점은 점수를 주지 않는다. */
-export function resolveHit(aimPoint: NormalizedPoint, trexCenter: NormalizedPoint, activeCore: CoreZone): HitResolution {
-  const coreCenter = { x: trexCenter.x + CORE_OFFSETS[activeCore].x, y: trexCenter.y + CORE_OFFSETS[activeCore].y };
-  const distToCore = Math.hypot(aimPoint.x - coreCenter.x, aimPoint.y - coreCenter.y);
-  if (distToCore <= CORE_HIT_RADIUS) {
-    return { hitZone: activeCore, energyDelta: ENERGY_HIT_CORE, stabilityDelta: STABILITY_HIT_CORE };
+export function resolveHit(
+  aimPoint: NormalizedPoint,
+  trexCenter: NormalizedPoint,
+  activeCores: CoreZone | readonly CoreZone[],
+): HitResolution {
+  const cores: readonly CoreZone[] = typeof activeCores === "string" ? [activeCores] : activeCores;
+  for (const core of cores) {
+    const coreCenter = { x: trexCenter.x + CORE_OFFSETS[core].x, y: trexCenter.y + CORE_OFFSETS[core].y };
+    const distToCore = Math.hypot(aimPoint.x - coreCenter.x, aimPoint.y - coreCenter.y);
+    if (distToCore <= CORE_HIT_RADIUS) {
+      return { hitZone: core, energyDelta: ENERGY_HIT_CORE, stabilityDelta: STABILITY_HIT_CORE };
+    }
   }
 
   return { hitZone: null, energyDelta: 0, stabilityDelta: 0 };

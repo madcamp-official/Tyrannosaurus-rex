@@ -69,16 +69,20 @@ export function BattleArena({
         <BattleTrexModel presentation={battle.chargingStage === 2 ? "flee" : battle.chargingStage === 3 ? "final" : "front"} />
       </div>
 
-      <div
-        className={`battle-core${battle.chargingStage === 2 ? " battle-core--hidden" : ""}`}
-        style={{
-          left: pct(trex.corePos[0]),
-          top: pct(trex.corePos[1]),
-        }}
-      >
-        <span className="battle-core__glow" />
-        <span className="battle-core__label">{battle.chargingStage === 3 ? `최종 약점 · ${coreName}` : `${coreName} 코어 · 약점`}</span>
-      </div>
+      {(trex.corePositions ?? [trex.corePos]).map((corePos, index) => (
+        <div
+          key={`${corePos[0]}-${corePos[1]}-${index}`}
+          className={`battle-core${battle.chargingStage === 2 ? " battle-core--hidden" : ""}`}
+          style={{ left: pct(corePos[0]), top: pct(corePos[1]) }}
+        >
+          <span className="battle-core__glow" />
+          <span className="battle-core__label">
+            {battle.chargingStage === 3
+              ? `최종 약점 · ${trex.coreNames?.[index] ?? coreName}`
+              : `${trex.coreNames?.[index] ?? coreName} 코어 · 약점`}
+          </span>
+        </div>
+      ))}
 
       <div className="battle-stage-banner">
         <strong>PHASE {battle.chargingStage}</strong>
