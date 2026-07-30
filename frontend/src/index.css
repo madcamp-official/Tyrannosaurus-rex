@@ -1680,9 +1680,9 @@ body {
 
 .dino-run__sky-object img {
   display: block;
-  /* 한 번 키운 뒤 다시 조금 줄여달라는 피드백을 반영했다 — bonus(과일·하트)는 아래
+  /* 0.7배로 한 번 더 줄여달라는 피드백을 반영했다 — bonus(과일·하트)는 아래
      --bonus 규칙이 이 값을 덮어써서 영향받지 않는다. */
-  width: clamp(2.1rem, 7vh, 2.8rem);
+  width: clamp(1.5rem, 4.9vh, 2rem);
   height: auto;
 }
 
@@ -1691,30 +1691,33 @@ body {
 }
 
 .dino-run--flash-hit .dino-run__track {
-  animation: dino-flash-hit 0.35s ease-out;
+  animation: dino-flash-hit 0.4s ease-out;
 }
 
 .dino-run--flash-bonus .dino-run__track {
-  animation: dino-flash-bonus 0.35s ease-out;
+  animation: dino-flash-bonus 0.4s ease-out;
 }
 
 .dino-run--flash-heal .dino-run__track {
-  animation: dino-flash-heal 0.35s ease-out;
+  animation: dino-flash-heal 0.4s ease-out;
 }
 
+/* 운석에 맞으면 화면 가장자리 전체가 붉게 번쩍이도록, 얇은 테두리 대신 넓게 퍼지는
+   inset glow를 쓴다. */
 @keyframes dino-flash-hit {
-  0% { box-shadow: inset 0 0 0 4px rgba(255, 80, 80, 0.9); }
-  100% { box-shadow: inset 0 0 0 0 rgba(255, 80, 80, 0); }
+  0% { box-shadow: inset 0 0 70px 22px rgba(255, 60, 60, 0.9); }
+  100% { box-shadow: inset 0 0 0 0 rgba(255, 60, 60, 0); }
 }
 
+/* 과일·하트 모두 같은 초록 빛으로 통일한다. */
 @keyframes dino-flash-bonus {
-  0% { box-shadow: inset 0 0 0 4px rgba(255, 209, 102, 0.9); }
-  100% { box-shadow: inset 0 0 0 0 rgba(255, 209, 102, 0); }
+  0% { box-shadow: inset 0 0 70px 22px rgba(120, 220, 120, 0.9); }
+  100% { box-shadow: inset 0 0 0 0 rgba(120, 220, 120, 0); }
 }
 
 @keyframes dino-flash-heal {
-  0% { box-shadow: inset 0 0 0 4px rgba(144, 190, 109, 0.9); }
-  100% { box-shadow: inset 0 0 0 0 rgba(144, 190, 109, 0); }
+  0% { box-shadow: inset 0 0 70px 22px rgba(120, 220, 120, 0.9); }
+  100% { box-shadow: inset 0 0 0 0 rgba(120, 220, 120, 0); }
 }
 
 .dino-run--dead {
