@@ -150,7 +150,7 @@ export type RoomRecord = {
 
 /** 게임 시작·재경기 때마다 팀별 발굴·퍼즐·충전 상태를 초기값으로 되돌린다. id/playerIds는 건드리지 않는다. */
 function resetTeamGameplayState(team: TeamState, now: number): void {
-  team.phase = "EXCAVATION";
+  team.phase = "ASSEMBLY";
   team.phaseStartedAt = now;
   team.phaseEndsAt = null;
   team.excavation = {
@@ -495,7 +495,16 @@ export class RoomManager {
     room.shotTracking = new Map();
     Object.assign(room, makeVoteState());
     for (const teamId of TEAM_IDS) {
-      resetTeamGameplayState(room.state.teams[teamId], now);
+      const team = room.state.teams[teamId];
+      resetTeamGameplayState(team, now);
+      // 운석 피하기(ASSEMBLY)가 이제 첫 판이라 라운드 시작과 동시에 바로 시작해야 한다 —
+      // 예전엔 이 설정이 발굴 완료 후 전환 시점(tickExcavationTransition)에서 이뤄졌다.
+      team.phaseEndsAt = now + PHASE_START_GRACE_MS + DINO_RUN_DURATION_MS;
+      team.dinoRun.skyObjects = makeSkyObjectSchedule(seed);
+      for (const playerId of team.playerIds) {
+        team.dinoRun.livesByPlayer[playerId] = METEOR_DODGE_LIVES;
+        team.dinoRun.scoreByPlayer[playerId] = 0;
+      }
     }
     this.touch(room);
     this.bumpRevision(room);
@@ -581,25 +590,16 @@ export class RoomManager {
     return { ...result, teamResults };
   }
 
-  /** 두 팀 다 발굴을 끝내고 대기 시간이 지나면, 함께 운석 피하기(ASSEMBLY)로 전환한다. */
+  /** 두 팀 다 발굴을 끝내고 대기 시간이 지나면, 함께 영점 조정 연습(CHARGING_PRACTICE)으로 전환한다. */
   tickExcavationTransition(room: RoomRecord, now: number): boolean {
     if (room.excavationTransitionAt === null || now < room.excavationTransitionAt) return false;
 
     for (const teamId of TEAM_IDS) {
       const team = room.state.teams[teamId];
       team.excavation.result = null;
-      team.phase = "ASSEMBLY";
+      team.phase = "CHARGING_PRACTICE";
       team.phaseStartedAt = now;
-      team.phaseEndsAt = now + PHASE_START_GRACE_MS + DINO_RUN_DURATION_MS;
-      // 낙하 오브젝트 스케줄은 라운드 시드에서 파생되어 양 팀이 항상 동일하다 (§4).
-      team.dinoRun.skyObjects = makeSkyObjectSchedule(room.roundSeed ?? room.state.roomCode);
-      // 목숨은 항상 풀로, 점수는 항상 0에서 시작해야 한다 — resetTeamGameplayState가 라운드
-      // 시작 시 이미 비워두지만, 여기서도 명시적으로 초기화해 두어 어떤 경로로 ASSEMBLY에
-      // 들어오든 항상 같은 시작 상태를 보장한다.
-      for (const playerId of team.playerIds) {
-        team.dinoRun.livesByPlayer[playerId] = METEOR_DODGE_LIVES;
-        team.dinoRun.scoreByPlayer[playerId] = 0;
-      }
+      team.phaseEndsAt = now + PHASE_START_GRACE_MS + CHARGING_PRACTICE_DURATION_MS;
     }
     room.excavationTransitionAt = null;
     this.touch(room);
@@ -691,7 +691,7 @@ export class RoomManager {
     return { finished, teamResults };
   }
 
-  /** 두 팀 다 다이노런을 끝내고 대기 시간이 지나면, 함께 CHARGING_PRACTICE(영점 조정 연습)로 전환한다. */
+  /** 두 팀 다 운석 피하기를 끝내고 대기 시간이 지나면, 함께 티라노 뼈 발굴(EXCAVATION)로 전환한다. */
   tickDinoRunTransition(room: RoomRecord, now: number): boolean {
     if (room.dinoRunTransitionAt === null || now < room.dinoRunTransitionAt) return false;
 
@@ -703,11 +703,10 @@ export class RoomManager {
       team.dinoRun.result = null;
       team.dinoRun.performance = null;
       team.dinoRun.grade = null;
-      team.phase = "CHARGING_PRACTICE";
+      team.phase = "EXCAVATION";
       team.phaseStartedAt = now;
-      team.phaseEndsAt = now + PHASE_START_GRACE_MS + CHARGING_PRACTICE_DURATION_MS;
-      // chargingStartedAt/sharedTrexStartedAt은 실제 CHARGING 진입(연습 종료, tickChargingPractice)
-      // 시점으로 미룬다.
+      // 발굴은 시간 제한이 아니라 완료(포인트 도달) 기준이라 타이머가 없다 (resetTeamGameplayState와 동일).
+      team.phaseEndsAt = null;
     }
     room.dinoRunTransitionAt = null;
     this.touch(room);

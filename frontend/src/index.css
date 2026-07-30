@@ -1648,13 +1648,18 @@ body {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 15%;
-  border-bottom: 2px solid rgba(255, 240, 220, 0.35);
+  bottom: 0;
+  height: clamp(18px, 5%, 34px);
+  background-image: url("/images/dino-ground-tile.png");
+  background-repeat: repeat;
+  background-size: 120px auto;
+  border-top: 2px solid rgba(255, 240, 220, 0.35);
 }
 
 .dino-run__dino {
   position: absolute;
-  bottom: 16%;
+  /* 발이 바닥 타일(.dino-run__ground) 윗면에 정확히 붙도록 같은 값을 쓴다. */
+  bottom: clamp(18px, 5%, 34px);
   transform: translateX(-50%);
   /* 위치는 매 애니메이션 프레임마다 델타 타임 기준으로 갱신되므로(§DinoRunControls),
      여기서 또 CSS 트랜지션을 걸면 오히려 갱신을 뒤쫓아가며 렉처럼 보인다 — 트랜지션 없이
@@ -1675,9 +1680,9 @@ body {
 
 .dino-run__sky-object img {
   display: block;
-  /* 운석 크기를 키워달라는 피드백에 따라 올렸다 — bonus(과일·하트)는 아래
+  /* 한 번 키운 뒤 다시 조금 줄여달라는 피드백을 반영했다 — bonus(과일·하트)는 아래
      --bonus 규칙이 이 값을 덮어써서 영향받지 않는다. */
-  width: clamp(2.4rem, 8vh, 3.2rem);
+  width: clamp(2.1rem, 7vh, 2.8rem);
   height: auto;
 }
 
@@ -2214,12 +2219,13 @@ body {
   top: 32px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 3px 7px;
-  border-radius: 7px;
+  padding: 4px 10px;
+  border-radius: 8px;
   background: rgba(0, 0, 0, 0.72);
   color: #fff;
   font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
-  font-size: 13px;
+  font-size: 20px;
+  font-weight: 700;
   white-space: nowrap;
 }
 

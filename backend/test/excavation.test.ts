@@ -13,6 +13,13 @@ function setupStartedRoom() {
   rooms.setReady(roomCode, a.playerId, true);
   rooms.setReady(roomCode, b.playerId, true);
   rooms.startGame(created.room);
+  // 라운드는 이제 ASSEMBLY(운석 피하기)로 시작한다 — 발굴 로직만 단독으로 테스트하기 위해
+  // 이미 운석 피하기를 끝내고 막 EXCAVATION에 들어온 상태로 강제 이동시킨다.
+  for (const teamId of ["A", "B"] as const) {
+    const team = created.room.state.teams[teamId];
+    team.phase = "EXCAVATION";
+    team.phaseEndsAt = null;
+  }
   created.room.state.teams.A.phaseStartedAt -= PHASE_START_GRACE_MS;
   created.room.state.teams.B.phaseStartedAt -= PHASE_START_GRACE_MS;
   return { rooms, room: created.room, playerA: a.playerId, playerB: b.playerId };
@@ -139,7 +146,7 @@ describe("applyExcavation via RoomManager", () => {
     expect(room.state.teams.A.excavation.discoveredBoneIds).toHaveLength(BONE_IDS.length);
   });
 
-  it("먼저 끝난 팀은 WIN으로 상대를 기다리고, 상대도 끝나면 LOSE 뒤 대기 시간 후 둘 다 ASSEMBLY로 전환된다", () => {
+  it("먼저 끝난 팀은 WIN으로 상대를 기다리고, 상대도 끝나면 LOSE 뒤 대기 시간 후 둘 다 CHARGING_PRACTICE로 전환된다", () => {
     const { rooms, room, playerA, playerB } = setupStartedRoom();
     const start = Date.now();
 
@@ -159,10 +166,9 @@ describe("applyExcavation via RoomManager", () => {
     expect(transitioned).toBe(true);
 
     for (const teamId of ["A", "B"] as const) {
-      expect(room.state.teams[teamId].phase).toBe("ASSEMBLY");
+      expect(room.state.teams[teamId].phase).toBe("CHARGING_PRACTICE");
       expect(room.state.teams[teamId].excavation.result).toBeNull();
       expect(room.state.teams[teamId].phaseEndsAt).not.toBeNull();
-      expect(room.state.teams[teamId].dinoRun.skyObjects.length).toBeGreaterThan(0);
     }
   });
 
@@ -183,7 +189,7 @@ describe("applyExcavation via RoomManager", () => {
     const transitioned = rooms.tickExcavationTransition(room, afterB + ROUND_TRANSITION_MS + 1);
     expect(transitioned).toBe(true);
     for (const teamId of ["A", "B"] as const) {
-      expect(room.state.teams[teamId].phase).toBe("ASSEMBLY");
+      expect(room.state.teams[teamId].phase).toBe("CHARGING_PRACTICE");
       expect(room.state.teams[teamId].excavation.result).toBeNull();
     }
   });

@@ -100,8 +100,9 @@ export function tickRoomDinoRun(io: AppServer, rooms: RoomManager, roomCode: str
 }
 
 /**
- * 100ms 배경 틱: 두 팀 다 운석 피하기를 끝내면 함께 CHARGING_PRACTICE(영점 조정 연습)로
- * 즉시 전환한다. 연습 시간이 끝난 팀은 실제 CHARGING으로 전환한다.
+ * 100ms 배경 틱: 두 팀 다 운석 피하기를 끝내면 함께 EXCAVATION(뼈 발굴)으로 전환한다.
+ * (§17.9 CHARGING_PRACTICE 진입은 이제 tickExcavationHandoff가 발굴 완료 후 처리한다.)
+ * 연습 시간이 끝난 팀은 실제 CHARGING으로 전환한다.
  */
 export function tickDinoRunHandoff(io: AppServer, rooms: RoomManager, roomCode: string): void {
   const room = rooms.getRoom(roomCode);
@@ -120,7 +121,7 @@ export function tickDinoRunHandoff(io: AppServer, rooms: RoomManager, roomCode: 
         toServerEvent(roomCode, room.state.revision, {
           teamId,
           from: "ASSEMBLY",
-          to: "CHARGING_PRACTICE",
+          to: "EXCAVATION",
           startedAt: room.state.teams[teamId].phaseStartedAt,
           endsAt: room.state.teams[teamId].phaseEndsAt,
         }),

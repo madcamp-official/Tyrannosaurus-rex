@@ -12,7 +12,6 @@ import {
   PHASE_START_GRACE_MS,
   DINO_RUN_DURATION_MS,
   METEOR_DODGE_LIVES,
-  SKY_OBJECT_COLLISION_GRACE_MS,
   SKY_OBJECT_FALL_MS,
   type PlayerId,
   type TeamState,
@@ -36,9 +35,9 @@ const FRUIT_IMAGES = [
 ];
 /**
  * 운석·보너스가 착지하는(판정되는) 세로 위치 — 공룡이 서 있는 자리와 같은 줄이 되도록
- * 맞춘다. .dino-run__dino의 CSS bottom(16%)과 정확히 대응하는 값(100 - 16)이다.
+ * 맞춘다. .dino-run__dino의 CSS bottom(clamp(18px, 5%, 34px))과 대응하는 값(100 - 5)이다.
  */
-const LANDING_TOP_PERCENT = 84;
+const LANDING_TOP_PERCENT = 95;
 
 function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
@@ -51,6 +50,7 @@ export function DinoRunControls({
   result,
   serverTimeOffsetMs,
   meteorLocks,
+  caughtObjectIds,
   toast,
 }: {
   socket: AppSocket;
@@ -60,6 +60,8 @@ export function DinoRunControls({
   serverTimeOffsetMs: number;
   /** 서버가 확정한 운석 목표 좌표(objectId → x). 클라이언트 자체 추정치보다 우선한다. */
   meteorLocks: Map<number, number>;
+  /** 명중·과일·하트로 판정이 끝난 오브젝트 id — 공룡에 닿는 즉시 화면에서 지운다. */
+  caughtObjectIds: Set<number>;
   /** 명중·과일·하트 등 방금 일어난 이벤트를 짧게 알려주는 문구. */
   toast: string | null;
 }): JSX.Element {
@@ -182,8 +184,14 @@ export function DinoRunControls({
         onPointerLeave={stopMove}
       >
         {team.dinoRun.skyObjects.map((obj) => {
+          // 공룡과 닿아 판정(명중/과일/하트)이 이미 난 오브젝트는 유예 시간을 기다리지 않고
+          // 그 즉시 화면에서 지운다 — 바닥까지 떨어지는 대신 닿는 순간 사라지는 느낌을 준다.
+          if (caughtObjectIds.has(obj.id)) return null;
           const progress = (elapsed - (obj.hitAtMs - SKY_OBJECT_FALL_MS)) / SKY_OBJECT_FALL_MS;
-          if (progress < -0.05 || progress > 1 + SKY_OBJECT_COLLISION_GRACE_MS / SKY_OBJECT_FALL_MS) return null;
+          // 판정 자체는 서버가 SKY_OBJECT_COLLISION_GRACE_MS만큼 늦게 확정하지만(네트워크
+          // 지연 대비 유예), 화면은 그 결과를 기다리지 않고 착지(공룡과 닿는) 순간 바로
+          // 지운다 — 캐치 여부와 무관하게 "닿으면 사라진다"는 느낌이 우선이다.
+          if (progress < -0.05 || progress > 1) return null;
           let objX = obj.x;
           if (obj.kind === "METEOR") {
             // 서버가 확정한 좌표가 도착하면 그 값을 우선한다 — 낙하 시작 직후 잠깐(서버 배경
