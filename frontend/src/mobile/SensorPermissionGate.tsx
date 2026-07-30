@@ -10,7 +10,7 @@ import { serverNow } from "../socket";
 import { useCountdownSound } from "../audio/useCountdownSound";
 
 const GUIDE_BY_PHASE: Record<TeamPhase, string> = {
-  ASSEMBLY: "좌우로 움직여 운석을 피하세요!",
+  ASSEMBLY: "운석을 피하고\n과일과 하트를 획득하세요!",
   EXCAVATION: "휴대폰을 흔들어 티라노의 뼈를 발굴하세요!",
   CHARGING_PRACTICE: "조준점을 중앙에 맞춰 영점을 조정하세요!",
   CHARGING: "조준하고 발사해 부활 에너지를 채우세요!",
