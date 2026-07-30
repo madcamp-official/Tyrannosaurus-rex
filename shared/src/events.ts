@@ -89,7 +89,16 @@ export const roomCreateRequestSchema = z.object({
   }),
 });
 export type RoomCreateRequest = z.infer<typeof roomCreateRequestSchema>;
-export type RoomCreateResponse = { roomCode: RoomCode; joinUrl: string; state: RoomState };
+export type RoomCreateResponse = { roomCode: RoomCode; joinUrl: string; hostReconnectToken: string; state: RoomState };
+
+/** 호스트 소켓이 끊겼다 재연결됐을 때(§HOST_RECONNECT_GRACE_MS) 같은 방을 다시 붙잡는다. */
+export const roomHostReconnectRequestSchema = z.object({
+  requestId: requestIdSchema,
+  roomCode: roomCodeSchema,
+  hostReconnectToken: z.string().uuid(),
+});
+export type RoomHostReconnectRequest = z.infer<typeof roomHostReconnectRequestSchema>;
+export type RoomHostReconnectResponse = { state: RoomState };
 
 export const roomJoinRequestSchema = z.object({
   requestId: requestIdSchema,
@@ -257,6 +266,7 @@ export type EnergyCoreChangedEvent = { teamId: TeamId; from: CoreZone; to: CoreZ
 /** 클라이언트 → 서버 이벤트 이름과 payload/응답 매핑 (Socket.IO 타이핑용). */
 export interface ClientToServerEvents {
   "room:create": (req: RoomCreateRequest, ack: (res: Ack<RoomCreateResponse>) => void) => void;
+  "room:hostReconnect": (req: RoomHostReconnectRequest, ack: (res: Ack<RoomHostReconnectResponse>) => void) => void;
   "room:join": (req: RoomJoinRequest, ack: (res: Ack<RoomJoinResponse>) => void) => void;
   "player:setReady": (req: PlayerSetReadyRequest, ack: (res: Ack<PlayerSetReadyResponse>) => void) => void;
   "game:start": (req: GameStartRequest, ack: (res: Ack<GameStartResponse>) => void) => void;

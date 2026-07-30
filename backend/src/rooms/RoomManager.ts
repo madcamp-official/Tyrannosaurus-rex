@@ -95,6 +95,10 @@ export type FinalStageDamage = {
 export type RoomRecord = {
   state: RoomState;
   hostSocketId: string | null;
+  /** 호스트 소켓이 끊긴 시각. 재연결(room:hostReconnect)에 성공하면 null로 되돌아간다. */
+  hostDisconnectedAt: number | null;
+  /** 호스트가 재연결할 때 자신임을 증명하는 값 — 방 생성 시 한 번 발급되고 라운드 내내 바뀌지 않는다. */
+  hostReconnectToken: string;
   playerSocketIds: Map<PlayerId, string>;
   reconnectTokens: Map<PlayerId, string>;
   nextTeamForOddAssignment: TeamId;
@@ -288,6 +292,8 @@ export class RoomManager {
     const room: RoomRecord = {
       state,
       hostSocketId,
+      hostDisconnectedAt: null,
+      hostReconnectToken: randomUUID(),
       playerSocketIds: new Map(),
       reconnectTokens: new Map(),
       nextTeamForOddAssignment: "A",
@@ -980,6 +986,26 @@ export class RoomManager {
     return true;
   }
 
+  /** 호스트 소켓이 끊겼다 — 방을 바로 지우지 않고 유예 시간(HOST_RECONNECT_GRACE_MS) 동안 남겨둔다. */
+  markHostDisconnected(room: RoomRecord, now: number): void {
+    room.hostSocketId = null;
+    room.hostDisconnectedAt = now;
+  }
+
+  /**
+   * 끊겼던 호스트가 새 소켓으로 돌아와 같은 방을 다시 붙잡는다. 토큰이 맞아야 하고,
+   * 유예 시간을 넘겨 이미 sweepDisconnectedHostRooms가 지운 방은 애초에 rooms 맵에
+   * 없으므로 자연히 실패한다.
+   */
+  reconnectHost(roomCode: RoomCode, hostReconnectToken: string, socketId: string): RoomRecord | null {
+    const room = this.rooms.get(roomCode);
+    if (!room || room.hostReconnectToken !== hostReconnectToken) return null;
+    room.hostSocketId = socketId;
+    room.hostDisconnectedAt = null;
+    this.touch(room);
+    return room;
+  }
+
   closeRoom(roomCode: RoomCode): void {
     this.rooms.delete(roomCode);
   }
@@ -1000,6 +1026,23 @@ export class RoomManager {
 
   listRoomCodes(): RoomCode[] {
     return Array.from(this.rooms.keys());
+  }
+
+  /**
+   * §HOST_RECONNECT_GRACE_MS. 호스트가 끊긴 채 유예 시간을 넘긴 방을 정리한다. 삭제된
+   * RoomRecord를 그대로 돌려줘 호출부가 room:closed를 방송할 때 필요한 코드/리비전을
+   * 얻을 수 있게 한다.
+   */
+  sweepDisconnectedHostRooms(graceMs: number): RoomRecord[] {
+    const now = Date.now();
+    const closed: RoomRecord[] = [];
+    for (const [code, room] of this.rooms.entries()) {
+      if (room.hostSocketId === null && room.hostDisconnectedAt !== null && now - room.hostDisconnectedAt > graceMs) {
+        this.rooms.delete(code);
+        closed.push(room);
+      }
+    }
+    return closed;
   }
 
   /** §22.4 ROOM_IDLE_TTL_MS. 로비에서 오래 방치된 방을 정리한다. */

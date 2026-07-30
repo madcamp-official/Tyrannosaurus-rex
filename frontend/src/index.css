@@ -286,6 +286,33 @@ body {
   transform: scale(1.06);
 }
 
+/* ---------- 호스트 재연결 배너 ---------- */
+
+.host-reconnect-banner {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+}
+
+.host-reconnect-banner--pending {
+  background: rgba(214, 158, 46, 0.92);
+  color: #2a1a05;
+}
+
+.host-reconnect-banner--failed {
+  background: rgba(200, 60, 60, 0.94);
+  color: #fff5f0;
+}
+
 /* ---------- 로비 헤더 ---------- */
 
 .lobby-header {
