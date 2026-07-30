@@ -34,7 +34,11 @@ const GAMMA_UNSTABLE_ZONE_DEG = 80;
 // 화면을 위로 많이 젖힐 때(beta가 90도 쪽으로 붙을 때) 조준점이 위/아래는 멀쩡한데 좌우로
 // 튀는 게 바로 이 증상이다(좌우=gamma가 그 근방에서 불안정해짐). beta가 90도(또는 -90도)
 // 근처 이 마진 안에 들어오면 마찬가지로 그 프레임의 필터 반영을 건너뛴다.
-const BETA_GIMBAL_LOCK_MARGIN_DEG = 12;
+// 처음엔 12도로 뒀는데 — GYRO_SENSITIVITY_Y_DEG(45)를 고려하면, 영점이 33~57도 근처에서
+// 잡힌 흔한 파지 각도에서는 위쪽을 조준하는 정상적인 움직임 대부분이 이 구간에 걸려버려서
+// 계속 얼어붙는 게 "렉"처럼 느껴졌다 — 진짜 특이점(정확히 90도) 근처의 아주 좁은 구간만
+// 잡도록 대폭 줄였다.
+const BETA_GIMBAL_LOCK_MARGIN_DEG = 5;
 
 type OrientationPermissionApi = { requestPermission?: () => Promise<"granted" | "denied"> };
 
