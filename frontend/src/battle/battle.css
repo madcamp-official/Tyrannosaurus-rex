@@ -606,8 +606,11 @@
   font-family: "YeogiOttaeJalnan", "Gothic A1", system-ui, sans-serif;
   font-size: 23px;
   font-weight: 900;
-  color: #fff8e9;
-  text-shadow: 0 3px 2px rgba(0, 0, 0, 0.8), 0 0 12px currentColor;
+  color: var(--shot-color);
+  text-shadow:
+    0 3px 2px rgba(0, 0, 0, 0.92),
+    0 0 4px rgba(255, 255, 255, 0.9),
+    0 0 14px currentColor;
   white-space: nowrap;
   animation: battle-score-pop 1.05s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
 }
