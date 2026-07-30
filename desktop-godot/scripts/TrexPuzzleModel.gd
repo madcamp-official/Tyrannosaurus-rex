@@ -8,6 +8,11 @@ const MODEL_SCALE := 0.01
 ## 발굴과 조립에서 흩어진 조각을 원래 표시 크기(1.8)의 2.5배로 키운다.
 ## 올바른 자리에 snap된 조각은 target transform의 scale(1.0)로 돌아가 완성 골격 비율을 유지한다.
 const SCATTER_PIECE_SCALE := 4.5
+## 큰 조각을 한 줄 반원에 놓으면 서로 겹치므로 두 줄로 엇갈려 배치한다.
+const SCATTER_ROW_COUNT := 2
+const SCATTER_INNER_RADIUS_FACTOR := 0.76
+const SCATTER_ANGLE_START := PI * 1.04
+const SCATTER_ANGLE_END := PI * 1.96
 
 ## 퍼즐용 대형 조각 13개.
 ## 작은 발가락/척추뼈를 하나씩 떼지 않고, 사람이 한눈에 구분할 수 있는
@@ -100,18 +105,24 @@ func scatter(seed_value: int = 0, radius_meters: float = 6.5) -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = seed_value if seed_value != 0 else Time.get_ticks_usec()
 	var count := PIECE_ORDER.size()
+	var outer_count := int(ceil(float(count) / SCATTER_ROW_COUNT))
+	var inner_count := int(count / SCATTER_ROW_COUNT)
 
 	for i in count:
 		var piece := get_piece(PIECE_ORDER[i])
 		if not piece:
 			continue
 		piece.visible = true
-		var t := float(i) / float(maxi(1, count))
+		var row := i % SCATTER_ROW_COUNT
+		var row_index := int(i / SCATTER_ROW_COUNT)
+		var row_count := outer_count if row == 0 else inner_count
+		var t := float(row_index) / float(maxi(1, row_count - 1))
 		# 카메라는 +Z에서 원점을 바라보므로 맞은편은 -Z(화면 위쪽)다.
 		# 발견한 뼈를 구덩이 바깥의 먼 쪽 반원에 집중시켜 둥글게 쌓인 형태로 보이게 한다.
-		var angle := lerpf(PI * 1.08, PI * 1.92, t)
-		angle += rng.randf_range(-0.025, 0.025) * PI
-		var piece_radius := rng.randf_range(radius_meters * 0.88, radius_meters * 1.06) / MODEL_SCALE
+		var angle := lerpf(SCATTER_ANGLE_START, SCATTER_ANGLE_END, t)
+		angle += rng.randf_range(-0.012, 0.012) * PI
+		var row_radius := radius_meters if row == 0 else radius_meters * SCATTER_INNER_RADIUS_FACTOR
+		var piece_radius := rng.randf_range(row_radius * 0.97, row_radius * 1.03) / MODEL_SCALE
 		piece.position = Vector3(
 			cos(angle) * piece_radius,
 			rng.randf_range(-0.2, 0.35) / MODEL_SCALE,
