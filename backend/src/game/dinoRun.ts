@@ -270,13 +270,12 @@ export function finishChargingPracticeIfNeeded(room: RoomRecord, teamId: TeamId,
 
   team.phase = "CHARGING";
   team.phaseStartedAt = now;
-  team.phaseEndsAt = now + PHASE_START_GRACE_MS + CHARGING_DURATION_MS;
-  // The three 45-second stages begin after the shared ready screen, so phase 1
-  // still gets its full duration and its own two-second instruction overlay.
-  room.chargingStartedAt[teamId] = now + PHASE_START_GRACE_MS;
+  // 과녁판에서 이미 조작법과 영점을 익혔으므로 별도 준비 화면 없이 바로 사격을 시작한다.
+  team.phaseEndsAt = now + CHARGING_DURATION_MS;
+  room.chargingStartedAt[teamId] = now;
   // 공유 스켈레톤은 방에서 먼저 CHARGING에 들어간 팀 기준으로 한 번만 시작된다 (§2.3).
   if (room.sharedTrexStartedAt === null) {
-    room.sharedTrexStartedAt = now + PHASE_START_GRACE_MS;
+    room.sharedTrexStartedAt = now;
   }
   return true;
 }

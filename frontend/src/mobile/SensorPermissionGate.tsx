@@ -37,7 +37,7 @@ export function SensorPermissionGate({
   }, []);
 
   const elapsed = nowMs - phaseStartedAt;
-  const remainingSec = Math.max(0, Math.ceil((PHASE_START_GRACE_MS - elapsed) / 1000));
+  const remainingSec = phase === "CHARGING" ? 0 : Math.max(0, Math.ceil((PHASE_START_GRACE_MS - elapsed) / 1000));
   useCountdownSound(remainingSec);
 
   return (

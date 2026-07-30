@@ -6,7 +6,6 @@ import {
   CHARGING_STAGE_INTRO_MS,
   ENERGY_TARGET_PER_PLAYER,
   FINAL_STAGE_CORE_TIMEOUT_MS,
-  PHASE_START_GRACE_MS,
   SHOT_COOLDOWN_MS,
   STABILITY_TARGET,
   type HitZone,
@@ -72,9 +71,6 @@ export function applyEnergyFire(
 ): EnergyFireOutcome {
   const team = room.state.teams[teamId];
   if (team.phase !== "CHARGING") {
-    return rejectOutcome("WRONG_TEAM_PHASE", team);
-  }
-  if (now < team.phaseStartedAt + PHASE_START_GRACE_MS) {
     return rejectOutcome("WRONG_TEAM_PHASE", team);
   }
   if (team.charging.finalStunnedUntil && now < team.charging.finalStunnedUntil) {

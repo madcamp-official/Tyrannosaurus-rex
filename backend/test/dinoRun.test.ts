@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CHARGING_PRACTICE_DURATION_MS,
+  CHARGING_DURATION_MS,
   CHARGING_START_STABILITY_BASE,
   DINO_RUN_DURATION_MS,
   METEOR_DODGE_LIVES,
@@ -429,14 +430,16 @@ describe("dino run (meteor dodge)", () => {
     expect(tooEarly).toEqual([]);
     expect(room.state.teams.A.phase).toBe("CHARGING_PRACTICE");
 
-    const finished = rooms.tickChargingPractice(room, practiceEndsAt + 1);
+    const chargingStartsAt = practiceEndsAt + 1;
+    const finished = rooms.tickChargingPractice(room, chargingStartsAt);
     expect(finished.sort()).toEqual(["A", "B"]);
     for (const teamId of ["A", "B"] as const) {
       expect(room.state.teams[teamId].phase).toBe("CHARGING");
-      expect(room.state.teams[teamId].phaseEndsAt).not.toBeNull();
-      expect(room.chargingStartedAt[teamId]).not.toBeNull();
+      expect(room.state.teams[teamId].phaseStartedAt).toBe(chargingStartsAt);
+      expect(room.state.teams[teamId].phaseEndsAt).toBe(chargingStartsAt + CHARGING_DURATION_MS);
+      expect(room.chargingStartedAt[teamId]).toBe(chargingStartsAt);
     }
-    expect(room.sharedTrexStartedAt).not.toBeNull();
+    expect(room.sharedTrexStartedAt).toBe(chargingStartsAt);
   });
 
   it("accepts aim:update but rejects energy:fire during CHARGING_PRACTICE", () => {

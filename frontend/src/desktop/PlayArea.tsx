@@ -131,7 +131,7 @@ function GameIntroOverlay({ roomState }: { roomState: RoomState }): JSX.Element 
     ? Math.max(0, Math.ceil((primary.phaseStartedAt + PHASE_START_GRACE_MS - nowMs) / 1000))
     : null;
   useCountdownSound(remainingSec);
-  if (!primary || remainingSec === null || remainingSec <= 0) return null;
+  if (!primary || primary.phase === "CHARGING" || remainingSec === null || remainingSec <= 0) return null;
   const elapsedMs = Math.max(0, nowMs - primary.phaseStartedAt);
 
   const eraText =
