@@ -12,7 +12,7 @@ import { newRequestId } from "../util/requestId";
 // 값이 클수록 화면 끝까지 가는 데 더 많이 기울여야 해서 덜 민감해진다. 너무 예민하다는
 // 피드백에 따라 좌우/상하 모두 올렸다.
 const GYRO_SENSITIVITY_X_DEG = 60;
-const GYRO_SENSITIVITY_Y_DEG = 46;
+const GYRO_SENSITIVITY_Y_DEG = 45;
 // 0.75는 속도 방식 시절 값이다 — 그때는 이 필터 뒤로 속도 감쇠·위치 적분 단계가 하나 더
 // 있어 센서 잡음을 한 번 더 걸러줬다. 절대 위치 방식은 이 필터 값을 바로 화면 위치로
 // 쓰므로, 그대로 두면 잡음이 걸러지지 않고 조준점이 가만히 있어도 떨리는("튕김") 원인이
@@ -22,7 +22,13 @@ const LOW_PASS_ALPHA = 0.18;
 // 기울이면 한 프레임 만에 값이 반대 부호로 튈 수 있다(짐벌락류 불연속) — 조준점이 순간적으로
 // 반대 방향으로 튀는 버그의 원인. 한 프레임에 물리적으로 있을 수 없는 큰 변화(사람이 손으로
 // 그렇게 빨리 못 돌림)가 감지되면 그 프레임은 필터에 반영하지 않고 그냥 버린다.
-const MAX_FRAME_DELTA_DEG = 60;
+const MAX_FRAME_DELTA_DEG = 75;
+// gamma는 스펙상 ±90도로 클램프되는데, 그 경계 근처는 오일러각 특성상 값 자체가
+// 불안정해진다(짐벌락류) — 한 프레임 튐이 아니라 여러 프레임에 걸쳐 계속 흔들릴 수도 있어
+// MAX_FRAME_DELTA_DEG 필터만으로는 못 잡는다. raw gamma가 이 한계를 넘으면 그 프레임은
+// 아예 필터 갱신을 건너뛰고 마지막 안정값을 유지한다 — 조준점이 그 구간에서 튀는 대신
+// 가장자리에서 멈춰 있는 것처럼 보인다.
+const GAMMA_UNSTABLE_ZONE_DEG = 80;
 
 type OrientationPermissionApi = { requestPermission?: () => Promise<"granted" | "denied"> };
 
@@ -81,11 +87,12 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
         const rawDeltaBeta = Math.abs(event.beta - lastRawRef.current.beta);
         const rawDeltaGamma = Math.abs(event.gamma - lastRawRef.current.gamma);
         const isGlitch = rawDeltaBeta > MAX_FRAME_DELTA_DEG || rawDeltaGamma > MAX_FRAME_DELTA_DEG;
-        // raw 추적값은 글리치 여부와 무관하게 항상 갱신한다 — 그래야 다음 프레임의 비교
-        // 기준이 실제 기기 자세를 계속 따라가고, 정상적인 빠른 움직임이 연쇄적으로 계속
-        // 걸러지는 일이 없다. 글리치로 판단된 딱 그 한 프레임만 필터 반영에서 제외한다.
+        const isNearGimbalLock = Math.abs(event.gamma) > GAMMA_UNSTABLE_ZONE_DEG;
+        // raw 추적값은 글리치/불안정 여부와 무관하게 항상 갱신한다 — 그래야 다음 프레임의
+        // 비교 기준이 실제 기기 자세를 계속 따라가고, 정상적인 빠른 움직임이 연쇄적으로
+        // 계속 걸러지는 일이 없다. 딱 이 프레임의 필터 반영만 건너뛴다.
         lastRawRef.current = { beta: event.beta, gamma: event.gamma };
-        if (isGlitch) return;
+        if (isGlitch || isNearGimbalLock) return;
         filteredRef.current = {
           beta: filteredRef.current.beta + (event.beta - filteredRef.current.beta) * LOW_PASS_ALPHA,
           gamma: filteredRef.current.gamma + (event.gamma - filteredRef.current.gamma) * LOW_PASS_ALPHA,

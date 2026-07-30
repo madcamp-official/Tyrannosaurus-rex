@@ -14,7 +14,9 @@ import { io, type Socket } from "socket.io-client";
 import { randomUUID } from "node:crypto";
 import {
   DECORATION_VOTE_DURATION_MS,
+  EXCAVATION_MAX_INPUTS_PER_SECOND,
   PHASE_START_GRACE_MS,
+  SKY_OBJECT_FALL_MS,
   type BoneId,
   type ClientToServerEvents,
   type CoreZone,
@@ -30,6 +32,10 @@ type AppSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 // 사격 장면에서 티라노 이동이 눈에 보이도록, 봇 페이스를 사람처럼 느긋하게 잡는다.
 // (예전엔 400ms마다 기계처럼 정확히 쐈다 — 그러니 움직여도 체감이 안 될 수밖에 없었다.)
 const EXCAVATE_TICK_MS = 150;
+// 예전엔 틱마다 5개씩 보내 초당 33개 시도 — 서버 상한(EXCAVATION_MAX_INPUTS_PER_SECOND)을
+// 이미 넘어서 항상 최대 속도로 파고 있었다. 상한의 절반 정도로 낮춰서 실제로 체감되는
+// 절반 속도를 만든다(둘 다 넘지 않으면 상한에 안 걸려 시도한 만큼 그대로 반영된다).
+const EXCAVATE_COUNT_PER_TICK = Math.max(1, Math.round((EXCAVATION_MAX_INPUTS_PER_SECOND / 2) * (EXCAVATE_TICK_MS / 1000)));
 const FIRE_TICK_MS = 1_200;
 const FIRE_JITTER_MS = 600;
 const DINO_POLL_MS = 80;
@@ -43,10 +49,16 @@ const REMATCH_GRACE_MS = 3 * 60_000;
  * 탈락 처리, 무승부 등)를 눈으로 확인하기 쉽다. 봇을 절반씩 GOOD/BAD로 섞어서 투입한다.
  */
 type Skill = "GOOD" | "BAD";
-const BAD_AIM_ERROR_RADIUS = 0.16; // 정규화 좌표 기준 조준 오차 반경 — 코어(0.05)/몸통(0.18) 판정 다 흔든다.
-// 운석 피하기: 이 시간 안에 들어오는 오브젝트에 미리 반응해 좌우로 움직인다. BAD 봇은
-// 훨씬 늦게 반응하고(반응 폭이 좁음), 가끔 반대로(운석 쪽으로) 움직여 실제로 맞기도 한다.
-const DINO_LOOKAHEAD_MS = 900;
+// 정규화 좌표 기준 조준 오차 반경 — 코어(0.05)/몸통(0.18) 판정 다 흔든다. GOOD 봇도 완전
+// 무결점(100% 명중)이면 부자연스러워 보여서 작은 오차를 남겨 사격을 전체적으로 못하게 뒀다.
+const GOOD_AIM_ERROR_RADIUS = 0.05;
+const BAD_AIM_ERROR_RADIUS = 0.16;
+// 운석 피하기: 이 시간 안에 들어오는 오브젝트에 미리 반응해 좌우로 움직인다. 서버는 운석이
+// 떨어지기 시작하는 순간(스폰, hitAtMs - SKY_OBJECT_FALL_MS)에 그 시점 위치를 목표로
+// 고정한다(§dinoMeteorLockState) — lookahead가 SKY_OBJECT_FALL_MS보다 짧으면 봇이 아직
+// 반응하기 전에 고정돼버려 피하려던 자리가 아니라 옛 자리로 잠겨 맞을 수 있다. 안전하게
+// SKY_OBJECT_FALL_MS보다 넉넉히 크게 잡아 스폰 시점엔 이미 반응이 끝나 있게 한다.
+const DINO_LOOKAHEAD_MS = SKY_OBJECT_FALL_MS + 150;
 const BAD_DINO_LOOKAHEAD_MS = 250;
 const BAD_DINO_WRONG_DODGE_CHANCE = 0.35;
 
@@ -130,8 +142,8 @@ async function runBotLoop(bot: Bot, board: Blackboard, log: (msg: string) => voi
         bot.excavateSeq += 1;
         bot.socket.emit("excavate:input", {
           seq: bot.excavateSeq,
-          count: 5,
-          sourceCounts: { motion: 0, tap: 5 },
+          count: EXCAVATE_COUNT_PER_TICK,
+          sourceCounts: { motion: 0, tap: EXCAVATE_COUNT_PER_TICK },
           clientTime: now,
         });
       }
@@ -175,16 +187,14 @@ async function runBotLoop(bot: Bot, board: Blackboard, log: (msg: string) => voi
         lastFireAt = now;
         nextFireDelay = FIRE_TICK_MS + Math.random() * FIRE_JITTER_MS;
         const offset = CORE_OFFSETS[core];
-        // BAD 봇은 코어/티라노 중심에서 랜덤하게 벗어나 조준한다 — 몸통 명중이나 완전
-        // 빗나감(0점)도 실제로 나오게 해서 판정 로직을 골고루 확인할 수 있다.
-        let errorX = 0;
-        let errorY = 0;
-        if (bot.skill === "BAD") {
-          const angle = Math.random() * Math.PI * 2;
-          const radius = BAD_AIM_ERROR_RADIUS * Math.random();
-          errorX = Math.cos(angle) * radius;
-          errorY = Math.sin(angle) * radius;
-        }
+        // 코어/티라노 중심에서 랜덤하게 벗어나 조준한다 — BAD 봇은 크게, GOOD 봇도 작게는
+        // 벗어나게 해서(완전 무결점이면 부자연스럽다) 몸통 명중이나 완전 빗나감(0점)도
+        // 실제로 나오게 해서 판정 로직을 골고루 확인할 수 있다.
+        const aimErrorRadius = bot.skill === "BAD" ? BAD_AIM_ERROR_RADIUS : GOOD_AIM_ERROR_RADIUS;
+        const angle = Math.random() * Math.PI * 2;
+        const radius = aimErrorRadius * Math.random();
+        const errorX = Math.cos(angle) * radius;
+        const errorY = Math.sin(angle) * radius;
         const point = {
           x: Math.min(1, Math.max(0, trex.x + offset.x + errorX)),
           y: Math.min(1, Math.max(0, trex.y + offset.y + errorY)),
