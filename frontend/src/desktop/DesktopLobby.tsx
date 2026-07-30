@@ -144,6 +144,7 @@ export function DesktopLobby(): JSX.Element {
     hitFlashByTeam: {},
     coreChangesAtByTeam: {},
     battleShotEvents: [],
+    dustAttackByTeam: {},
   });
   const roomStateRef = useRef(roomState);
   roomStateRef.current = roomState;
@@ -274,6 +275,29 @@ export function DesktopLobby(): JSX.Element {
     });
     socket.on("excavation:eventTriggered", (evt) => setRoomState((prev) => (prev ? applyExcavationEvent(prev, evt.data) : prev)));
     socket.on("excavation:teamFinished", (evt) => setRoomState((prev) => (prev ? applyExcavationTeamFinished(prev, evt.data) : prev)));
+    socket.on("excavation:dustAttacked", (evt) => {
+      const targetTeamId = evt.data.targetTeamId;
+      setEphemeral((prev) => ({
+        ...prev,
+        dustAttackByTeam: {
+          ...prev.dustAttackByTeam,
+          [targetTeamId]: {
+            attackerNickname: evt.data.attackerNickname,
+            disruptedUntil: evt.data.disruptedUntil,
+          },
+        },
+      }));
+      window.setTimeout(() => {
+        setEphemeral((prev) => {
+          const current = prev.dustAttackByTeam[targetTeamId];
+          if (!current || current.disruptedUntil > Date.now()) return prev;
+          return {
+            ...prev,
+            dustAttackByTeam: { ...prev.dustAttackByTeam, [targetTeamId]: undefined },
+          };
+        });
+      }, Math.max(0, evt.data.disruptedUntil - Date.now()) + 50);
+    });
     socket.on("team:phaseChanged", (evt) => setRoomState((prev) => (prev ? applyTeamPhaseChanged(prev, evt.data) : prev)));
     socket.on("dino:started", (evt) => setRoomState((prev) => (prev ? applyDinoStarted(prev, evt.data) : prev)));
     // 운석 피하기(ASSEMBLY)가 이제 발굴보다 먼저라 이 시점엔 아직 발견된 뼈가 하나도 없다 —

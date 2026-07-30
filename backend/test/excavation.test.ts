@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BONE_IDS, EXCAVATION_MAX_INPUTS_PER_SECOND, EXCAVATION_POINTS_PER_BONE, PHASE_START_GRACE_MS, ROUND_TRANSITION_MS } from "@trex/shared";
+import { BONE_IDS, EXCAVATION_DUST_ATTACK_CHARGE, EXCAVATION_MAX_INPUTS_PER_SECOND, EXCAVATION_POINTS_PER_BONE, PHASE_START_GRACE_MS, ROUND_TRANSITION_MS } from "@trex/shared";
 import { RoomManager } from "../src/rooms/RoomManager.js";
 import { makeBoneOrder } from "../src/game/excavation.js";
 
@@ -111,6 +111,39 @@ describe("applyExcavation via RoomManager", () => {
       total += result.pointsAdded;
     }
     expect(total).toBeLessThanOrEqual(EXCAVATION_MAX_INPUTS_PER_SECOND + 0.001);
+  });
+
+  it("charges one dust attack from accepted excavation inputs", () => {
+    const { rooms, room, playerA } = setupStartedRoom();
+    let now = Date.now();
+    let seq = 1;
+    while (room.state.teams.A.excavation.dustCharge < EXCAVATION_DUST_ATTACK_CHARGE) {
+      now += 1_000;
+      rooms.applyExcavation(
+        room,
+        "A",
+        playerA,
+        { seq: seq++, count: 5, sourceCounts: { motion: 5, tap: 0 }, clientTime: now },
+        now,
+      );
+    }
+    expect(room.state.teams.A.excavation.dustCharge).toBe(EXCAVATION_DUST_ATTACK_CHARGE);
+  });
+
+  it("rejects excavation while the team is disrupted", () => {
+    const { rooms, room, playerB } = setupStartedRoom();
+    const now = Date.now();
+    room.state.teams.B.excavation.disruptedUntil = now + 1_000;
+
+    const blocked = rooms.applyExcavation(
+      room,
+      "B",
+      playerB,
+      { seq: 1, count: 5, sourceCounts: { motion: 5, tap: 0 }, clientTime: now },
+      now,
+    );
+    expect(blocked.accepted).toBe(false);
+    expect(room.state.teams.B.excavation.points).toBe(0);
   });
 
   it("awards bones in the room's seeded order", () => {

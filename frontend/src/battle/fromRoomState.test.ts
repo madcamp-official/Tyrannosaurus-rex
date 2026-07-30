@@ -67,6 +67,7 @@ function makeEphemeral(overrides: Partial<ChargingEphemeral> = {}): ChargingEphe
     hitFlashByTeam: {},
     coreChangesAtByTeam: {},
     battleShotEvents: [],
+    dustAttackByTeam: {},
     ...overrides,
   };
 }

@@ -34,6 +34,7 @@ export type ChargingEphemeral = {
   coreChangesAtByTeam: Partial<Record<TeamId, number>>;
   /** 배틀 화면의 발사 임팩트 연출용, TTL로 스스로 사라지는 최근 발사 이벤트 목록. */
   battleShotEvents: BattleShotEvent[];
+  dustAttackByTeam: Partial<Record<TeamId, { attackerNickname: string; disruptedUntil: number }>>;
 };
 
 function GamepadIcon(): JSX.Element {
@@ -364,6 +365,14 @@ export function PlayArea({ roomState, ephemeral }: { roomState: RoomState; ephem
         <div className="play-area__team-body">
           <TeamPhaseContent team={team} roomState={roomState} />
         </div>
+        {team.phase === "EXCAVATION" && ephemeral.dustAttackByTeam[teamId] && (
+          <div className="excavation-dust-overlay" aria-live="assertive">
+            <div className="excavation-dust-overlay__cloud excavation-dust-overlay__cloud--one" />
+            <div className="excavation-dust-overlay__cloud excavation-dust-overlay__cloud--two" />
+            <strong>상대 팀의 흙먼지 공격!</strong>
+            <span>{ephemeral.dustAttackByTeam[teamId]?.attackerNickname}님이 발굴을 방해했습니다</span>
+          </div>
+        )}
       </div>
     );
   };
