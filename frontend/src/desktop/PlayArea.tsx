@@ -110,7 +110,7 @@ function PhaseTimer({ roomState }: { roomState: RoomState }): JSX.Element | null
 
 const PHASE_GUIDE: Record<TeamPhase, string> = {
   ASSEMBLY: "운석을 피하고\n과일과 하트를 획득하세요!",
-  EXCAVATION: "휴대폰을 흔들거나 버튼을 눌러\n티라노의 뼈를 발굴하세요!",
+  EXCAVATION: "휴대폰을 흔들어\n티라노의 뼈를 발굴하세요!",
   CHARGING_PRACTICE: "조준점을 중앙에 맞춰\n레이저 영점을 조정하세요!",
   CHARGING: "휴대폰으로 조준하고 발사해 뼈라노에게 부활 에너지를 채우세요!",
   REVIVED: "부활 결과를 확인하세요!",

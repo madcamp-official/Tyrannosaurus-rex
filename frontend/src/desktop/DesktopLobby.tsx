@@ -387,7 +387,7 @@ export function DesktopLobby(): JSX.Element {
             id: shotEventId,
             team: evt.data.teamId,
             playerId: evt.data.playerId,
-            playerColor: shooter?.color ?? (evt.data.teamId === "A" ? "#f2994a" : "#6fc3e8"),
+            playerColor: shooter?.color ?? roomStateRef.current?.teamStyles[evt.data.teamId].color ?? "#ffffff",
             playerName: shooter?.nickname ?? "플레이어",
             scoreDelta: evt.data.energyDelta,
             hit: evt.data.hit,

@@ -1,5 +1,6 @@
 /** 배틀 화면 구현 프롬프트 전문 기준 풀블리드 3D + 오버레이 HUD. 1920x1080 고정, 레터박스 스케일링. */
 
+import type { CSSProperties } from "react";
 import type { BattleShotEvent, BattleState } from "./battleTypes";
 import { STAGE_H, STAGE_W } from "./battleLayout";
 import { useLetterboxScale } from "./useLetterboxScale";
@@ -33,7 +34,15 @@ export function BattleScreen({
     <div className="battle-viewport">
       <div
         className={`battle-stage${battle.stageIntroActive ? " battle-stage--phase-intro" : ""}`}
-        style={{ width: STAGE_W, height: STAGE_H, transform: `translate(-50%, -50%) scale(${scale})` }}
+        style={{
+          width: STAGE_W,
+          height: STAGE_H,
+          transform: `translate(-50%, -50%) scale(${scale})`,
+          "--a": battle.teamA.color,
+          "--a-light": `color-mix(in srgb, ${battle.teamA.color} 68%, white)`,
+          "--b": battle.teamB.color,
+          "--b-light": `color-mix(in srgb, ${battle.teamB.color} 68%, white)`,
+        } as CSSProperties}
       >
         <BattleArena battle={battle} shotEvents={shotEvents} aimPoints={aimPoints} />
         {battle.stageIntroActive && (
