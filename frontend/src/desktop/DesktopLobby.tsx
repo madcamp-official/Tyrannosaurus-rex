@@ -167,7 +167,7 @@ export function DesktopLobby(): JSX.Element {
     audio.volume = LOBBY_BGM_VOLUME;
     lobbyBgmRef.current = audio;
     const retryAutoplay = () => {
-      if (!bgmMuted && (!roomState || roomState.roomPhase === "LOBBY")) {
+      if (!bgmMuted && (!roomState || roomState.roomPhase === "LOBBY" || roomState.roomPhase === "RESULT")) {
         void audio.play().catch(() => undefined);
       }
     };
@@ -194,7 +194,8 @@ export function DesktopLobby(): JSX.Element {
       lobbyBgmFadeRef.current = null;
     }
 
-    const lobbyActive = !roomState || roomState.roomPhase === "LOBBY";
+    // 결과 화면도 로비와 같은 BGM을 그대로 이어서 쓴다 — 별도 트랙 없이 로비 음악을 재사용.
+    const lobbyActive = !roomState || roomState.roomPhase === "LOBBY" || roomState.roomPhase === "RESULT";
     audio.muted = bgmMuted;
     if (lobbyActive) {
       audio.volume = LOBBY_BGM_VOLUME;
