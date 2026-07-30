@@ -53,6 +53,8 @@ const EXCAVATION_BGM_VOLUME = 0.45;
 const EXCAVATION_BGM_FADE_MS = 900;
 const DINO_RUN_BGM_VOLUME = 0.3;
 const DINO_RUN_BGM_FADE_MS = 900;
+const CHARGING_BGM_VOLUME = 0.3;
+const CHARGING_BGM_FADE_MS = 900;
 
 /** 로비 BGM·운석 피하기 BGM이 공유하는 페이드아웃(볼륨 서서히 0으로 → 일시정지 → 볼륨 복원). */
 function fadeOutAndPause(audio: HTMLAudioElement, fadeRef: { current: number | null }, fadeMs: number, restoreVolume: number): void {
@@ -156,6 +158,7 @@ export function DesktopLobby(): JSX.Element {
     (roomState.teams.A.phase === "EXCAVATION" || roomState.teams.B.phase === "EXCAVATION");
   usePhaseBgm("/audio/dino-run-bgm.mp3", DINO_RUN_BGM_VOLUME, DINO_RUN_BGM_FADE_MS, isDinoRunActive, bgmMuted);
   usePhaseBgm("/audio/excavation-bgm.mp3", EXCAVATION_BGM_VOLUME, EXCAVATION_BGM_FADE_MS, isExcavationActive, bgmMuted);
+  usePhaseBgm("/audio/charging-bgm.mp3", CHARGING_BGM_VOLUME, CHARGING_BGM_FADE_MS, isChargingBattle, bgmMuted);
 
   useEffect(() => {
     const audio = new Audio("/audio/lobby-bgm.mp3");
