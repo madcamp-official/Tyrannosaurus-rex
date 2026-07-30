@@ -84,7 +84,7 @@ function TeamPanel({
   const excavationSec = formatSec(teamResult?.excavationMs);
   const assemblySec = formatSec(teamResult?.assemblyMs);
   const totalSec = (Number(excavationSec) + Number(assemblySec)).toFixed(1);
-  const score = formatScore(teamResult?.totalScore);
+  const score = formatScore(teamResult?.averageScore);
   const isWinner = roomState.winner.teamId === teamId;
 
   return (
@@ -98,7 +98,7 @@ function TeamPanel({
         </div>
         <div className="result-view__team-score">
           <strong>{score}</strong>
-          <span>점</span>
+          <span>인당 평균점</span>
         </div>
       </div>
       <ul className="result-view__stat-list">

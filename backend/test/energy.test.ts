@@ -284,6 +284,37 @@ describe("energy:fire", () => {
     expect(room.state.roomPhase).toBe("DECORATION");
     expect(room.state.winner).toEqual({ teamId: "A", reason: "SCORE_TOTAL" });
   });
+
+  it("compares per-player average score so a larger team's higher raw total doesn't automatically win", () => {
+    const rooms = new RoomManager("https://trex.example.com");
+    const created = rooms.createRoom("host-1", "테스트 방", 5)!;
+    const roomCode = created.room.state.roomCode;
+    const a = rooms.joinRoom(roomCode, "A1", "socket-a1");
+    const b1 = rooms.joinRoom(roomCode, "B1", "socket-b1");
+    const b2 = rooms.joinRoom(roomCode, "B2", "socket-b2");
+    if (!a.ok || !b1.ok || !b2.ok) throw new Error("join failed");
+    expect(a.teamId).toBe("A");
+    expect(b1.teamId).toBe("B");
+    expect(b2.teamId).toBe("B");
+    rooms.setReady(roomCode, a.playerId, true);
+    rooms.setReady(roomCode, b1.playerId, true);
+    rooms.setReady(roomCode, b2.playerId, true);
+    rooms.startGame(created.room);
+
+    const room = created.room;
+    room.state.teams.A.phase = "REVIVED";
+    room.state.teams.A.charging.form = "NORMAL";
+    room.state.teams.B.phase = "REVIVED";
+    room.state.teams.B.charging.form = "NORMAL";
+    // 팀 B의 총합(40+40=80)은 팀 A(60)보다 높지만, 인원이 2명이라 인당 평균(40)은 A(60)보다 낮다.
+    room.state.players.find((player) => player.id === a.playerId)!.stats.excavationInputs = 60;
+    room.state.players.find((player) => player.id === b1.playerId)!.stats.excavationInputs = 40;
+    room.state.players.find((player) => player.id === b2.playerId)!.stats.excavationInputs = 40;
+
+    const finalized = rooms.checkRoundCompletion(room, Date.now());
+    expect(finalized).toBe(true);
+    expect(room.state.winner).toEqual({ teamId: "A", reason: "SCORE_TOTAL" });
+  });
 });
 
 describe("charging tick transitions", () => {

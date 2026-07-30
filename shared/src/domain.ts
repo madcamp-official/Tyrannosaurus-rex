@@ -177,6 +177,14 @@ export function teamPlayerScore(players: readonly PublicPlayer[], teamId: TeamId
     .reduce((sum, player) => sum + individualGameScore(player), 0);
 }
 
+/** 인원수 차이와 무관하게 승패를 가릴 수 있도록, 팀 총점을 팀원 수로 나눈 인당 평균 점수. */
+export function teamAveragePlayerScore(players: readonly PublicPlayer[], teamId: TeamId): number {
+  const teamPlayers = players.filter((player) => player.teamId === teamId);
+  if (teamPlayers.length === 0) return 0;
+  const total = teamPlayers.reduce((sum, player) => sum + individualGameScore(player), 0);
+  return total / teamPlayers.length;
+}
+
 export type DinoRunGrade = "PERFECT" | "GOOD" | "CLUMSY" | "MESSY";
 
 export type SkyObjectKind = "METEOR" | "FRUIT" | "HEART";
