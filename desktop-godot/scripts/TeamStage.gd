@@ -196,6 +196,16 @@ func set_phase(phase: String) -> void:
 		if _ground:
 			_ground.reset()
 		_last_dig_progress = -EXCAVATION_DIG_STEP
+		# 뼈 조각은 한 번 보이면 스스로 다시 숨는 경로가 없다 — 재경기로 발굴에 다시 들어올 때
+		# 이전 라운드에 발견됐던 조각이 그대로 남아 있으면 발굴 시작부터 뼈가 이미 다 나와있는
+		# 것처럼 보인다. _on_pieces_ready와 같은 방식(흩뿌리고 전부 숨기기)으로 완전히
+		# 초기화해 매 라운드 땅을 파는 만큼만 하나씩 드러나도록 한다.
+		if _model_ready:
+			_model.scatter(team_id.hash())
+			for piece_id in _model.get_piece_ids():
+				var piece := _model.get_piece(piece_id)
+				if piece:
+					piece.visible = false
 	if phase == "ASSEMBLY" and previous == "EXCAVATION" and _model_ready:
 		_model.scatter(team_id.hash())
 
