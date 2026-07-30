@@ -2507,16 +2507,6 @@ body {
   border-radius: 50%;
 }
 
-.result-view {
-  max-width: min(1400px, 96vw);
-  margin: 0 auto;
-  padding: 12px 24px 24px;
-  text-align: center;
-  box-sizing: border-box;
-  position: relative;
-  isolation: isolate;
-}
-
 .ending-sequence {
   position: fixed;
   inset: 0;
@@ -2546,7 +2536,9 @@ body {
   height: 100%;
   display: block;
   object-fit: cover;
-  animation: ending-image-reveal 4s ease-in-out both;
+  /* 승리 팡파레 길이(약 15.1초, EndingSequence.tsx의 IMAGE_DURATION_MS)에 맞춰 페이드
+     아웃 타이밍도 같이 늘렸다 — 안 그러면 노래가 끝나기 한참 전에 사진이 먼저 사라진다. */
+  animation: ending-image-reveal 15.1s ease-in-out both;
 }
 
 @keyframes ending-message-reveal {
@@ -2557,8 +2549,18 @@ body {
 
 @keyframes ending-image-reveal {
   0% { opacity: 0; transform: scale(1.025); }
-  16%, 72% { opacity: 1; transform: scale(1); }
+  5%, 92% { opacity: 1; transform: scale(1); }
   100% { opacity: 0; transform: scale(1); }
+}
+
+.result-view {
+  max-width: min(1400px, 96vw);
+  margin: 0 auto;
+  padding: 12px 24px 24px;
+  text-align: center;
+  box-sizing: border-box;
+  position: relative;
+  isolation: isolate;
 }
 
 .result-view::before,
