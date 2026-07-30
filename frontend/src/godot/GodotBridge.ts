@@ -36,7 +36,10 @@ export class GodotBridge {
     if (typeof data === "string") {
       try {
         data = JSON.parse(data);
-      } catch {
+      } catch (err) {
+        // Godot 쪽에서 잘못된 JSON을 보냈다는 신호라 조용히 버리면 나중에 브릿지가 먹통일 때
+        // 원인을 추적할 방법이 없다 — 최소한 콘솔에는 남긴다.
+        console.warn("[GodotBridge] failed to parse postMessage payload as JSON", err, data);
         return;
       }
     }
