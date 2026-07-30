@@ -48,6 +48,8 @@ function initialBattle(): BattleState {
     teamBStunned: false,
     teamA: {
       name: "화염 랩터",
+      emoji: "🔥",
+      color: "#ff8a4c",
       energy: 0,
       totalHits: 0,
       coreHits: 0,
@@ -61,6 +63,8 @@ function initialBattle(): BattleState {
     },
     teamB: {
       name: "빙결 팽",
+      emoji: "❄️",
+      color: "#78cfff",
       energy: 0,
       totalHits: 0,
       coreHits: 0,

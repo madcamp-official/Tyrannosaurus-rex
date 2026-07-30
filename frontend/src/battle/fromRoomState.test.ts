@@ -47,6 +47,7 @@ function makeRoomState(overrides: Partial<RoomState> = {}): RoomState {
     roomName: "테스트 발굴지",
     maxPlayersPerTeam: 5,
     teamNames: { A: "T라노 팀", B: "F라노 팀" },
+    teamStyles: { A: { emoji: "🔥", color: "#ff8a4c" }, B: { emoji: "❄️", color: "#78cfff" } },
     roomPhase: "PLAYING",
     createdAt: 0,
     roundStartedAt: 0,

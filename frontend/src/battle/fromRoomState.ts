@@ -1,6 +1,6 @@
 /** 실제 서버 데이터(RoomState + ephemeral 소켓 이벤트)를 BattleScreen이 요구하는 BattleState로 변환한다. */
 
-import { CHARGING_DURATION_MS, CHARGING_STAGE_DURATION_MS, CHARGING_STAGE_INTRO_MS, ENERGY_TARGET_PER_PLAYER, FINAL_STAGE_CORE_TIMEOUT_MS, type CoreZone, type PublicPlayer, type RoomState, type TeamId, type TeamState } from "@trex/shared";
+import { CHARGING_DURATION_MS, CHARGING_STAGE_DURATION_MS, CHARGING_STAGE_INTRO_MS, ENERGY_TARGET_PER_PLAYER, FINAL_STAGE_CORE_TIMEOUT_MS, type CoreZone, type PublicPlayer, type RoomState, type TeamId, type TeamState, type TeamStyle } from "@trex/shared";
 import type { ChargingEphemeral } from "../desktop/PlayArea";
 import type { BattlePlayer, BattleState, BattleTeam } from "./battleTypes";
 
@@ -13,7 +13,7 @@ function stageFor(avgEnergy: number): number {
   return 1;
 }
 
-function teamFrom(allPlayers: PublicPlayer[], team: TeamState, teamName: string): BattleTeam {
+function teamFrom(allPlayers: PublicPlayer[], team: TeamState, teamName: string, teamStyle: TeamStyle): BattleTeam {
   const teamPlayers = allPlayers.filter((p) => p.teamId === team.id);
   const battlePlayers: BattlePlayer[] = teamPlayers.map((p) => ({
     id: p.id,
@@ -25,6 +25,7 @@ function teamFrom(allPlayers: PublicPlayer[], team: TeamState, teamName: string)
   }));
   return {
     name: teamName,
+    ...teamStyle,
     players: battlePlayers,
     // 팀 점수는 서버의 부활 게이지(단계별 상한 적용)가 아니라 화면에 표시되는
     // 유저별 기여 점수의 합계와 정확히 일치해야 한다.
@@ -63,8 +64,8 @@ export function battleStateFromRoom(
     }),
   );
 
-  const teamA = teamFrom(roomState.players, roomState.teams.A, roomState.teamNames.A);
-  const teamB = teamFrom(roomState.players, roomState.teams.B, roomState.teamNames.B);
+  const teamA = teamFrom(roomState.players, roomState.teams.A, roomState.teamNames.A, roomState.teamStyles.A);
+  const teamB = teamFrom(roomState.players, roomState.teams.B, roomState.teamNames.B, roomState.teamStyles.B);
   const chargingStage = trex.chargingStage ?? 1;
   const elapsedMs = Math.max(0, CHARGING_DURATION_MS - remainingSec * 1000);
   const stageElapsedMs = elapsedMs % CHARGING_STAGE_DURATION_MS;

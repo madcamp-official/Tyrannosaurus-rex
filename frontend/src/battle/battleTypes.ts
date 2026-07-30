@@ -14,6 +14,8 @@ export interface BattlePlayer {
 
 export interface BattleTeam {
   name: string;
+  emoji: string;
+  color: string;
   players: BattlePlayer[];
   energy: number;
   totalHits: number;
@@ -69,7 +71,7 @@ export interface BattleShotEvent {
 }
 
 export function emptyTeam(): BattleTeam {
-  return { name: "", players: [], energy: 0, totalHits: 0, coreHits: 0, result: null };
+  return { name: "", emoji: "🦖", color: "#ffffff", players: [], energy: 0, totalHits: 0, coreHits: 0, result: null };
 }
 
 export function hitRate(team: BattleTeam): number {

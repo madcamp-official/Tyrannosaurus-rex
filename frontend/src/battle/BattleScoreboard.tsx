@@ -1,12 +1,8 @@
 /** 사이드 스코어보드: 플레이어/발사/약점 명중/개인 점수. B팀은 컬럼 순서를 반전한다. */
 
+import type { CSSProperties } from "react";
 import type { BattleTeam, TeamId } from "./battleTypes";
 import { hitRate } from "./battleTypes";
-
-const TEAM_EMBLEM: Record<TeamId, string> = {
-  A: "🔥",
-  B: "❄",
-};
 
 export function BattleScoreboard({ team, teamId }: { team: BattleTeam; teamId: TeamId }): JSX.Element {
   const mirrored = teamId === "B";
@@ -17,9 +13,12 @@ export function BattleScoreboard({ team, teamId }: { team: BattleTeam; teamId: T
     : ["플레이어", "발사", "약점 명중", "개인 점수"];
 
   return (
-    <div className={`battle-board battle-board--${teamId.toLowerCase()}${mirrored ? " battle-board--mirrored" : ""}`}>
+    <div
+      className={`battle-board battle-board--${teamId.toLowerCase()}${mirrored ? " battle-board--mirrored" : ""}`}
+      style={{ "--team-color": team.color } as CSSProperties}
+    >
       <div className="battle-board__header">
-        <span className="battle-board__emblem">{TEAM_EMBLEM[teamId]}</span>
+        <span className="battle-board__emblem">{team.emoji}</span>
         <span className="battle-board__name">{team.name}</span>
         {team.result && (
           <span className={`battle-board__result battle-board__result--${team.result.toLowerCase()}`}>
