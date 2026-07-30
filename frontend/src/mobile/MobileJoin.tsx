@@ -299,7 +299,7 @@ export function MobileJoin(): JSX.Element {
     );
   }
 
-  if (roomState && (roomState.roomPhase === "RESULT" || roomState.roomPhase === "DECORATION") && playerId) {
+  if (roomState && roomState.roomPhase === "RESULT" && playerId) {
     return (
       <main className="mobile-join">
         <div className="mobile-join__bg" />

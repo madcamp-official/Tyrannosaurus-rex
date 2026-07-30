@@ -549,7 +549,7 @@ export function DesktopLobby(): JSX.Element {
         )}
 
         {roomState && roomState.roomPhase === "PLAYING" && <PlayArea roomState={roomState} ephemeral={ephemeral} />}
-        {roomState && (roomState.roomPhase === "RESULT" || roomState.roomPhase === "DECORATION") && (
+        {roomState && roomState.roomPhase === "RESULT" && (
           <ResultView roomState={roomState} gameResult={gameResult} socket={socketRef.current} />
         )}
 

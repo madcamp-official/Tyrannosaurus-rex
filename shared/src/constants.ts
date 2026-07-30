@@ -137,7 +137,6 @@ export const MVP_WEIGHT_CORE_HIT = 3;
 export const MVP_TOP_COUNT = 3;
 
 export const ROUND_DURATION_MS = 300_000;
-export const DECORATION_VOTE_DURATION_MS = 20_000;
 
 export const MIN_PLAYERS = 2;
 // Plan.md §2.2: 방 생성 시 호스트가 팀별 최대 인원을 지정한다. 시스템 상한 10명, 폼 기본값 5명.
@@ -152,8 +151,6 @@ export const ROOM_CODE_MAX_GENERATION_ATTEMPTS = 20;
 
 export const REQUEST_ID_CACHE_MAX_ENTRIES = 100;
 export const REQUEST_ID_CACHE_TTL_MS = 5 * 60_000;
-
-export const MUSEUM_MAX_ENTRIES = 20;
 
 export const BRIDGE_PROTOCOL_VERSION = 1 as const;
 export const BRIDGE_FULL_SNAPSHOT_INTERVAL_MS = 5_000;

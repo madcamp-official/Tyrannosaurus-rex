@@ -3,7 +3,6 @@
 import type {
   BoneId,
   Facing,
-  MuseumTyranno,
   NormalizedPoint,
   PlayerId,
   PoseId,
@@ -84,7 +83,6 @@ export type EnergyHitPayload = {
   stability: number;
 };
 export type RevivalResultPayload = { teamId: TeamId; form: RevivalForm; purified: boolean };
-export type MuseumEntriesPayload = { entries: MuseumTyranno[] };
 
 export type ReactToGodotMessage =
   | BridgeEnvelope<"INIT", InitPayload>
@@ -96,8 +94,7 @@ export type ReactToGodotMessage =
   | BridgeEnvelope<"CROSSHAIRS", CrosshairsPayload>
   | BridgeEnvelope<"TREX_TRANSFORM", TrexTransformPayload>
   | BridgeEnvelope<"ENERGY_HIT", EnergyHitPayload>
-  | BridgeEnvelope<"REVIVAL_RESULT", RevivalResultPayload>
-  | BridgeEnvelope<"MUSEUM_ENTRIES", MuseumEntriesPayload>;
+  | BridgeEnvelope<"REVIVAL_RESULT", RevivalResultPayload>;
 
 // ---------------------------------------------------------------------------
 // Godot → React

@@ -3,16 +3,14 @@
 import { createServer } from "node:http";
 import express from "express";
 import { Server, type Socket } from "socket.io";
-import { API_VERSION, MUSEUM_MAX_ENTRIES, type ClientToServerEvents, type ServerToClientEvents } from "@trex/shared";
+import { API_VERSION, type ClientToServerEvents, type ServerToClientEvents } from "@trex/shared";
 import { loadEnv } from "./env.js";
-import { listMuseumEntries } from "./db/museumDb.js";
 import { RoomManager } from "./rooms/RoomManager.js";
 import { registerRoomHandlers } from "./rooms/roomHandlers.js";
 import { registerExcavationHandlers, tickExcavationHandoff } from "./rooms/excavationHandlers.js";
 import { registerDinoHandlers, tickRoomDinoRun, tickDinoRunHandoff } from "./rooms/dinoHandlers.js";
 import { registerAimHandlers } from "./rooms/aimHandlers.js";
 import { registerEnergyHandlers, tickRoomCharging } from "./rooms/energyHandlers.js";
-import { finalizeVotingTick } from "./rooms/votingHandlers.js";
 import type { InterServerEvents, SocketData } from "./rooms/socketData.js";
 
 const env = loadEnv();
@@ -45,11 +43,6 @@ app.get("/api/version", (_req, res) => {
     gitCommit: process.env.GIT_COMMIT ?? "unknown",
     godotAssetVersion: env.GODOT_ASSET_VERSION,
   });
-});
-
-// Plan.md §8 티라노박물관. DB가 유일한 소스 — 최근 MUSEUM_MAX_ENTRIES개만 최신순으로 내려준다.
-app.get("/api/museum", (_req, res) => {
-  res.status(200).json({ entries: listMuseumEntries(MUSEUM_MAX_ENTRIES) });
 });
 
 // autoplay 봇이 방 코드를 손으로 옮겨 적지 않고 열린 로비를 찾을 수 있게 한다.
@@ -132,11 +125,6 @@ const chargingTickInterval = setInterval(() => {
 }, 100);
 chargingTickInterval.unref();
 
-const votingTickInterval = setInterval(() => {
-  for (const roomCode of rooms.listRoomCodes()) finalizeVotingTick(rooms, roomCode);
-}, 1_000);
-votingTickInterval.unref();
-
 httpServer.listen(env.SERVER_PORT, () => {
   // eslint-disable-next-line no-console
   console.log(`[server] listening on :${env.SERVER_PORT} (env=${env.NODE_ENV})`);
@@ -146,7 +134,6 @@ function shutdown(): void {
   shuttingDown = true;
   clearInterval(idleSweepInterval);
   clearInterval(chargingTickInterval);
-  clearInterval(votingTickInterval);
   io.close();
   httpServer.close(() => process.exit(0));
   setTimeout(() => process.exit(1), 5_000).unref();

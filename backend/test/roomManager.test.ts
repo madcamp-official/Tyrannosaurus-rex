@@ -122,7 +122,7 @@ describe("RoomManager", () => {
 
       const finalized = rooms.finalizeIfTeamFullyDisconnected(room, "A", Date.now());
       expect(finalized).toBe(true);
-      expect(room.state.roomPhase).toBe("DECORATION");
+      expect(room.state.roomPhase).toBe("RESULT");
       expect(room.state.winner).toEqual({ teamId: "B", reason: "OPPONENT_DISCONNECTED" });
     });
 
