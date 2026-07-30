@@ -4,6 +4,8 @@ import { randomUUID } from "node:crypto";
 import {
   CHARGING_DRAW_WINDOW_MS,
   CHARGING_PRACTICE_DURATION_MS,
+  CHARGING_STAGE_DURATION_MS,
+  CHARGING_STAGE_INTRO_MS,
   FINAL_STAGE_CORE_TIMEOUT_MS,
   FINAL_STAGE_ATTACK_STREAK,
   FINAL_STAGE_STARTING_LIVES,
@@ -81,7 +83,7 @@ export type ChargingTickUpdate = {
   core: CoreZone;
   nextChangeAt: number;
   coreChanged: boolean;
-  transition: "TO_REVIVED_YRANNO" | null;
+  transition: "TO_REVIVED_NORMAL" | "TO_REVIVED_YRANNO" | null;
   finalDamage: { livesLeft: number; stunnedUntil: number } | null;
 };
 
@@ -178,6 +180,7 @@ function resetTeamGameplayState(team: TeamState, now: number): void {
     finalLives: FINAL_STAGE_STARTING_LIVES,
     finalCoreDeadlineAt: null,
     finalStunnedUntil: null,
+    targetReachedAt: null,
   };
   team.scores = { excavation: null, dinoRun: null, charging: null };
 }
@@ -200,7 +203,7 @@ function makeEmptyTeamState(teamId: TeamId, now: number): TeamState {
       grade: null,
       result: null,
     },
-    charging: { energy: 0, stability: 100, activeCore: "HEART", coreChangesAt: 0, form: "NONE", result: null, finalLives: FINAL_STAGE_STARTING_LIVES, finalCoreDeadlineAt: null, finalStunnedUntil: null },
+    charging: { energy: 0, stability: 100, activeCore: "HEART", coreChangesAt: 0, form: "NONE", result: null, finalLives: FINAL_STAGE_STARTING_LIVES, finalCoreDeadlineAt: null, finalStunnedUntil: null, targetReachedAt: null },
     scores: { excavation: null, dinoRun: null, charging: null },
   };
   resetTeamGameplayState(team, now);
@@ -823,9 +826,14 @@ export class RoomManager {
     const totalCoreHits = members.reduce((sum, p) => sum + p.stats.coreHits, 0);
     const accuracy = totalShots > 0 ? totalHits / totalShots : 0;
     const coreFactor = Math.min(1, totalCoreHits / SHOOTING_SCORE_CORE_HITS_FOR_FULL_MARKS);
-    room.state.teams[teamId].scores.charging = Math.round(
+    const team = room.state.teams[teamId];
+    const timeBonus =
+      team.charging.targetReachedAt != null && team.phaseEndsAt != null
+        ? Math.max(0, Math.floor((team.phaseEndsAt - team.charging.targetReachedAt) / 1000))
+        : 0;
+    team.scores.charging = Math.round(
       SHOOTING_SCORE_ACCURACY_WEIGHT * accuracy + SHOOTING_SCORE_CORE_WEIGHT * coreFactor,
-    );
+    ) + timeBonus;
   }
 
   /**
@@ -876,7 +884,11 @@ export class RoomManager {
 
       if (stillCharging && !transition && computeChargingStage(room, teamId, now) === 3) {
         team.charging.finalLives ??= FINAL_STAGE_STARTING_LIVES;
-        team.charging.finalCoreDeadlineAt ??= now + FINAL_STAGE_CORE_TIMEOUT_MS;
+        const chargingStartedAt = room.chargingStartedAt[teamId] ?? team.phaseStartedAt;
+        const phaseThreePlayableAt =
+          chargingStartedAt + CHARGING_STAGE_DURATION_MS * 2 + CHARGING_STAGE_INTRO_MS;
+        team.charging.finalCoreDeadlineAt ??=
+          Math.max(now, phaseThreePlayableAt) + FINAL_STAGE_CORE_TIMEOUT_MS;
         if (now >= team.charging.finalCoreDeadlineAt) {
           const missedWindows = Math.floor((now - team.charging.finalCoreDeadlineAt) / FINAL_STAGE_CORE_TIMEOUT_MS) + 1;
           team.charging.finalLives = Math.max(0, team.charging.finalLives - missedWindows);
@@ -907,7 +919,7 @@ export class RoomManager {
       if (transition) {
         this.touch(room);
         this.bumpRevision(room);
-        if (transition === "TO_REVIVED_YRANNO") {
+        if (transition === "TO_REVIVED_NORMAL" || transition === "TO_REVIVED_YRANNO") {
           room.phaseDurations[teamId].chargingMs = room.chargingStartedAt[teamId] !== null ? now - room.chargingStartedAt[teamId]! : null;
           this.finalizeChargingScore(room, teamId);
           this.applyChargingResult(room, teamId, now);

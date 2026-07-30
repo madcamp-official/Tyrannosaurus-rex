@@ -2501,6 +2501,7 @@ body {
 }
 
 .result-view__trex {
+  position: relative;
   width: 310px;
   height: 180px;
   transform-origin: 50% 100%;
@@ -2518,6 +2519,18 @@ body {
   border-radius: 18px;
   overflow: hidden;
   box-shadow: 0 18px 34px rgba(0, 0, 0, 0.42);
+}
+
+.result-view__trex--winner::after,
+.result-view__trex--yranno::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: inherit;
+  background: rgba(255, 255, 255, 0.025);
+  backdrop-filter: blur(1.1px);
 }
 
 .result-view__trex--yranno {
@@ -2549,11 +2562,9 @@ body {
 }
 
 .result-view__stage-result {
-  position: absolute;
-  left: 50%;
-  bottom: 12px;
-  transform: translateX(-50%);
+  position: relative;
   z-index: 2;
+  margin: 0 0 12px;
   white-space: nowrap;
   font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
   font-size: 1.2rem;

@@ -32,10 +32,22 @@ export function BattleScreen({
   return (
     <div className="battle-viewport">
       <div
-        className="battle-stage"
+        className={`battle-stage${battle.stageIntroActive ? " battle-stage--phase-intro" : ""}`}
         style={{ width: STAGE_W, height: STAGE_H, transform: `translate(-50%, -50%) scale(${scale})` }}
       >
         <BattleArena battle={battle} shotEvents={shotEvents} aimPoints={aimPoints} />
+        {battle.stageIntroActive && (
+          <div className="battle-phase-intro" role="status" aria-live="polite">
+            <strong>PHASE {battle.chargingStage}</strong>
+            <span>
+              {battle.chargingStage === 1
+                ? "뼈라노에게 에너지를 주세요!"
+                : battle.chargingStage === 2
+                  ? "도망치는 뼈라노를 붙잡으세요!"
+                  : "뼈라노에게 마지막으로 생명을 불어넣어주세요!"}
+            </span>
+          </div>
+        )}
         {battle.teamAStunned && <div className="battle-damage-overlay battle-damage-overlay--a" aria-hidden="true" />}
         {battle.teamBStunned && <div className="battle-damage-overlay battle-damage-overlay--b" aria-hidden="true" />}
 

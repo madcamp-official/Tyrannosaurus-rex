@@ -35,9 +35,11 @@ function initialBattle(): BattleState {
     coreName: CORE_NAME,
     stage: 1,
     siteName: "노을 협곡 발굴지",
-    energyTarget: ENERGY_TARGET,
+    teamAEnergyTarget: ENERGY_TARGET,
+    teamBEnergyTarget: ENERGY_TARGET,
     chargingStage: 1,
     stageProgress: 0,
+    stageIntroActive: false,
     teamAFinalLives: 5,
     teamBFinalLives: 5,
     teamAFinalSecondsLeft: 5,
@@ -144,7 +146,7 @@ export function useBattleDemo() {
         );
         const nextTeam = {
           players: nextPlayers,
-          energy: Math.min(prev.energyTarget, team.energy + gain),
+          energy: Math.min(teamKey === "teamA" ? prev.teamAEnergyTarget : prev.teamBEnergyTarget, team.energy + gain),
           totalHits: team.totalHits + (isHit ? 1 : 0),
           coreHits: team.coreHits + (isCore ? 1 : 0),
         };
@@ -165,7 +167,7 @@ export function useBattleDemo() {
           point,
         });
 
-        const reachedTarget = nextTeam.energy >= prev.energyTarget;
+        const reachedTarget = nextTeam.energy >= (teamKey === "teamA" ? prev.teamAEnergyTarget : prev.teamBEnergyTarget);
         if (reachedTarget && !resettingRef.current) {
           resettingRef.current = true;
           window.setTimeout(() => {

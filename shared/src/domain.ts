@@ -143,6 +143,8 @@ export type PlayerStats = {
   hits: number;
   coreHits: number;
   energyContributed: number;
+  /** Awarded once when this player's hit completes the team energy target. */
+  chargingTimeBonus?: number;
 };
 
 export type PublicPlayer = {
@@ -164,7 +166,8 @@ export function individualGameScore(player: Pick<PublicPlayer, "stats">): number
     player.stats.excavationInputs * MVP_WEIGHT_EXCAVATION_INPUT +
     player.stats.dinoCleared * MVP_WEIGHT_DINO_CLEARED +
     player.stats.hits * MVP_WEIGHT_HIT +
-    player.stats.coreHits * MVP_WEIGHT_CORE_HIT
+    player.stats.coreHits * MVP_WEIGHT_CORE_HIT +
+    (player.stats.chargingTimeBonus ?? 0)
   );
 }
 
@@ -250,6 +253,8 @@ export type TeamState = {
     finalLives?: number;
     finalCoreDeadlineAt?: number | null;
     finalStunnedUntil?: number | null;
+    /** Energy target first reached. The round still continues through phase 3. */
+    targetReachedAt?: number | null;
   };
   scores: GameScores;
 };

@@ -1,6 +1,6 @@
 /** Plan.md §5.1 에너지 사격 화면. 티라노 위치, 크로스헤어, 에너지/안정도, 와이라노 경고. */
 
-import { ENERGY_TARGET, STABILITY_TARGET, type ChargingStage, type CoreZone, type NormalizedPoint, type PublicPlayer, type TeamState } from "@trex/shared";
+import { ENERGY_TARGET_PER_PLAYER, STABILITY_TARGET, type ChargingStage, type CoreZone, type NormalizedPoint, type PublicPlayer, type TeamState } from "@trex/shared";
 
 export type TrexDisplay =
   | {
@@ -22,12 +22,13 @@ export type CrosshairDisplay = { playerId: string; color: string; point: Normali
  * 크로스헤어)는 `PlayArea`가 화면 중앙에 한 번만 렌더링한다.
  */
 export function ChargingTeamStats({ team, players }: { team: TeamState; players: PublicPlayer[] }): JSX.Element {
+  const energyTarget = Math.max(1, players.length) * ENERGY_TARGET_PER_PLAYER;
   return (
     <div className="charging-view">
       <div className="stat-bar">
         <span>부활 에너지 {Math.round(team.charging.energy)}</span>
         <div className="progress-bar">
-          <div className="progress-bar__fill" style={{ width: `${(team.charging.energy / ENERGY_TARGET) * 100}%` }} />
+          <div className="progress-bar__fill" style={{ width: `${Math.min(100, (team.charging.energy / energyTarget) * 100)}%` }} />
         </div>
       </div>
       <div className="stat-bar">

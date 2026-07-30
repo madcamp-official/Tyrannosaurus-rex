@@ -52,6 +52,9 @@ function TeamResultTrex({ teamId, isWinner }: { teamId: TeamId; isWinner: boolea
     <div
       className={`result-view__stage-slot result-view__stage-slot--${teamId.toLowerCase()} result-view__stage-slot--${isWinner ? "winner" : "yranno"}`}
     >
+      <strong className="result-view__stage-result">
+        {isWinner ? "티라노사우루스 살리기 성공!" : "와이라노... 사우루스?!"}
+      </strong>
       <div className={`result-view__trex result-view__trex--${isWinner ? "winner" : "yranno"}`}>
         {isWinner ? (
           <BattleTrexModel mode="winner" />
@@ -59,7 +62,6 @@ function TeamResultTrex({ teamId, isWinner }: { teamId: TeamId; isWinner: boolea
           <img className="result-view__yranno-image" src="/images/yranno.webp" alt="와이라노" />
         )}
       </div>
-      <strong className="result-view__stage-result">{isWinner ? "티라노사우루스!" : "와이라노..."}</strong>
     </div>
   );
 }

@@ -49,7 +49,7 @@ export function BattleGaugeStrip({ battle }: { battle: BattleState }): JSX.Eleme
         teamId="A"
         teamName={battle.teamA.name}
         energy={battle.teamA.energy}
-        target={battle.energyTarget}
+        target={battle.teamAEnergyTarget}
         totalHits={battle.teamA.totalHits}
         coreHits={battle.teamA.coreHits}
       />
@@ -61,7 +61,7 @@ export function BattleGaugeStrip({ battle }: { battle: BattleState }): JSX.Eleme
         teamId="B"
         teamName={battle.teamB.name}
         energy={battle.teamB.energy}
-        target={battle.energyTarget}
+        target={battle.teamBEnergyTarget}
         totalHits={battle.teamB.totalHits}
         coreHits={battle.teamB.coreHits}
       />

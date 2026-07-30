@@ -35,6 +35,47 @@
   overflow: hidden;
 }
 
+.battle-phase-intro {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+  animation: battle-phase-intro 2s ease-in-out both;
+}
+
+.battle-phase-intro strong {
+  color: var(--gold);
+  font: 800 32px "IBM Plex Mono", monospace;
+  letter-spacing: 0.14em;
+}
+
+.battle-phase-intro span {
+  width: min(1500px, 88%);
+  font-family: "YeogiOttaeJalnan", "Gothic A1", sans-serif;
+  font-size: 46px;
+  line-height: 1.35;
+  text-align: center;
+  white-space: nowrap;
+  text-shadow: 0 4px 24px rgba(245, 197, 66, 0.45);
+}
+
+.battle-stage--phase-intro .battle-stage-banner {
+  visibility: hidden;
+}
+
+@keyframes battle-phase-intro {
+  0%, 12% { opacity: 1; }
+  78% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 .battle-damage-overlay {
   position: absolute;
   top: 0;
@@ -80,9 +121,11 @@
 .battle-arena--stage-2 .battle-arena__sky,
 .battle-arena--stage-2 .battle-arena__sunset {
   background: #88b9d7 url("/images/chase-road.png") center center / cover no-repeat;
-  transform: none;
+  inset: -2.5%;
+  animation: battle-road-parallax 2.8s ease-in-out infinite alternate;
   filter: none;
   transition: filter 1.2s ease;
+  will-change: transform;
 }
 
 .battle-arena--stage-2 .battle-arena__sunset {
@@ -92,6 +135,29 @@
 .battle-arena--stage-2 .battle-arena__vignette {
   background: linear-gradient(180deg, rgba(7, 14, 20, 0.08) 0%, transparent 60%, rgba(8, 8, 8, 0.38) 100%);
   animation: none;
+}
+
+.battle-arena--stage-2::after {
+  content: "";
+  position: absolute;
+  inset: 12% 0 18%;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.2;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 90px, rgba(255, 255, 255, 0.28) 92px 96px, transparent 100px 190px);
+  mask-image: linear-gradient(90deg, #000 0%, transparent 30%, transparent 70%, #000 100%);
+  animation: battle-road-speed-lines 900ms linear infinite;
+}
+
+@keyframes battle-road-parallax {
+  from { transform: scale(1.05) translateX(-1.8%); }
+  to { transform: scale(1.05) translateX(1.8%); }
+}
+
+@keyframes battle-road-speed-lines {
+  from { background-position-x: 0; }
+  to { background-position-x: -190px; }
 }
 
 .battle-arena--stage-3 {
