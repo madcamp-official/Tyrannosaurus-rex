@@ -114,6 +114,12 @@ func _build_crosshair_overlay() -> void:
 func _stage_for(payload: Dictionary) -> TeamStage:
 	return _stages.get(str(payload.get("teamId", "")))
 
+## 방해 규칙: 뼈를 찾으면 상대 팀 화면에 흙먼지가 튄다 — 상대(반대) 팀 무대를 찾는다.
+func _rival_stage_for(payload: Dictionary) -> TeamStage:
+	var team_id := str(payload.get("teamId", ""))
+	var rival_id := "B" if team_id == "A" else "A"
+	return _stages.get(rival_id)
+
 ## §11.3 FULL_SNAPSHOT: { revision, teams: { A: {...}, B: {...} } }
 func _on_snapshot_updated(snapshot: Dictionary) -> void:
 	var teams: Dictionary = snapshot.get("teams", {})
@@ -128,6 +134,9 @@ func _on_message_routed(type: String, payload: Dictionary) -> void:
 			var stage := _stage_for(payload)
 			if stage:
 				stage.on_bone_discovered(str(payload.get("boneId", "")))
+			var rival := _rival_stage_for(payload)
+			if rival:
+				rival.trigger_rival_dirt_splash()
 		"EXCAVATION_PROGRESS":
 			var progress_stage := _stage_for(payload)
 			if progress_stage:
