@@ -1024,6 +1024,78 @@ body {
   min-height: 0;
 }
 
+.excavation-dust-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 18;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 78%, rgba(92, 61, 34, 0.52), transparent 40%),
+    radial-gradient(circle at 82% 24%, rgba(75, 51, 30, 0.56), transparent 42%),
+    rgba(3, 3, 2, 0.88);
+  color: #fff1d0;
+  text-align: center;
+  pointer-events: none;
+  animation: excavation-desktop-dust 1s ease-in-out both;
+}
+
+.excavation-dust-overlay strong {
+  position: relative;
+  z-index: 2;
+  font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
+  font-size: clamp(24px, 3vw, 44px);
+  text-shadow: 0 4px 18px #000;
+}
+
+.excavation-dust-overlay span {
+  position: relative;
+  z-index: 2;
+  color: rgba(255, 241, 208, 0.72);
+  font-size: clamp(14px, 1.5vw, 21px);
+}
+
+.excavation-dust-overlay__cloud {
+  position: absolute;
+  width: 70%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: rgba(119, 79, 43, 0.28);
+  filter: blur(45px);
+}
+
+.excavation-dust-overlay__cloud--one {
+  left: -25%;
+  bottom: -55%;
+  animation: excavation-dust-cloud-one 1s ease-out both;
+}
+
+.excavation-dust-overlay__cloud--two {
+  right: -28%;
+  top: -50%;
+  animation: excavation-dust-cloud-two 1s ease-out both;
+}
+
+@keyframes excavation-desktop-dust {
+  0% { opacity: 0; }
+  18%, 78% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+@keyframes excavation-dust-cloud-one {
+  from { transform: translate(-20%, 35%) scale(0.65); }
+  to { transform: translate(45%, -50%) scale(1.35); }
+}
+
+@keyframes excavation-dust-cloud-two {
+  from { transform: translate(25%, -20%) scale(0.7); }
+  to { transform: translate(-40%, 45%) scale(1.3); }
+}
+
 /* ---------- 발굴 HUD ---------- */
 
 .exca-view {
@@ -1499,6 +1571,82 @@ body {
 /* 뼈를 새로 발견했을 때는 훨씬 크고 뚜렷하게 번쩍인다. */
 .excavation-controls--bone-flash {
   animation: excavation-bone-flash 1.4s ease-out;
+}
+
+.excavation-controls--disrupted {
+  overflow: hidden;
+}
+
+.excavation-controls__disrupted {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 20% 80%, rgba(92, 63, 35, 0.42), transparent 38%),
+    radial-gradient(circle at 78% 28%, rgba(74, 51, 31, 0.48), transparent 42%),
+    rgba(4, 3, 2, 0.9);
+  color: #fff2d6;
+  text-align: center;
+  animation: excavation-dust-in 0.18s ease-out;
+}
+
+.excavation-controls__disrupted strong {
+  font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
+  font-size: clamp(1.5rem, 7vw, 2rem);
+}
+
+.excavation-controls__disrupted span {
+  color: rgba(255, 242, 214, 0.72);
+}
+
+.excavation-controls__dust-attack {
+  width: min(100%, 360px);
+  display: grid;
+  gap: 8px;
+}
+
+.excavation-controls__dust-meter {
+  height: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 238, 205, 0.28);
+  border-radius: 999px;
+  background: rgba(16, 10, 5, 0.58);
+}
+
+.excavation-controls__dust-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8c5c31, #f0bd67);
+  box-shadow: 0 0 12px rgba(240, 189, 103, 0.55);
+  transition: width 0.18s ease-out;
+}
+
+.excavation-controls__dust-attack button {
+  min-height: 48px;
+  border: 1px solid rgba(255, 222, 168, 0.58);
+  border-radius: 14px;
+  background: linear-gradient(145deg, #8d572c, #5e351d);
+  color: #fff1d2;
+  font-family: "YeogiOttaeJalnan", "Baloo 2", sans-serif;
+  font-size: 0.95rem;
+  box-shadow: 0 8px 22px rgba(30, 16, 7, 0.3);
+}
+
+.excavation-controls__dust-attack button:disabled {
+  opacity: 0.45;
+  filter: saturate(0.45);
+}
+
+@keyframes excavation-dust-in {
+  from { opacity: 0; transform: scale(1.04); }
+  to { opacity: 1; transform: scale(1); }
 }
 
 @keyframes excavation-bone-flash {
