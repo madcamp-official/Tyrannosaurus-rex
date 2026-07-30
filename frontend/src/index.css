@@ -1648,8 +1648,13 @@ body {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: 5%;
-  border-bottom: 2px solid rgba(255, 240, 220, 0.35);
+  bottom: 0;
+  height: 5%;
+  min-height: 18px;
+  background-image: url("/images/dino-ground-tile.png");
+  background-repeat: repeat;
+  background-size: 120px auto;
+  border-top: 2px solid rgba(255, 240, 220, 0.35);
 }
 
 .dino-run__dino {
