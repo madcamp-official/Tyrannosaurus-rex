@@ -8,7 +8,6 @@ import {
   DEFAULT_MAX_PLAYERS_PER_TEAM,
   EXCAVATION_POINTS_PER_BONE,
   MAX_PLAYERS_PER_TEAM_CAP,
-  METEOR_DODGE_REFERENCE_SCORE_PER_PLAYER,
   PUZZLE_TARGET_TRANSFORMS,
   ROOM_NAME_MAX_LENGTH,
   TEAM_DISPLAY_NAMES,
@@ -232,53 +231,14 @@ export function DesktopLobby(): JSX.Element {
     socket.on("excavation:teamFinished", (evt) => setRoomState((prev) => (prev ? applyExcavationTeamFinished(prev, evt.data) : prev)));
     socket.on("team:phaseChanged", (evt) => setRoomState((prev) => (prev ? applyTeamPhaseChanged(prev, evt.data) : prev)));
     socket.on("dino:started", (evt) => setRoomState((prev) => (prev ? applyDinoStarted(prev, evt.data) : prev)));
-    // 운석을 잘 피하고 보너스를 잘 잡을수록 뼈가 점점 더 조립돼 보이도록, 팀 점수(백엔드
-    // performance와 같은 정규화 공식)에 비례한 개수만큼 진행 중에도 미리 스냅해 보낸다.
-    // 완료 시 dino:finished가 13개 전부를 다시 스냅하므로 여기서 반올림 오차가 있어도
-    // 최종적으로는 항상 맞는다.
-    const sendSkyAssemblyProgress = (roomState: RoomState, teamId: TeamId) => {
-      const team = roomState.teams[teamId];
-      const teamPlayerCount = roomState.players.filter((p) => p.teamId === teamId).length;
-      const totalScore = Object.values(team.dinoRun.scoreByPlayer).reduce((sum, score) => sum + score, 0);
-      const referenceMax = METEOR_DODGE_REFERENCE_SCORE_PER_PLAYER * Math.max(1, teamPlayerCount);
-      const ratio = referenceMax > 0 ? Math.min(1, Math.max(0, totalScore / referenceMax)) : 0;
-      const assembledCount = Math.min(BONE_IDS.length, Math.round(ratio * BONE_IDS.length));
-      if (assembledCount > 0) {
-        bridge.send("PUZZLE_STATE", {
-          teamId,
-          pieces: BONE_IDS.slice(0, assembledCount).map((boneId) => ({
-            boneId,
-            transform: PUZZLE_TARGET_TRANSFORMS[boneId],
-            fixed: true,
-          })),
-        });
-      }
-    };
-    socket.on("dino:hit", (evt) => {
-      setRoomState((prev) => {
-        if (!prev) return prev;
-        const next = applyDinoHit(prev, evt.data);
-        sendSkyAssemblyProgress(next, evt.data.teamId);
-        return next;
-      });
-    });
-    socket.on("dino:bonus", (evt) => {
-      setRoomState((prev) => {
-        if (!prev) return prev;
-        const next = applyDinoBonus(prev, evt.data);
-        sendSkyAssemblyProgress(next, evt.data.teamId);
-        return next;
-      });
-    });
+    // 운석 피하기(ASSEMBLY)가 이제 발굴보다 먼저라 이 시점엔 아직 발견된 뼈가 하나도 없다 —
+    // 예전엔 발굴이 먼저 끝난 뒤라 여기서 점수 비례로 조각을 미리 스냅해 "조립되는" 연출을
+    // 줬지만, 지금 그대로 두면 발굴 시작 전에 뼈대가 이미 완성돼 보이는 버그가 된다. 실제
+    // 조립 완료 연출은 발굴이 끝나 CHARGING_PRACTICE로 넘어갈 때 snapshotForTeam이 처리한다.
+    socket.on("dino:hit", (evt) => setRoomState((prev) => (prev ? applyDinoHit(prev, evt.data) : prev)));
+    socket.on("dino:bonus", (evt) => setRoomState((prev) => (prev ? applyDinoBonus(prev, evt.data) : prev)));
     socket.on("dino:playerDied", (evt) => setRoomState((prev) => (prev ? applyPlayerDied(prev, evt.data) : prev)));
-    socket.on("dino:finished", (evt) => {
-      setRoomState((prev) => (prev ? applyDinoFinished(prev, evt.data) : prev));
-      // 조립 평가 완료 — Godot에 13개 조각 전부 완성 스냅을 지시한다 (§12.3).
-      bridge.send("PUZZLE_STATE", {
-        teamId: evt.data.teamId,
-        pieces: BONE_IDS.map((boneId) => ({ boneId, transform: PUZZLE_TARGET_TRANSFORMS[boneId], fixed: true })),
-      });
-    });
+    socket.on("dino:finished", (evt) => setRoomState((prev) => (prev ? applyDinoFinished(prev, evt.data) : prev)));
     socket.on("dino:teamResult", (evt) => setRoomState((prev) => (prev ? applyDinoTeamResult(prev, evt.data) : prev)));
     socket.on("energy:coreChanged", (evt) => {
       setRoomState((prev) => (prev ? applyCoreChanged(prev, evt.data) : prev));
@@ -712,8 +672,10 @@ function snapshotForTeam(team: RoomState["teams"][TeamId]) {
     puzzlePieces: BONE_IDS.map((boneId) => ({
       boneId,
       transform: PUZZLE_TARGET_TRANSFORMS[boneId],
-      // 다이노런 평가가 끝났거나 이미 사격/부활 단계면 조립 완료로 표시한다.
-      fixed: team.dinoRun.grade !== null || team.phase === "CHARGING" || team.phase === "REVIVED",
+      // 발굴(EXCAVATION)을 이미 지나 영점 연습/사격/부활 단계면 조립 완료로 표시한다.
+      // dinoRun.grade는 이제 운석 피하기가 먼저라 발굴 시작 전에 이미 채워져 있으므로
+      // 더 이상 "조립 끝났다"의 기준으로 쓸 수 없다.
+      fixed: team.phase === "CHARGING_PRACTICE" || team.phase === "CHARGING" || team.phase === "REVIVED",
     })),
     trex: { position: { x: 0.5, y: 0.5 }, rotationDeg: 0, facing: "RIGHT" as const, poseId: "IDLE" as const },
     energy: team.charging.energy,
