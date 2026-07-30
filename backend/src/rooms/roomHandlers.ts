@@ -253,7 +253,7 @@ export function registerRoomHandlers(io: AppServer, socket: AppSocket, rooms: Ro
     broadcastPlayerConnectionChanged(io, rooms, found.room.state.roomCode, found.playerId, false);
 
     const player = found.room.state.players.find((p) => p.id === found.playerId);
-    const finalized = player ? rooms.finalizeIfTeamFullyDisconnected(found.room, player.teamId) : false;
+    const finalized = player ? rooms.finalizeIfTeamFullyDisconnected(found.room, player.teamId, Date.now()) : false;
 
     broadcastRoomState(io, rooms, found.room.state.roomCode);
     broadcastResultIfFinalized(io, rooms, found.room.state.roomCode, finalized);

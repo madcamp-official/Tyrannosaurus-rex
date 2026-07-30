@@ -195,6 +195,10 @@ func _build_puzzle_model() -> void:
 func _create_piece(piece_id: String, members: Array) -> void:
 	if members.is_empty():
 		push_error("T-rex puzzle piece has no source nodes: %s" % piece_id)
+		# release 빌드에서는 assert가 아무 동작도 안 해서 지금처럼 조용히 건너뛰는 동작은
+		# 그대로 유지되지만, 에디터/디버그 실행에서는 즉시 멈춰서 어떤 조각이 빠졌는지 바로
+		# 드러난다 — 나중에 모델을 갈아끼우다 노드 이름이 틀어져도 배포 전에 잡을 수 있다.
+		assert(false, "T-rex puzzle piece has no source nodes: %s" % piece_id)
 		return
 
 	var piece := Node3D.new()
