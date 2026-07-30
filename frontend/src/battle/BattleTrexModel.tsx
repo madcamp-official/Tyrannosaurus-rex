@@ -184,7 +184,9 @@ export function BattleTrexModel({
             motionRoot.rotation.z = Math.sin(step) * 0.008;
             motionRoot.position.y = Math.abs(Math.sin(step)) * size.y * 0.006;
           } else if (presentation === "flee") {
-            motionRoot.rotation.y = 0;
+            // 완전히 뒤를 향한 자세를 중심으로 좌우 ±12.5도만 보여준다.
+            // 달리기 보폭보다 느린 주기로 흔들어 방향을 살피며 도망치는 느낌을 만든다.
+            motionRoot.rotation.y = Math.sin(elapsed * 1.35) * THREE.MathUtils.degToRad(12.5);
             motionRoot.rotation.z = Math.sin(step * 0.5) * 0.025;
             motionRoot.position.y = Math.abs(Math.sin(step)) * size.y * 0.018;
           } else {
