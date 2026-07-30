@@ -65,6 +65,14 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
 
   const pointRef = useRef(point);
   pointRef.current = point;
+  const laserAudioRef = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => {
+    laserAudioRef.current = new Audio("/audio/laser-fire.wav");
+    laserAudioRef.current.preload = "auto";
+    return () => {
+      laserAudioRef.current = null;
+    };
+  }, []);
   const zeroRef = useRef<{ beta: number; gamma: number } | null>(null);
   const filteredRef = useRef({ beta: 0, gamma: 0 });
   // 튐 판정은 반드시 직전 raw 값과 비교한다. 필터링된 값과 비교하면 정상적인 빠른
@@ -162,6 +170,13 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
     if (cooldownActive) return;
     setCooldownActive(true);
     window.setTimeout(() => setCooldownActive(false), SHOT_COOLDOWN_MS);
+    // 서버 판정(HIT/MISS)을 기다리지 않고 탭한 즉시 재생한다 — 버튼 탭 자체가 사용자
+    // 제스처라 모바일 브라우저의 자동재생 제한에도 걸리지 않는다.
+    const laserAudio = laserAudioRef.current;
+    if (laserAudio) {
+      laserAudio.currentTime = 0;
+      void laserAudio.play().catch(() => undefined);
+    }
     socket.emit("energy:fire", { requestId: newRequestId(), shotId: newRequestId(), clientTime: Date.now() }, (ack) => {
       if (!ack.ok) return;
       setLastResult(ack.data.hit ? "HIT" : "MISS");
