@@ -22,7 +22,7 @@ function makeTeam(overrides: Partial<TeamState> & { id: "A" | "B" }): TeamState 
     phaseStartedAt: 0,
     phaseEndsAt: 90_000,
     playerIds: [],
-    excavation: { points: 0, nextBoneAt: 60, discoveredBoneIds: [], fossils: 0, result: null },
+    excavation: { points: 0, nextBoneAt: 60, discoveredBoneIds: [], fossils: 0, dustCharge: 0, dustCooldownUntil: null, disruptedUntil: null, result: null },
     dinoRun: {
       skyObjects: [],
       livesByPlayer: {},

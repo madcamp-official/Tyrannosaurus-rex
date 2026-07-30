@@ -157,6 +157,9 @@ function resetTeamGameplayState(team: TeamState, now: number): void {
     nextBoneAt: EXCAVATION_POINTS_PER_BONE,
     discoveredBoneIds: [],
     fossils: 0,
+    dustCharge: 0,
+    dustCooldownUntil: null,
+    disruptedUntil: null,
     result: null,
   };
   team.dinoRun = {
@@ -191,7 +194,16 @@ function makeEmptyTeamState(teamId: TeamId, now: number): TeamState {
     phaseStartedAt: now,
     phaseEndsAt: null,
     playerIds: [],
-    excavation: { points: 0, nextBoneAt: EXCAVATION_POINTS_PER_BONE, discoveredBoneIds: [], fossils: 0, result: null },
+    excavation: {
+      points: 0,
+      nextBoneAt: EXCAVATION_POINTS_PER_BONE,
+      discoveredBoneIds: [],
+      fossils: 0,
+      dustCharge: 0,
+      dustCooldownUntil: null,
+      disruptedUntil: null,
+      result: null,
+    },
     dinoRun: {
       skyObjects: [],
       livesByPlayer: {},

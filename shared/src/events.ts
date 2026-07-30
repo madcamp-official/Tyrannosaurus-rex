@@ -140,6 +140,15 @@ export const excavateInputSchema = z.object({
 });
 export type ExcavateInput = z.infer<typeof excavateInputSchema>;
 
+export const excavationDustAttackRequestSchema = z.object({
+  requestId: requestIdSchema,
+});
+export type ExcavationDustAttackRequest = z.infer<typeof excavationDustAttackRequestSchema>;
+export type ExcavationDustAttackResponse = {
+  targetTeamId: TeamId;
+  disruptedUntil: number;
+};
+
 // 운석 피하기: 조준(aim:update)과 같은 패턴 — 고빈도, acknowledgement 없이 보낸다.
 export const dinoPositionInputSchema = z.object({
   seq: z.number().int().nonnegative(),
@@ -273,6 +282,10 @@ export interface ClientToServerEvents {
   "player:setReady": (req: PlayerSetReadyRequest, ack: (res: Ack<PlayerSetReadyResponse>) => void) => void;
   "game:start": (req: GameStartRequest, ack: (res: Ack<GameStartResponse>) => void) => void;
   "excavate:input": (input: ExcavateInput) => void;
+  "excavation:dustAttack": (
+    req: ExcavationDustAttackRequest,
+    ack: (res: Ack<ExcavationDustAttackResponse>) => void,
+  ) => void;
   "dino:position": (input: DinoPositionInput) => void;
   "aim:update": (input: AimUpdateInput) => void;
   "energy:fire": (req: EnergyFireRequest, ack: (res: Ack<EnergyFireResponse>) => void) => void;
@@ -307,6 +320,18 @@ export interface ServerToClientEvents {
   ) => void;
   "excavation:teamFinished": (
     evt: ServerEvent<{ teamId: TeamId; result: "WIN" | "LOSE" | "DRAW"; score: number }>,
+  ) => void;
+  "excavation:dustCharge": (
+    evt: ServerEvent<{ teamId: TeamId; charge: number; cooldownUntil: number | null }>,
+  ) => void;
+  "excavation:dustAttacked": (
+    evt: ServerEvent<{
+      attackerTeamId: TeamId;
+      targetTeamId: TeamId;
+      attackerPlayerId: PlayerId;
+      attackerNickname: string;
+      disruptedUntil: number;
+    }>,
   ) => void;
   "dino:started": (
     evt: ServerEvent<{ teamId: TeamId; skyObjects: SkyObject[]; startedAt: number; endsAt: number }>,

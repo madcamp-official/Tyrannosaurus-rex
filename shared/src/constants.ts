@@ -33,6 +33,9 @@ export const EXCAVATION_POINTS_PER_BONE = 60;
 export const EXCAVATION_SHAKE_COOLDOWN_MS = 200;
 export const MOBILE_INPUT_FLUSH_MS = 100;
 export const EXCAVATION_MAX_INPUTS_PER_SECOND = 12;
+export const EXCAVATION_DUST_ATTACK_CHARGE = 25;
+export const EXCAVATION_DUST_ATTACK_DURATION_MS = 1_000;
+export const EXCAVATION_DUST_ATTACK_COOLDOWN_MS = 5_000;
 export const EXCAVATION_GOLD_BONE_POINT_DISCOUNT = 20;
 // 발굴→다이노런, 다이노런→사격 두 전환 모두 같은 패턴을 쓴다: 먼저 끝난 팀은 상대가 끝날 때까지
 // 기다렸다가, 승/패(무승부)가 갈리면 이 시간만큼 결과를 보여준 뒤 두 팀이 동시에 다음 단계로 넘어간다.

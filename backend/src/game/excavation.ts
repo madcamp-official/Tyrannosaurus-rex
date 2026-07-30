@@ -6,6 +6,7 @@ import {
   boneWaveSizes,
   EXCAVATION_EVENT_FOSSIL_CHANCE,
   EXCAVATION_EVENT_GOLD_BONE_CHANCE,
+  EXCAVATION_DUST_ATTACK_CHARGE,
   EXCAVATION_GOLD_BONE_POINT_DISCOUNT,
   EXCAVATION_MAX_INPUTS_PER_SECOND,
   EXCAVATION_POINTS_PER_BONE,
@@ -98,6 +99,7 @@ export function applyExcavateInput(
   // 아직 EXCAVATION이지만 더 이상 입력을 받지 않는다. 안 막으면 매 입력마다 phaseCompleted가
   // 다시 true가 되어 excavationTransitionAt이 계속 뒤로 밀려 다이노런 전환이 영원히 안 된다.
   if (team.phase !== "EXCAVATION" || team.excavation.result !== null) return reject;
+  if ((team.excavation.disruptedUntil ?? 0) > now) return reject;
   if (input.count !== input.sourceCounts.motion + input.sourceCounts.tap) return reject;
 
   const state = room.excavation[teamId];
@@ -119,6 +121,10 @@ export function applyExcavateInput(
 
   const pointsAdded = consumeTeamBucket(state.teamBucket, playerAccepted, now);
   team.excavation.points += pointsAdded;
+  team.excavation.dustCharge = Math.min(
+    EXCAVATION_DUST_ATTACK_CHARGE,
+    team.excavation.dustCharge + pointsAdded,
+  );
 
   // 발굴 웨이브(포인트 임계값 통과) 수는 인원수에 맞춰 줄어들지만, 뼈는 항상 BONE_IDS.length
   // 전부 나온다 — 웨이브가 적으면(인원이 적으면) 한 웨이브에 여러 개씩 몰아서 나온다
