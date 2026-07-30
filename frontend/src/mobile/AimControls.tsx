@@ -69,6 +69,7 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
   useEffect(() => {
     laserAudioRef.current = new Audio("/audio/laser-fire.wav");
     laserAudioRef.current.preload = "auto";
+    laserAudioRef.current.volume = 0.35;
     return () => {
       laserAudioRef.current = null;
     };
@@ -170,19 +171,20 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
     if (cooldownActive) return;
     setCooldownActive(true);
     window.setTimeout(() => setCooldownActive(false), SHOT_COOLDOWN_MS);
-    // 서버 판정(HIT/MISS)을 기다리지 않고 탭한 즉시 재생한다 — 버튼 탭 자체가 사용자
-    // 제스처라 모바일 브라우저의 자동재생 제한에도 걸리지 않는다.
-    const laserAudio = laserAudioRef.current;
-    if (laserAudio) {
-      laserAudio.currentTime = 0;
-      void laserAudio.play().catch(() => undefined);
-    }
     socket.emit("energy:fire", { requestId: newRequestId(), shotId: newRequestId(), clientTime: Date.now() }, (ack) => {
       if (!ack.ok) return;
       // hitZone이 "BONE"이면 몸통에 맞은 일반 명중이고, 그 외(HEART/SKULL/SPINE)면 그 순간의
       // 활성 코어(약점)를 맞춘 것 — 이때만 진동과 함께 더 강하게 번쩍이게 한다.
       const isCoreHit = ack.data.hit && ack.data.hitZone !== null && ack.data.hitZone !== "BONE";
       setLastResult(isCoreHit ? "CORE_HIT" : ack.data.hit ? "HIT" : "MISS");
+      if (ack.data.hit) {
+        // 매 발사가 아니라 명중했을 때만 재생한다.
+        const laserAudio = laserAudioRef.current;
+        if (laserAudio) {
+          laserAudio.currentTime = 0;
+          void laserAudio.play().catch(() => undefined);
+        }
+      }
       if (isCoreHit) navigator.vibrate?.([70, 40, 70]);
       window.setTimeout(() => setLastResult(null), isCoreHit ? 500 : 400);
     });

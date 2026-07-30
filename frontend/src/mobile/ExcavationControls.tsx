@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
+  BONE_IDS,
   EXCAVATION_SHAKE_COOLDOWN_MS,
   MOBILE_INPUT_FLUSH_MS,
   type BoneId,
@@ -10,6 +11,25 @@ import {
   type TeamId,
 } from "@trex/shared";
 import type { AppSocket } from "../socket";
+
+// Godot의 TrexPuzzleModel.gd PIECE_LABELS와 맞춘 한글 이름 — 발굴 화면에서 어떤 뼈를
+// 찾았는지 보여줄 때 쓴다.
+const BONE_LABELS: Record<BoneId, string> = {
+  SKULL: "머리뼈",
+  JAW: "아래턱",
+  NECK: "목뼈",
+  SPINE: "등뼈",
+  RIBCAGE: "갈비뼈",
+  PELVIS: "골반",
+  ARM_LEFT: "왼팔",
+  ARM_RIGHT: "오른팔",
+  LEG_LEFT: "왼다리",
+  LEG_RIGHT: "오른다리",
+  TAIL_BASE: "꼬리 시작",
+  TAIL_MIDDLE: "꼬리 중간",
+  TAIL_TIP: "꼬리 끝",
+};
+const BONE_FOUND_FLASH_MS = 1_400;
 
 // 흔드는 방향 — 세로로 든 폰 기준 y=위아래(파는 동작에 가장 자연스러움), x=좌우, z=앞뒤.
 const SHAKE_AXIS: "x" | "y" | "z" = "y";
@@ -58,6 +78,8 @@ export function ExcavationControls({
 }): JSX.Element {
   const [motionPermission, setMotionPermission] = useState<SensorPermission>("UNKNOWN");
   const [shakeFlash, setShakeFlash] = useState(false);
+  const [collectedBones, setCollectedBones] = useState<BoneId[]>([]);
+  const [recentBone, setRecentBone] = useState<BoneId | null>(null);
   const motionCountRef = useRef(0);
   const tapCountRef = useRef(0);
   const seqRef = useRef(0);
@@ -180,6 +202,9 @@ export function ExcavationControls({
       } catch {
         // 정책상 막힌 기기 등 — 무시.
       }
+      setCollectedBones((prev) => (prev.includes(evt.data.boneId) ? prev : [...prev, evt.data.boneId]));
+      setRecentBone(evt.data.boneId);
+      window.setTimeout(() => setRecentBone((current) => (current === evt.data.boneId ? null : current)), BONE_FOUND_FLASH_MS);
     };
     socket.on("excavation:boneFound", onBoneFound);
     return () => {
@@ -224,14 +249,28 @@ export function ExcavationControls({
   }
 
   return (
-    <div className="excavation-controls">
+    <div
+      className={`excavation-controls${shakeFlash ? " excavation-controls--shake-flash" : ""}${recentBone ? " excavation-controls--bone-flash" : ""}`}
+      onClick={handleTap}
+    >
       <p className="mobile-game__title">흔들어서 뼈를 발굴하세요!</p>
-      {motionPermission === "DENIED" && <p className="mobile-game__hint">센서 권한이 꺼져 있어요. 아래 버튼으로 발굴하세요.</p>}
-      {motionPermission === "UNSUPPORTED" && <p className="mobile-game__hint">이 기기는 흔들기를 지원하지 않아요. 아래 버튼으로 발굴하세요.</p>}
+      {motionPermission === "DENIED" && <p className="mobile-game__hint">센서 권한이 꺼져 있어요. 화면을 눌러 발굴하세요.</p>}
+      {motionPermission === "UNSUPPORTED" && <p className="mobile-game__hint">이 기기는 흔들기를 지원하지 않아요. 화면을 눌러 발굴하세요.</p>}
       {motionPermission === "GRANTED" && <p className="mobile-game__hint">흔드는 대로 자동으로 인식돼요.</p>}
-      <button type="button" className={`dig-button${shakeFlash ? " dig-button--flash" : ""}`} onClick={handleTap}>
-        파기
-      </button>
+      {recentBone && <p className="excavation-controls__found-toast">🦴 {BONE_LABELS[recentBone]} 발견!</p>}
+      <ul className="excavation-controls__bone-list">
+        {BONE_IDS.map((boneId) => {
+          const found = collectedBones.includes(boneId);
+          return (
+            <li
+              key={boneId}
+              className={`excavation-controls__bone${found ? " excavation-controls__bone--found" : ""}`}
+            >
+              {found ? BONE_LABELS[boneId] : "??"}
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
