@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { TEAM_STYLE_OPTIONS } from "@trex/shared";
 import { RoomManager } from "../src/rooms/RoomManager.js";
 
 function makeManager(): RoomManager {
@@ -12,6 +13,11 @@ describe("RoomManager", () => {
     expect(created).not.toBeNull();
     expect(created!.room.state.roomPhase).toBe("LOBBY");
     expect(created!.room.state.roomCode).toMatch(/^[0-9]{4}$/);
+    const { A, B } = created!.room.state.teamStyles;
+    expect(TEAM_STYLE_OPTIONS).toContainEqual(A);
+    expect(TEAM_STYLE_OPTIONS).toContainEqual(B);
+    expect(A.emoji).not.toBe(B.emoji);
+    expect(A.color).not.toBe(B.color);
   });
 
   it("balances odd team sizes across A/B", () => {
