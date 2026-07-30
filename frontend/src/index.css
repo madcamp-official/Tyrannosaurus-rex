@@ -1675,7 +1675,9 @@ body {
 
 .dino-run__sky-object img {
   display: block;
-  width: clamp(1.6rem, 5.5vh, 2.2rem);
+  /* 운석 크기를 키워달라는 피드백에 따라 올렸다 — bonus(과일·하트)는 아래
+     --bonus 규칙이 이 값을 덮어써서 영향받지 않는다. */
+  width: clamp(2.4rem, 8vh, 3.2rem);
   height: auto;
 }
 
