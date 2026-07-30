@@ -80,11 +80,36 @@ export function MobileJoin(): JSX.Element {
     fruitPickupAudioRef.current = new Audio("/audio/fruit-pickup.mp3");
     fruitPickupAudioRef.current.preload = "auto";
   }, []);
+  useEffect(() => {
+    // 입장하기 버튼(handleJoin)에서도 잠금 해제하지만, 저장된 세션으로 자동 재접속하는
+    // 경로는 그 버튼을 안 거친다 — 안전하게 첫 터치/클릭에서도 한 번 더 시도해둔다.
+    const unlockOnce = () => {
+      unlockAudio(meteorHitAudioRef.current);
+      unlockAudio(fruitPickupAudioRef.current);
+    };
+    window.addEventListener("pointerdown", unlockOnce, { once: true });
+    return () => window.removeEventListener("pointerdown", unlockOnce);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const playMeteorHitSound = () => {
     const audio = meteorHitAudioRef.current;
     if (!audio) return;
     audio.currentTime = 0;
     void audio.play().catch(() => undefined);
+  };
+  // 모바일 브라우저(특히 iOS Safari)는 사용자 제스처 밖에서(소켓 이벤트 콜백 등) 처음 트는
+  // audio.play()를 조용히 거부한다 — 에러가 던져지는 게 아니라 그냥 재생이 안 돼서 알아채기
+  // 어렵다. 입장하기 버튼 탭(실제 제스처) 안에서 한 번 짧게 틀었다 멈춰 "잠금 해제"해두면
+  // 그 뒤 소켓 이벤트로 트는 재생도 정상 동작한다.
+  const unlockAudio = (audio: HTMLAudioElement | null) => {
+    if (!audio) return;
+    void audio
+      .play()
+      .then(() => {
+        audio.pause();
+        audio.currentTime = 0;
+      })
+      .catch(() => undefined);
   };
   const playFruitPickupSound = () => {
     const audio = fruitPickupAudioRef.current;
@@ -210,8 +235,11 @@ export function MobileJoin(): JSX.Element {
   const handleJoin = (event: FormEvent) => {
     event.preventDefault();
     if (!code || nickname.trim().length === 0) return;
-    // 신규 입장은 사용자 제스처 안에서 센서 권한도 함께 요청한다.
+    // 신규 입장은 사용자 제스처 안에서 센서 권한도 함께 요청한다. 효과음도 같은 제스처
+    // 안에서 잠금 해제해야 나중에 소켓 이벤트로 트는 재생이 막히지 않는다.
     requestAllSensorPermissions();
+    unlockAudio(meteorHitAudioRef.current);
+    unlockAudio(fruitPickupAudioRef.current);
     joinRoom(nickname);
   };
 

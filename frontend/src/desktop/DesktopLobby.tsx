@@ -53,11 +53,14 @@ const LOBBY_BGM_FADE_MS = 900;
 // 파는 소리는 다 같이 보는 데스크탑 화면에서만 들린다(폰에서는 안 남) — 파기 이벤트마다
 // 매번 틀지 않고, 발굴 중엔 계속 반복 재생하다가 일정 시간(IDLE_TIMEOUT) 동안 새 이벤트가
 // 없으면(=아무도 안 파는 중) 멈춘다.
-const DIG_LOOP_VOLUME = 0.4;
+// 발굴 BGM이 새로 깔리면서 파기 효과음은 배경음악 위로 튀지 않게 조금 낮췄다.
+const DIG_LOOP_VOLUME = 0.25;
 const DIG_LOOP_FADE_MS = 250;
 // excavation:progress는 모바일이 100ms(MOBILE_INPUT_FLUSH_MS)마다 배치 전송하는 입력에서
 // 나온다 — 그보다 넉넉히 길게 잡아야 연속으로 파는 중에 패킷 사이 텀만으로 소리가 끊기지 않는다.
 const DIG_LOOP_IDLE_TIMEOUT_MS = 350;
+const EXCAVATION_BGM_VOLUME = 0.28;
+const EXCAVATION_BGM_FADE_MS = 900;
 const DINO_RUN_BGM_VOLUME = 0.3;
 const DINO_RUN_BGM_FADE_MS = 900;
 
@@ -79,6 +82,43 @@ function fadeOutAndPause(audio: HTMLAudioElement, fadeRef: { current: number | n
   }, 50);
 }
 
+/** 로비 BGM처럼 특수한 초기 자동재생 잠금 해제가 필요 없는 단순한 "이 단계 동안만 켜짐" BGM 훅. */
+function usePhaseBgm(src: string, volume: number, fadeMs: number, active: boolean, muted: boolean): void {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const fadeRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    const audio = new Audio(src);
+    audio.loop = true;
+    audio.preload = "auto";
+    audio.volume = volume;
+    audioRef.current = audio;
+    return () => {
+      if (fadeRef.current !== null) window.clearInterval(fadeRef.current);
+      audio.pause();
+      audioRef.current = null;
+    };
+    // 마운트 시 한 번만 오디오 엘리먼트를 만든다 — volume 초기값은 아래 effect가 매번 다시 맞춘다.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [src]);
+
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (fadeRef.current !== null) {
+      window.clearInterval(fadeRef.current);
+      fadeRef.current = null;
+    }
+    audio.muted = muted;
+    if (active) {
+      audio.volume = volume;
+      if (!muted) void audio.play().catch(() => undefined);
+      return;
+    }
+    fadeOutAndPause(audio, fadeRef, fadeMs, volume);
+  }, [active, muted, volume, fadeMs]);
+}
+
 function ReadyCheckIcon(): JSX.Element {
   return (
     <svg className="lobby-team-card__ready-check" viewBox="0 0 24 24" role="img" aria-label="준비 완료">
@@ -92,8 +132,6 @@ export function DesktopLobby(): JSX.Element {
   const socketRef = useRef<AppSocket | null>(null);
   const lobbyBgmRef = useRef<HTMLAudioElement | null>(null);
   const lobbyBgmFadeRef = useRef<number | null>(null);
-  const dinoRunBgmRef = useRef<HTMLAudioElement | null>(null);
-  const dinoRunBgmFadeRef = useRef<number | null>(null);
   const digLoopAudioRef = useRef<HTMLAudioElement | null>(null);
   const digLoopFadeRef = useRef<number | null>(null);
   const digLoopStopTimerRef = useRef<number | null>(null);
@@ -126,6 +164,11 @@ export function DesktopLobby(): JSX.Element {
   const isDinoRunActive =
     roomState?.roomPhase === "PLAYING" &&
     (roomState.teams.A.phase === "ASSEMBLY" || roomState.teams.B.phase === "ASSEMBLY");
+  const isExcavationActive =
+    roomState?.roomPhase === "PLAYING" &&
+    (roomState.teams.A.phase === "EXCAVATION" || roomState.teams.B.phase === "EXCAVATION");
+  usePhaseBgm("/audio/dino-run-bgm.mp3", DINO_RUN_BGM_VOLUME, DINO_RUN_BGM_FADE_MS, isDinoRunActive, bgmMuted);
+  usePhaseBgm("/audio/excavation-bgm.mp3", EXCAVATION_BGM_VOLUME, EXCAVATION_BGM_FADE_MS, isExcavationActive, bgmMuted);
 
   useEffect(() => {
     const audio = new Audio("/audio/lobby-bgm.mp3");
@@ -171,37 +214,6 @@ export function DesktopLobby(): JSX.Element {
 
     fadeOutAndPause(audio, lobbyBgmFadeRef, LOBBY_BGM_FADE_MS, LOBBY_BGM_VOLUME);
   }, [bgmMuted, roomState?.roomPhase]);
-
-  useEffect(() => {
-    const audio = new Audio("/audio/dino-run-bgm.mp3");
-    audio.loop = true;
-    audio.preload = "auto";
-    audio.volume = DINO_RUN_BGM_VOLUME;
-    dinoRunBgmRef.current = audio;
-    return () => {
-      if (dinoRunBgmFadeRef.current !== null) window.clearInterval(dinoRunBgmFadeRef.current);
-      audio.pause();
-      dinoRunBgmRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    const audio = dinoRunBgmRef.current;
-    if (!audio) return;
-    if (dinoRunBgmFadeRef.current !== null) {
-      window.clearInterval(dinoRunBgmFadeRef.current);
-      dinoRunBgmFadeRef.current = null;
-    }
-
-    audio.muted = bgmMuted;
-    if (isDinoRunActive) {
-      audio.volume = DINO_RUN_BGM_VOLUME;
-      if (!bgmMuted) void audio.play().catch(() => undefined);
-      return;
-    }
-
-    fadeOutAndPause(audio, dinoRunBgmFadeRef, DINO_RUN_BGM_FADE_MS, DINO_RUN_BGM_VOLUME);
-  }, [bgmMuted, isDinoRunActive]);
 
   useEffect(() => {
     const audio = new Audio("/audio/excavation-dig-loop.mp3");
