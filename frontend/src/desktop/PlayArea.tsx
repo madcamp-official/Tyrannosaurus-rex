@@ -6,7 +6,7 @@ import {
   CHARGING_PRACTICE_DURATION_MS,
   DINO_RUN_DURATION_MS,
   PHASE_START_GRACE_MS,
-  totalGameScore,
+  teamPlayerScore,
   type PlayerId,
   type PublicPlayer,
   type RoomState,
@@ -190,7 +190,7 @@ function TeamHeader({
       ? Math.round(team.excavation.points)
       : team.phase === "ASSEMBLY"
         ? Object.values(team.dinoRun.scoreByPlayer).reduce((sum, value) => sum + value, 0)
-        : Math.round(totalGameScore(team.scores));
+        : Math.round(teamPlayerScore(players, team.id));
   const teamIdentity = (
     <div className="play-area__team-name">
       <span className="play-area__team-icon">

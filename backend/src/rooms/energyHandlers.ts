@@ -1,6 +1,6 @@
 /** Plan.md §17.10, §18. 사격 판정과 배경 충전 틱(10Hz) 브로드캐스트. */
 
-import { energyFireRequestSchema, totalGameScore } from "@trex/shared";
+import { energyFireRequestSchema, teamPlayerScore } from "@trex/shared";
 import type { RoomManager, ChargingTickUpdate } from "./RoomManager.js";
 import type { AppServer, AppSocket } from "./types.js";
 import { roomChannel } from "./channels.js";
@@ -8,7 +8,7 @@ import { broadcastRoomState, toServerEvent } from "./broadcast.js";
 import { ackErr, ackOk } from "../validation/ack.js";
 import { TokenBucketLimiter } from "../validation/rateLimit.js";
 import { computeMvpRanking } from "../game/mvp.js";
-import { CORE_OFFSETS } from "../game/charging.js";
+import { computeChargingStage, CORE_OFFSETS } from "../game/charging.js";
 
 const fireLimiter = new TokenBucketLimiter(4, 4);
 
@@ -47,6 +47,7 @@ export function registerEnergyHandlers(io: AppServer, socket: AppSocket, rooms: 
       energyAfter: outcome.energyAfter,
       stabilityAfter: outcome.stabilityAfter,
       teamPhaseAfter: outcome.teamPhaseAfter,
+      chargingStage: outcome.chargingStage,
     };
     ack(ackOk(parsed.data.requestId, responseData));
 
@@ -74,6 +75,40 @@ export function registerEnergyHandlers(io: AppServer, socket: AppSocket, rooms: 
           }),
         );
       }
+    }
+
+    if (outcome.finalDamage) {
+      io.to(channel).emit(
+        "energy:finalDamaged",
+        toServerEvent(roomCode, room.state.revision, {
+          teamId: outcome.finalDamage.teamId,
+          livesLeft: outcome.finalDamage.livesLeft,
+          stunnedUntil: outcome.finalDamage.stunnedUntil,
+        }),
+      );
+      if (outcome.finalDamage.transition) {
+        const damagedTeam = room.state.teams[outcome.finalDamage.teamId];
+        io.to(channel).emit(
+          "team:phaseChanged",
+          toServerEvent(roomCode, room.state.revision, {
+            teamId: outcome.finalDamage.teamId,
+            from: "CHARGING",
+            to: "REVIVED",
+            startedAt: damagedTeam.phaseStartedAt,
+            endsAt: null,
+          }),
+        );
+        io.to(channel).emit(
+          "revival:formChanged",
+          toServerEvent(roomCode, room.state.revision, {
+            teamId: outcome.finalDamage.teamId,
+            form: damagedTeam.charging.form,
+            energy: damagedTeam.charging.energy,
+            stability: damagedTeam.charging.stability,
+          }),
+        );
+      }
+      broadcastRoomState(io, rooms, roomCode);
     }
 
     if (outcome.justReachedRevived) {
@@ -121,7 +156,7 @@ export function broadcastResultIfFinalized(io: AppServer, rooms: RoomManager, ro
           assemblyMs: durations.assemblyMs,
           chargingMs: durations.chargingMs,
           scores: team.scores,
-          totalScore: totalGameScore(team.scores),
+          totalScore: teamPlayerScore(room.state.players, teamId),
         };
       }),
       players: room.state.players,
@@ -153,8 +188,23 @@ export function tickRoomCharging(io: AppServer, rooms: RoomManager, roomCode: st
         effectiveAt: now,
         activeCore: update.core,
         corePosition: { x: update.transform.position.x + coreOffset.x, y: update.transform.position.y + coreOffset.y },
+        chargingStage: computeChargingStage(room, update.teamId, now),
+        finalLives: room.state.teams[update.teamId].charging.finalLives ?? 5,
+        finalCoreDeadlineAt: room.state.teams[update.teamId].charging.finalCoreDeadlineAt ?? null,
+        finalStunnedUntil: room.state.teams[update.teamId].charging.finalStunnedUntil ?? null,
       }),
     );
+
+    if (update.finalDamage) {
+      io.to(channel).emit(
+        "energy:finalDamaged",
+        toServerEvent(roomCode, room.state.revision, {
+          teamId: update.teamId,
+          livesLeft: update.finalDamage.livesLeft,
+          stunnedUntil: update.finalDamage.stunnedUntil,
+        }),
+      );
+    }
 
     if (update.coreChanged) {
       io.to(channel).emit(

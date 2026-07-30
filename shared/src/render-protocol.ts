@@ -46,6 +46,8 @@ export type FullSnapshotPayload = {
     {
       phase: TeamPhase;
       excavationPoints: number;
+      /** 전체 발굴 목표 대비 누적 진행도(0~100). 재연결/HMR 뒤 파인 지형 복구에 사용한다. */
+      excavationProgress: number;
       discoveredBoneIds: BoneId[];
       puzzlePieces: Array<{ boneId: BoneId; transform: Transform2D; fixed: boolean }>;
       trex: { position: NormalizedPoint; rotationDeg: number; facing: Facing; poseId: PoseId };

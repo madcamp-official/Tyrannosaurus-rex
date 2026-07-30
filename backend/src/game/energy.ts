@@ -3,16 +3,18 @@
 import {
   AIM_STALE_MS,
   ENERGY_TARGET,
+  FINAL_STAGE_CORE_TIMEOUT_MS,
   PHASE_START_GRACE_MS,
   SHOT_COOLDOWN_MS,
   STABILITY_TARGET,
   type HitZone,
+  type ChargingStage,
   type PlayerId,
   type TeamId,
   type TeamPhase,
 } from "@trex/shared";
 import type { RoomRecord } from "../rooms/RoomManager.js";
-import { advanceActiveCore, computeActiveCore, computeTrexTransform, CORE_OFFSETS, resolveHit } from "./charging.js";
+import { advanceActiveCore, computeActiveCore, computeChargingStage, computeTrexTransform, CORE_OFFSETS, resolveStageHit } from "./charging.js";
 
 export type ShotTracking = { lastShotAt: number; recentShotIds: Set<string> };
 
@@ -24,7 +26,7 @@ export function createShotTracking(): ShotTracking {
 
 export type EnergyFireOutcome = {
   accepted: boolean;
-  reason?: "WRONG_TEAM_PHASE" | "SHOT_COOLDOWN" | "DUPLICATE_REQUEST" | "INVALID_PAYLOAD";
+  reason?: "WRONG_TEAM_PHASE" | "SHOT_COOLDOWN" | "FINAL_STAGE_STUNNED" | "DUPLICATE_REQUEST" | "INVALID_PAYLOAD";
   hit: boolean;
   hitZone: HitZone | null;
   energyDelta: number;
@@ -37,6 +39,7 @@ export type EnergyFireOutcome = {
   /** REVIVED에 새로 도달했다면(정상 또는 와이라노 확정) true. 룸 승패 확정 처리를 트리거한다. */
   justReachedRevived: boolean;
   coreChanged: { from: "HEART" | "SKULL" | "SPINE"; to: "HEART" | "SKULL" | "SPINE" } | null;
+  chargingStage: ChargingStage;
 };
 
 function rejectOutcome(reason: NonNullable<EnergyFireOutcome["reason"]>, team: { phase: TeamPhase }): EnergyFireOutcome {
@@ -54,6 +57,7 @@ function rejectOutcome(reason: NonNullable<EnergyFireOutcome["reason"]>, team: {
     hitPoint: null,
     justReachedRevived: false,
     coreChanged: null,
+    chargingStage: 1,
   };
 }
 
@@ -70,6 +74,9 @@ export function applyEnergyFire(
   }
   if (now < team.phaseStartedAt + PHASE_START_GRACE_MS) {
     return rejectOutcome("WRONG_TEAM_PHASE", team);
+  }
+  if (team.charging.finalStunnedUntil && now < team.charging.finalStunnedUntil) {
+    return rejectOutcome("FINAL_STAGE_STUNNED", team);
   }
 
   let tracking = room.shotTracking.get(playerId);
@@ -92,10 +99,12 @@ export function applyEnergyFire(
 
   const trex = computeTrexTransform(room, now);
   const { core } = computeActiveCore(room, now);
-  const { hitZone, energyDelta, stabilityDelta } = resolveHit(aim.point, trex.position, core);
+  const chargingStage = computeChargingStage(room, teamId, now);
+  const { hitZone, energyDelta, stabilityDelta } = resolveStageHit(aim.point, trex.position, core, chargingStage);
   const isCoreHit = hitZone === "HEART" || hitZone === "SKULL" || hitZone === "SPINE";
 
-  team.charging.energy = Math.max(0, Math.min(ENERGY_TARGET, team.charging.energy + energyDelta));
+  const stageEnergyCeiling = chargingStage === 1 ? 80 : chargingStage === 2 ? 160 : ENERGY_TARGET;
+  team.charging.energy = Math.max(0, Math.min(stageEnergyCeiling, team.charging.energy + energyDelta));
   team.charging.stability = Math.max(0, Math.min(STABILITY_TARGET, team.charging.stability + stabilityDelta));
 
   const player = room.state.players.find((p) => p.id === playerId);
@@ -109,6 +118,9 @@ export function applyEnergyFire(
   }
 
   const coreChanged = isCoreHit ? advanceActiveCore(room) : null;
+  if (isCoreHit && chargingStage === 3) {
+    team.charging.finalCoreDeadlineAt = now + FINAL_STAGE_CORE_TIMEOUT_MS;
+  }
   if (coreChanged) {
     for (const stateTeam of Object.values(room.state.teams)) {
       stateTeam.charging.activeCore = coreChanged.to;
@@ -136,9 +148,10 @@ export function applyEnergyFire(
     aimPoint: aim.point,
     hitPoint: isCoreHit
       ? { x: trex.position.x + CORE_OFFSETS[core].x, y: trex.position.y + CORE_OFFSETS[core].y }
-      : null,
+      : hitZone === "BONE" ? trex.position : null,
     justReachedRevived,
     coreChanged,
+    chargingStage,
   };
 }
 

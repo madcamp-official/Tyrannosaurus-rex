@@ -1,6 +1,6 @@
 /** 풀블리드 3D 무대 근사: 황혼 배경, 배회하는 스켈레톤 트리라노, 코어 마커, 크로스헤어, 레이저. */
 
-import { useMemo } from "react";
+import { useMemo, type CSSProperties } from "react";
 import { CHARGING_DURATION_MS } from "@trex/shared";
 import type { BattleShotEvent, BattleState, TeamId } from "./battleTypes";
 import { GUN_MUZZLE, STAGE_H, STAGE_W } from "./battleLayout";
@@ -9,8 +9,6 @@ import { BattleTrexModel } from "./BattleTrexModel";
 function pct(n: number): string {
   return `${(n * 100).toFixed(2)}%`;
 }
-
-const TREX_BASELINE = 0.62;
 
 interface AllPlayer {
   id: string;
@@ -32,6 +30,14 @@ export function BattleArena({
   aimPoints: Record<string, [number, number]>;
 }): JSX.Element {
   const { trex, coreName } = battle;
+  const chaseDepth = Math.min(1, Math.max(0, (trex.y - 0.5) / 0.29));
+  const finalDepthScale = 1 + ((trex.y - 0.72) / 0.018) * 0.035;
+  const stageScale =
+    battle.chargingStage === 1
+      ? 1
+      : battle.chargingStage === 2
+        ? 0.1 + chaseDepth * 0.28
+        : 1.665 * finalDepthScale;
   const roundDurationSec = CHARGING_DURATION_MS / 1000;
   const sunsetProgress = Math.min(1, Math.max(0, 1 - battle.remainingSec / roundDurationSec));
 
@@ -44,7 +50,7 @@ export function BattleArena({
   );
 
   return (
-    <div className="battle-arena">
+    <div className={`battle-arena battle-arena--stage-${battle.chargingStage}`}>
       <div className="battle-arena__sky" />
       <div className="battle-arena__sunset" style={{ opacity: sunsetProgress }} />
       <div className="battle-arena__vignette" />
@@ -53,23 +59,35 @@ export function BattleArena({
         className="battle-trex"
         style={{
           left: pct(trex.x),
-          top: pct(TREX_BASELINE),
-          transform: "translate(-50%, -50%)",
+          top: pct(trex.y),
+          transform: `translate(-50%, -50%) scale(${stageScale})`,
         }}
       >
-        <BattleTrexModel />
+        <BattleTrexModel presentation={battle.chargingStage === 2 ? "flee" : battle.chargingStage === 3 ? "final" : "front"} />
       </div>
 
       <div
-        className="battle-core"
+        className={`battle-core${battle.chargingStage === 2 ? " battle-core--hidden" : ""}`}
         style={{
           left: pct(trex.corePos[0]),
-          top: pct(TREX_BASELINE + (trex.corePos[1] - trex.y) * 2),
+          top: pct(trex.corePos[1]),
         }}
       >
         <span className="battle-core__glow" />
-        <span className="battle-core__label">{coreName} 코어 · 약점</span>
+        <span className="battle-core__label">{battle.chargingStage === 3 ? `최종 약점 · ${coreName}` : `${coreName} 코어 · 약점`}</span>
       </div>
+
+      <div className="battle-stage-banner">
+        <strong>PHASE {battle.chargingStage}</strong>
+        <span>{battle.chargingStage === 1 ? "코어를 활성화하라" : battle.chargingStage === 2 ? "도망치는 티라노를 추격하라" : "최후의 돌진을 저지하라"}</span>
+      </div>
+
+      {battle.chargingStage === 3 && (
+        <>
+          <FinalTeamStatus team="A" lives={battle.teamAFinalLives} secondsLeft={battle.teamAFinalSecondsLeft} />
+          <FinalTeamStatus team="B" lives={battle.teamBFinalLives} secondsLeft={battle.teamBFinalSecondsLeft} />
+        </>
+      )}
 
       {allPlayers.map((p) => {
         const point = aimPoints[p.id];
@@ -78,9 +96,9 @@ export function BattleArena({
           <div
             key={p.id}
             className={`battle-crosshair battle-crosshair--${p.team.toLowerCase()}`}
-            style={{ left: pct(point[0]), top: pct(point[1]) }}
+            style={{ left: pct(point[0]), top: pct(point[1]), color: p.color }}
           >
-            <span className="battle-crosshair__ring" style={{ borderColor: p.color }} />
+            <span className="battle-crosshair__ring" />
             <span className="battle-crosshair__label">{p.name}</span>
           </div>
         );
@@ -93,8 +111,24 @@ export function BattleArena({
   );
 }
 
-function ShotEffect({ event }: { event: BattleShotEvent }): JSX.Element | null {
-  if (!event.hit) return null;
+function FinalTeamStatus({ team, lives, secondsLeft }: { team: TeamId; lives: number; secondsLeft: number }): JSX.Element {
+  return (
+    <div className={`battle-final-status battle-final-status--${team.toLowerCase()}`}>
+      <strong className="battle-final-status__team">{team}팀</strong>
+      <div className="battle-final-status__lives" aria-label={`${team}팀 남은 목숨 ${lives}개`}>
+        {Array.from({ length: 5 }, (_, index) => (
+          <span key={index} className={index < lives ? "is-alive" : "is-lost"}>♥</span>
+        ))}
+      </div>
+      <div className={`battle-final-status__timer${secondsLeft <= 3 ? " is-danger" : ""}`}>
+        <strong>{secondsLeft}</strong>
+        <span>초 안에 급소 명중</span>
+      </div>
+    </div>
+  );
+}
+
+function ShotEffect({ event }: { event: BattleShotEvent }): JSX.Element {
   const [mx, my] = GUN_MUZZLE[event.team];
   const [tx, ty] = event.point;
   // 각도/길이는 실제 픽셀 공간(1920x1080)에서 계산해야 종횡비 왜곡이 없다.
@@ -102,6 +136,10 @@ function ShotEffect({ event }: { event: BattleShotEvent }): JSX.Element | null {
   const dy = (ty - my) * STAGE_H;
   const length = Math.hypot(dx, dy);
   const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
+  const effectStyle = {
+    "--shot-color": event.playerColor,
+    "--laser-angle": `${angle}deg`,
+  } as CSSProperties;
 
   return (
     <>
@@ -111,12 +149,14 @@ function ShotEffect({ event }: { event: BattleShotEvent }): JSX.Element | null {
           left: pct(mx),
           top: pct(my),
           width: `${length}px`,
-          transform: `rotate(${angle}deg)`,
+          ...effectStyle,
         }}
-      />
+      >
+        <span className="battle-laser__head" />
+      </div>
       <div
-        className={`battle-impact battle-impact--${event.team.toLowerCase()}${event.core ? " battle-impact--core" : ""}`}
-        style={{ left: pct(tx), top: pct(ty) }}
+        className={`battle-impact${event.hit ? " battle-impact--hit" : " battle-impact--miss"}${event.core ? " battle-impact--core" : ""}`}
+        style={{ left: pct(tx), top: pct(ty), ...effectStyle }}
       >
         <span className="battle-impact__flash" />
         <span className="battle-impact__ring battle-impact__ring--1" />
@@ -128,7 +168,11 @@ function ShotEffect({ event }: { event: BattleShotEvent }): JSX.Element | null {
         <span className="battle-impact__dust battle-impact__dust--4" />
         <span className="battle-impact__dust battle-impact__dust--5" />
         <span className="battle-impact__dust battle-impact__dust--6" />
-        <span className="battle-impact__score">{event.playerName} +{event.scoreDelta}</span>
+        <span className="battle-impact__spark battle-impact__spark--1" />
+        <span className="battle-impact__spark battle-impact__spark--2" />
+        <span className="battle-impact__spark battle-impact__spark--3" />
+        <span className="battle-impact__spark battle-impact__spark--4" />
+        {event.scoreDelta > 0 && <span className="battle-impact__score">{event.playerName} +{event.scoreDelta}</span>}
       </div>
     </>
   );

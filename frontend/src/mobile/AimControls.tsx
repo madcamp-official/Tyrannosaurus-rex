@@ -34,12 +34,29 @@ function angleDelta(current: number, zero: number): number {
   return ((current - zero + 540) % 360) - 180;
 }
 
-export function AimControls({ socket, practice = false }: { socket: AppSocket; practice?: boolean }): JSX.Element {
+export function AimControls({
+  socket,
+  practice = false,
+  stunnedUntil = null,
+}: {
+  socket: AppSocket;
+  practice?: boolean;
+  stunnedUntil?: number | null;
+}): JSX.Element {
   const [orientationPermission, setOrientationPermission] = useState<SensorPermission>("UNKNOWN");
   const [calibrated, setCalibrated] = useState(false);
   const [point, setPoint] = useState<NormalizedPoint>({ x: 0.5, y: 0.5 });
   const [cooldownActive, setCooldownActive] = useState(false);
   const [lastResult, setLastResult] = useState<"HIT" | "MISS" | null>(null);
+  const [stunned, setStunned] = useState(false);
+
+  useEffect(() => {
+    const update = () => setStunned(stunnedUntil !== null && Date.now() < stunnedUntil);
+    update();
+    if (!stunnedUntil || Date.now() >= stunnedUntil) return undefined;
+    const interval = window.setInterval(update, 50);
+    return () => window.clearInterval(interval);
+  }, [stunnedUntil]);
 
   const pointRef = useRef(point);
   pointRef.current = point;
@@ -135,7 +152,7 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
   };
 
   const fire = () => {
-    if (cooldownActive) return;
+    if (cooldownActive || stunned) return;
     setCooldownActive(true);
     window.setTimeout(() => setCooldownActive(false), SHOT_COOLDOWN_MS);
     socket.emit("energy:fire", { requestId: newRequestId(), shotId: newRequestId(), clientTime: Date.now() }, (ack) => {
@@ -171,7 +188,8 @@ export function AimControls({ socket, practice = false }: { socket: AppSocket; p
         <div className="aim-pad__crosshair" style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }} />
       </div>
 
-      <button type="button" className="fire-button" disabled={practice || cooldownActive} onClick={fire}>
+      {stunned && <p className="mobile-game__hint">피격 복구 중 · 2초간 발사 불가</p>}
+      <button type="button" className="fire-button" disabled={practice || cooldownActive || stunned} onClick={fire}>
         {practice ? "연습 중" : "발사"}
       </button>
     </div>

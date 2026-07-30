@@ -4,6 +4,10 @@ import { randomUUID } from "node:crypto";
 import {
   CHARGING_DRAW_WINDOW_MS,
   CHARGING_PRACTICE_DURATION_MS,
+  FINAL_STAGE_CORE_TIMEOUT_MS,
+  FINAL_STAGE_ATTACK_STREAK,
+  FINAL_STAGE_STARTING_LIVES,
+  FINAL_STAGE_STUN_MS,
   DINO_RUN_DURATION_MS,
   DECORATION_VOTE_DURATION_MS,
   EXCAVATION_DRAW_WINDOW_MS,
@@ -23,7 +27,7 @@ import {
   SHOOTING_SCORE_CORE_HITS_FOR_FULL_MARKS,
   TEAM_DISPLAY_NAMES,
   TEAM_IDS,
-  totalGameScore,
+  teamPlayerScore,
   type AimUpdateInput,
   type BoneId,
   type CoreZone,
@@ -63,7 +67,7 @@ import {
   type EnergyFireOutcome,
   type ShotTracking,
 } from "../game/energy.js";
-import { computeActiveCore, computeTrexTransform, type TrexTransform } from "../game/charging.js";
+import { computeActiveCore, computeChargingStage, computeTrexTransform, type TrexTransform } from "../game/charging.js";
 
 export type CreateRoomResult = { room: RoomRecord; joinUrl: string };
 export type JoinRoomError = "ROOM_NOT_FOUND" | "ROOM_ALREADY_STARTED" | "ROOM_FULL" | "NICKNAME_INVALID" | "NICKNAME_TAKEN";
@@ -77,6 +81,14 @@ export type ChargingTickUpdate = {
   core: CoreZone;
   nextChangeAt: number;
   coreChanged: boolean;
+  transition: "TO_REVIVED_YRANNO" | null;
+  finalDamage: { livesLeft: number; stunnedUntil: number } | null;
+};
+
+export type FinalStageDamage = {
+  teamId: TeamId;
+  livesLeft: number;
+  stunnedUntil: number;
   transition: "TO_REVIVED_YRANNO" | null;
 };
 
@@ -108,6 +120,9 @@ export type RoomRecord = {
   sharedActiveCore: CoreZone;
   /** 결정적인 다음 약점 선택에 사용하는 이번 라운드의 누적 약점 명중 횟수. */
   sharedCoreHitCount: number;
+  /** 3페이즈에서 마지막으로 연속 급소 명중을 이어가는 팀과 현재 콤보 수. */
+  finalCoreStreakTeamId: TeamId | null;
+  finalCoreStreakCount: number;
   /** 플레이어별 최신 유효 조준 좌표 (§17.9). */
   aimState: Map<PlayerId, AimState>;
   /**
@@ -160,6 +175,9 @@ function resetTeamGameplayState(team: TeamState, now: number): void {
     coreChangesAt: 0,
     form: "NONE",
     result: null,
+    finalLives: FINAL_STAGE_STARTING_LIVES,
+    finalCoreDeadlineAt: null,
+    finalStunnedUntil: null,
   };
   team.scores = { excavation: null, dinoRun: null, charging: null };
 }
@@ -182,7 +200,7 @@ function makeEmptyTeamState(teamId: TeamId, now: number): TeamState {
       grade: null,
       result: null,
     },
-    charging: { energy: 0, stability: 100, activeCore: "HEART", coreChangesAt: 0, form: "NONE", result: null },
+    charging: { energy: 0, stability: 100, activeCore: "HEART", coreChangesAt: 0, form: "NONE", result: null, finalLives: FINAL_STAGE_STARTING_LIVES, finalCoreDeadlineAt: null, finalStunnedUntil: null },
     scores: { excavation: null, dinoRun: null, charging: null },
   };
   resetTeamGameplayState(team, now);
@@ -300,6 +318,8 @@ export class RoomManager {
       sharedTrexStartedAt: null,
       sharedActiveCore: "HEART",
       sharedCoreHitCount: 0,
+      finalCoreStreakTeamId: null,
+      finalCoreStreakCount: 0,
       aimState: new Map(),
       dinoPositionState: new Map(),
       dinoMeteorLockState: new Map(),
@@ -464,6 +484,8 @@ export class RoomManager {
     room.sharedTrexStartedAt = null;
     room.sharedActiveCore = "HEART";
     room.sharedCoreHitCount = 0;
+    room.finalCoreStreakTeamId = null;
+    room.finalCoreStreakCount = 0;
     room.aimState = new Map();
     room.dinoPositionState = new Map();
     room.dinoMeteorLockState = new Map();
@@ -497,6 +519,8 @@ export class RoomManager {
     room.sharedTrexStartedAt = null;
     room.sharedActiveCore = "HEART";
     room.sharedCoreHitCount = 0;
+    room.finalCoreStreakTeamId = null;
+    room.finalCoreStreakCount = 0;
     Object.assign(room, makeVoteState());
     this.touch(room);
     this.bumpRevision(room);
@@ -723,20 +747,73 @@ export class RoomManager {
     playerId: PlayerId,
     shotId: string,
     now: number,
-  ): EnergyFireOutcome & { roundFinalized: boolean } {
+  ): EnergyFireOutcome & { roundFinalized: boolean; finalDamage: FinalStageDamage | null } {
     const outcome = applyEnergyFire(room, teamId, playerId, shotId, now);
-    if (!outcome.accepted) return { ...outcome, roundFinalized: false };
+    if (!outcome.accepted) return { ...outcome, roundFinalized: false, finalDamage: null };
 
     this.touch(room);
     let roundFinalized = false;
+    let finalDamage: FinalStageDamage | null = null;
     if (outcome.justReachedRevived) {
       room.phaseDurations[teamId].chargingMs = room.chargingStartedAt[teamId] !== null ? now - room.chargingStartedAt[teamId]! : null;
       this.finalizeChargingScore(room, teamId);
       this.applyChargingResult(room, teamId, now);
       roundFinalized = this.checkRoundCompletion(room, now);
     }
+
+    const isCoreHit = outcome.hitZone === "HEART" || outcome.hitZone === "SKULL" || outcome.hitZone === "SPINE";
+    if (outcome.chargingStage === 3 && isCoreHit) {
+      if (room.finalCoreStreakTeamId === teamId) {
+        room.finalCoreStreakCount += 1;
+      } else {
+        room.finalCoreStreakTeamId = teamId;
+        room.finalCoreStreakCount = 1;
+      }
+
+      if (room.finalCoreStreakCount >= FINAL_STAGE_ATTACK_STREAK) {
+        const opponentId: TeamId = teamId === "A" ? "B" : "A";
+        finalDamage = this.damageFinalStageTeam(room, opponentId, now);
+        room.finalCoreStreakTeamId = null;
+        room.finalCoreStreakCount = 0;
+        if (finalDamage?.transition === "TO_REVIVED_YRANNO") {
+          roundFinalized = this.finalizeYrannoTransition(room, opponentId, now) || roundFinalized;
+        }
+      }
+    } else if (outcome.chargingStage === 3) {
+      room.finalCoreStreakTeamId = null;
+      room.finalCoreStreakCount = 0;
+    }
     this.bumpRevision(room);
-    return { ...outcome, roundFinalized };
+    return { ...outcome, roundFinalized, finalDamage };
+  }
+
+  private damageFinalStageTeam(room: RoomRecord, teamId: TeamId, now: number): FinalStageDamage | null {
+    const team = room.state.teams[teamId];
+    if (team.phase !== "CHARGING" || computeChargingStage(room, teamId, now) !== 3) return null;
+
+    team.charging.finalLives ??= FINAL_STAGE_STARTING_LIVES;
+    team.charging.finalLives = Math.max(0, team.charging.finalLives - 1);
+    team.charging.finalStunnedUntil = now + FINAL_STAGE_STUN_MS;
+    team.charging.finalCoreDeadlineAt = now + FINAL_STAGE_CORE_TIMEOUT_MS;
+    const transition = team.charging.finalLives === 0 ? "TO_REVIVED_YRANNO" : null;
+    if (transition) {
+      team.phase = "REVIVED";
+      team.charging.form = "YRANNO";
+    }
+    return {
+      teamId,
+      livesLeft: team.charging.finalLives,
+      stunnedUntil: team.charging.finalStunnedUntil,
+      transition,
+    };
+  }
+
+  private finalizeYrannoTransition(room: RoomRecord, teamId: TeamId, now: number): boolean {
+    room.phaseDurations[teamId].chargingMs =
+      room.chargingStartedAt[teamId] !== null ? now - room.chargingStartedAt[teamId]! : null;
+    this.finalizeChargingScore(room, teamId);
+    this.applyChargingResult(room, teamId, now);
+    return this.checkRoundCompletion(room, now);
   }
 
   /** 경기 3 점수: 팀 전체 명중률과 활성 코어 명중 수를 기준으로 매긴다 (§2.3, §6.3). */
@@ -775,6 +852,7 @@ export class RoomManager {
       otherTeam.charging.result = "DRAW";
     } else {
       team.charging.result = "LOSE";
+      team.charging.form = "YRANNO";
     }
   }
 
@@ -794,7 +872,28 @@ export class RoomManager {
       // 멈춰버려("공룡이 움직이다가 마는") 부자연스럽다.
       if (!stillCharging && !(team.phase === "REVIVED" && otherStillCharging)) continue;
 
-      const transition = stillCharging ? expireChargingIfNeeded(room, teamId, now) : null;
+      let transition = stillCharging ? expireChargingIfNeeded(room, teamId, now) : null;
+      let finalDamage: ChargingTickUpdate["finalDamage"] = null;
+
+      if (stillCharging && !transition && computeChargingStage(room, teamId, now) === 3) {
+        team.charging.finalLives ??= FINAL_STAGE_STARTING_LIVES;
+        team.charging.finalCoreDeadlineAt ??= now + FINAL_STAGE_CORE_TIMEOUT_MS;
+        if (now >= team.charging.finalCoreDeadlineAt) {
+          const missedWindows = Math.floor((now - team.charging.finalCoreDeadlineAt) / FINAL_STAGE_CORE_TIMEOUT_MS) + 1;
+          team.charging.finalLives = Math.max(0, team.charging.finalLives - missedWindows);
+          team.charging.finalCoreDeadlineAt += missedWindows * FINAL_STAGE_CORE_TIMEOUT_MS;
+          team.charging.finalStunnedUntil = now + FINAL_STAGE_STUN_MS;
+          finalDamage = {
+            livesLeft: team.charging.finalLives,
+            stunnedUntil: team.charging.finalStunnedUntil,
+          };
+          if (team.charging.finalLives === 0) {
+            team.phase = "REVIVED";
+            team.charging.form = "YRANNO";
+            transition = "TO_REVIVED_YRANNO";
+          }
+        }
+      }
 
       const transform = computeTrexTransform(room, now);
       const { core, nextChangeAt } = computeActiveCore(room, now);
@@ -804,7 +903,7 @@ export class RoomManager {
         team.charging.coreChangesAt = nextChangeAt;
       }
 
-      updates.push({ teamId, transform, core, nextChangeAt, coreChanged, transition });
+      updates.push({ teamId, transform, core, nextChangeAt, coreChanged, transition, finalDamage });
 
       if (transition) {
         this.touch(room);
@@ -832,8 +931,8 @@ export class RoomManager {
     const timedOut = room.state.roundEndsAt !== null && now >= room.state.roundEndsAt;
     if (!bothRevived && !timedOut) return false;
 
-    const totalA = totalGameScore(room.state.teams.A.scores);
-    const totalB = totalGameScore(room.state.teams.B.scores);
+    const totalA = teamPlayerScore(room.state.players, "A");
+    const totalB = teamPlayerScore(room.state.players, "B");
     if (totalA === totalB) {
       this.finalizeRoundWinner(room, null, "DRAW");
     } else {

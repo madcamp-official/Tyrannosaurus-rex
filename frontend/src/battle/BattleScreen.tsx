@@ -36,6 +36,8 @@ export function BattleScreen({
         style={{ width: STAGE_W, height: STAGE_H, transform: `translate(-50%, -50%) scale(${scale})` }}
       >
         <BattleArena battle={battle} shotEvents={shotEvents} aimPoints={aimPoints} />
+        {battle.teamAStunned && <div className="battle-damage-overlay battle-damage-overlay--a" aria-hidden="true" />}
+        {battle.teamBStunned && <div className="battle-damage-overlay battle-damage-overlay--b" aria-hidden="true" />}
 
         <div className="battle-topbar">
           <div className="battle-topbar__spacer" aria-hidden="true" />
@@ -45,7 +47,7 @@ export function BattleScreen({
             <span className="battle-timer__clock">{formatClock(battle.remainingSec)}</span>
             <div className="battle-timer__pill">
               <span className="battle-timer__dot" />
-              활성 코어 · {battle.coreName}
+              {battle.chargingStage === 2 ? "추격 표적 · 티라노 몸체" : battle.chargingStage === 3 ? `최종 약점 · ${battle.coreName}` : `활성 코어 · ${battle.coreName}`}
             </div>
           </div>
 

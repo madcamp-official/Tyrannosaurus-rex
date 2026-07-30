@@ -61,6 +61,8 @@ export function MobileJoin(): JSX.Element {
   // 등록되므로 아래 playerId state를 클로저로 직접 참조하면 항상 null로 고정된다 — ref로
   // 최신 값을 따로 추적한다.
   const playerIdRef = useRef<PlayerId | null>(null);
+  const teamIdRef = useRef<TeamId | null>(null);
+  const [finalStunnedUntil, setFinalStunnedUntil] = useState<number | null>(null);
   const [meteorLocks, setMeteorLocks] = useState<Map<number, number>>(new Map());
   // 운석 피하기 중 명중·과일·하트 등 순간적인 이벤트를 짧게 알려주는 배너.
   const [dinoToast, setDinoToast] = useState<string | null>(null);
@@ -154,6 +156,11 @@ export function MobileJoin(): JSX.Element {
     socket.on("dino:playerDied", (evt) => setRoomState((prev) => (prev ? applyPlayerDied(prev, evt.data) : prev)));
     socket.on("dino:finished", (evt) => setRoomState((prev) => (prev ? applyDinoFinished(prev, evt.data) : prev)));
     socket.on("dino:teamResult", (evt) => setRoomState((prev) => (prev ? applyDinoTeamResult(prev, evt.data) : prev)));
+    socket.on("energy:finalDamaged", (evt) => {
+      if (evt.data.teamId !== teamIdRef.current) return;
+      setFinalStunnedUntil(evt.data.stunnedUntil);
+      navigator.vibrate?.([300, 100, 300, 100, 500]);
+    });
 
     socket.on("connect", () => {
       socket.emit(
@@ -179,6 +186,7 @@ export function MobileJoin(): JSX.Element {
           setPlayerId(ack.data.playerId);
           playerIdRef.current = ack.data.playerId;
           setTeamId(ack.data.teamId);
+          teamIdRef.current = ack.data.teamId;
           setRoomState(ack.data.state);
           setReady(ack.data.state.players.find((player) => player.id === ack.data.playerId)?.ready ?? false);
           setStatus("JOINED");
@@ -294,7 +302,7 @@ export function MobileJoin(): JSX.Element {
           // (calibrated 등 내부 state)이 실제 CHARGING으로 넘어갈 때 유지된다 — 조건별로
           // 서로 다른 자리에 <AimControls>를 두면 phase가 바뀌는 순간 컴포넌트가
           // 통째로 마운트 해제·재마운트되어 영점이 초기화되는 버그가 있었다.
-          <AimControls socket={socket} practice={team.phase === "CHARGING_PRACTICE"} />
+          <AimControls socket={socket} practice={team.phase === "CHARGING_PRACTICE"} stunnedUntil={finalStunnedUntil} />
         )}
         {team.phase === "REVIVED" && (
           // 부활 완료 여부·WIN/LOSE/DRAW 결과는 데스크탑 공유 화면(PlayArea)에만 띄운다 —

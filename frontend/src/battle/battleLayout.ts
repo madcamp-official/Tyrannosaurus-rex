@@ -7,6 +7,6 @@ export const STAGE_H = 1080;
 
 /** 총구 위치 — 정규화(0..1) 좌표 */
 export const GUN_MUZZLE: Record<TeamId, [number, number]> = {
-  A: [0.085, 0.9],
-  B: [0.915, 0.9],
+  A: [0.867, 0.71],
+  B: [0.133, 0.71],
 };

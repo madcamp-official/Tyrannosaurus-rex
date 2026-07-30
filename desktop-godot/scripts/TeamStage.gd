@@ -125,6 +125,8 @@ func _on_pieces_ready(_ids: Array[String]) -> void:
 ## §11.5 FULL_SNAPSHOT: React가 5초마다 또는 재접속 시 보내는 전체 동기화.
 func apply_full_snapshot(team_data: Dictionary) -> void:
 	set_phase(team_data.get("phase", _phase))
+	if _phase == "EXCAVATION":
+		on_excavation_progress(float(team_data.get("excavationProgress", 0.0)))
 
 	var discovered: Array = team_data.get("discoveredBoneIds", [])
 	for boneId in discovered:
@@ -173,10 +175,12 @@ func _apply_ground_visibility() -> void:
 func on_excavation_progress(progress: float) -> void:
 	if not _ground or _phase != "EXCAVATION":
 		return
-	if absf(progress - _last_dig_progress) < EXCAVATION_DIG_STEP:
-		return
-	_last_dig_progress = progress
-	_ground.dig_random_scoop(progress)
+	# 이벤트를 실시간으로 받든 HMR/재접속 뒤 전체 스냅샷으로 한꺼번에 복구하든 같은
+	# 누적 진행도에는 같은 횟수만큼 땅이 파여야 한다. 이전 구현은 스냅샷의 큰 점프에도
+	# 한 번만 파서 서버 진행도와 화면 지형이 어긋났다.
+	while progress - _last_dig_progress >= EXCAVATION_DIG_STEP:
+		_last_dig_progress += EXCAVATION_DIG_STEP
+		_ground.dig_random_scoop(_last_dig_progress)
 
 func on_bone_discovered(bone_id: String) -> void:
 	_reveal_piece(bone_id, true)

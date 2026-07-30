@@ -344,6 +344,10 @@ export function DesktopLobby(): JSX.Element {
             facing: evt.data.facing,
             activeCore: evt.data.activeCore,
             corePosition: evt.data.corePosition,
+            chargingStage: evt.data.chargingStage,
+            finalLives: evt.data.finalLives,
+            finalCoreDeadlineAt: evt.data.finalCoreDeadlineAt,
+            finalStunnedUntil: evt.data.finalStunnedUntil,
           },
         },
       }));
@@ -416,6 +420,7 @@ export function DesktopLobby(): JSX.Element {
             id: shotEventId,
             team: evt.data.teamId,
             playerId: evt.data.playerId,
+            playerColor: shooter?.color ?? (evt.data.teamId === "A" ? "#f2994a" : "#6fc3e8"),
             playerName: shooter?.nickname ?? "플레이어",
             scoreDelta: evt.data.energyDelta,
             hit: evt.data.hit,
@@ -746,9 +751,11 @@ function TeamCard({ roomState, teamId }: { roomState: RoomState; teamId: TeamId 
 }
 
 function snapshotForTeam(team: RoomState["teams"][TeamId]) {
+  const totalPointsNeeded = boneCountForTeam(team.playerIds.length) * EXCAVATION_POINTS_PER_BONE;
   return {
     phase: team.phase,
     excavationPoints: team.excavation.points,
+    excavationProgress: Math.min(100, Math.max(0, (team.excavation.points / totalPointsNeeded) * 100)),
     discoveredBoneIds: team.excavation.discoveredBoneIds,
     puzzlePieces: BONE_IDS.map((boneId) => ({
       boneId,

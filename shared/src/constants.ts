@@ -86,7 +86,12 @@ export const CHARGING_START_STABILITY_RANGE = 60;
 
 /** ASSEMBLY 종료 직후 실제 CHARGING 시작 전 자이로/터치패드 영점을 맞춰볼 수 있는 연습 시간. */
 export const CHARGING_PRACTICE_DURATION_MS = 20_000;
-export const CHARGING_DURATION_MS = 90_000;
+export const CHARGING_STAGE_DURATION_MS = 60_000;
+export const CHARGING_DURATION_MS = CHARGING_STAGE_DURATION_MS * 3;
+export const FINAL_STAGE_STARTING_LIVES = 5;
+export const FINAL_STAGE_CORE_TIMEOUT_MS = 5_000;
+export const FINAL_STAGE_ATTACK_STREAK = 5;
+export const FINAL_STAGE_STUN_MS = 2_000;
 export const CHARGING_TREX_TRANSFORM_HZ = 10;
 export const SHOT_COOLDOWN_MS = 350;
 // 여러 플레이어의 조준 이벤트가 데스크톱 사격 장면을 과도하게 재렌더링하지 않도록 제한한다.
@@ -96,6 +101,8 @@ export const AIM_STALE_MS = 500;
 // 채워지게 난이도를 올렸다.
 export const ENERGY_HIT_BONE = 1;
 export const ENERGY_HIT_CORE = 3;
+export const ENERGY_HIT_CHASE = 2;
+export const ENERGY_HIT_FINAL_CORE = 5;
 export const STABILITY_HIT_CORE = 2;
 // 명중당 에너지는 이미 낮춰뒀는데도, 인원이 여럿이 동시에 쏘면 팀 합산 속도가 빨라 목표에
 // 금방 도달해 사격 단계가 너무 빨리 끝난다는 피드백에 따라 목표치 자체를 크게 올렸다.
@@ -105,8 +112,8 @@ export const STABILITY_TARGET = 100;
 // MVP 기본값이며, 실제 3D 히트박스가 생기면 Godot 쪽과 맞춰 조정한다.
 export const CORE_HIT_RADIUS = 0.05;
 export const BONE_HIT_RADIUS = 0.18;
-export const TREX_MOVE_AMPLITUDE = 0.36; // 중심(0.5)에서 좌우로 흔들리는 폭 — 더 넓게 돌아다니도록 확대
-export const TREX_MOVE_PERIOD_MS = 10_000; // 웨이포인트 사이 이동 시간 — 짧을수록 더 빠르게 움직인다
+export const TREX_MOVE_AMPLITUDE = 0.18; // 양쪽 기여도 패널 사이를 벗어나지 않는 이동 폭
+export const TREX_MOVE_PERIOD_MS = 4_500; // 패널 사이에서 생동감 있게 두리번거리는 속도
 
 // Plan.md §2.3, §3 3경기 누적 점수제. 구체적 계수가 문서에 없어 MVP 기본값으로 정한다.
 export const GAME_SCORE_MAX = 100;

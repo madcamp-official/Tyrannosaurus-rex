@@ -3,6 +3,7 @@
 import type { ErrorCode } from "@trex/shared";
 
 const MESSAGES: Record<ErrorCode, string> = {
+  FINAL_STAGE_STUNNED: "피격 복구 중에는 발사할 수 없습니다.",
   INVALID_PAYLOAD: "요청 형식이 올바르지 않아요. 새로고침 후 다시 시도해주세요.",
   CLIENT_VERSION_UNSUPPORTED: "앱 버전이 서버와 맞지 않아요. 새로고침 후 다시 시도해주세요.",
   ROOM_NOT_FOUND: "방을 찾을 수 없어요. 코드를 다시 확인해주세요.",

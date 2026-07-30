@@ -7,6 +7,7 @@ import type {
   AimMode,
   ApiError,
   BoneId,
+  ChargingStage,
   CoreZone,
   DinoRunGrade,
   Facing,
@@ -163,6 +164,7 @@ export type EnergyFireResponse = {
   energyAfter: number;
   stabilityAfter: number;
   teamPhaseAfter: TeamPhase;
+  chargingStage?: ChargingStage;
 };
 
 export const sensorStatusRequestSchema = z.object({
@@ -210,6 +212,16 @@ export type TrexTransformEvent = {
   /** 현재 활성 코어(약점) 이름과, 서버가 계산해 내려주는 그 코어의 절대 정규화 좌표. */
   activeCore: CoreZone;
   corePosition: NormalizedPoint;
+  chargingStage: ChargingStage;
+  finalLives: number;
+  finalCoreDeadlineAt: number | null;
+  finalStunnedUntil: number | null;
+};
+
+export type EnergyFinalDamagedEvent = {
+  teamId: TeamId;
+  livesLeft: number;
+  stunnedUntil: number;
 };
 
 export type ShotResolvedEvent = EnergyFireResponse & {
@@ -320,6 +332,7 @@ export interface ServerToClientEvents {
   "trex:transform": (evt: ServerEvent<TrexTransformEvent>) => void;
   "energy:shotResolved": (evt: ServerEvent<ShotResolvedEvent>) => void;
   "energy:coreChanged": (evt: ServerEvent<EnergyCoreChangedEvent>) => void;
+  "energy:finalDamaged": (evt: ServerEvent<EnergyFinalDamagedEvent>) => void;
   "revival:formChanged": (
     evt: ServerEvent<{ teamId: TeamId; form: RoomState["teams"][TeamId]["charging"]["form"]; energy: number; stability: number }>,
   ) => void;

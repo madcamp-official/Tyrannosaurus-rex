@@ -1,6 +1,12 @@
 /** Plan.md §13, §14.2, §15 도메인 타입. 서버 권위 상태와 클라이언트 표시에 공유된다. */
 
-import { BONES_PER_PLAYER } from "./constants.js";
+import {
+  BONES_PER_PLAYER,
+  MVP_WEIGHT_CORE_HIT,
+  MVP_WEIGHT_DINO_CLEARED,
+  MVP_WEIGHT_EXCAVATION_INPUT,
+  MVP_WEIGHT_HIT,
+} from "./constants.js";
 
 export type RoomCode = string; // ^[0-9]{4}$
 export type PlayerId = string;
@@ -72,6 +78,7 @@ export type SensorPermission = "UNKNOWN" | "GRANTED" | "DENIED" | "UNSUPPORTED";
 export type AimMode = "GYRO" | "TOUCHPAD";
 export type RevivalForm = "NONE" | "NORMAL" | "YRANNO";
 export type HitZone = "HEART" | "SKULL" | "SPINE" | "BONE";
+export type ChargingStage = 1 | 2 | 3;
 export type CoreZone = "HEART" | "SKULL" | "SPINE";
 export type PoseId = "IDLE" | "WALK" | "ROAR" | "HIT" | "REVIVE";
 export type Facing = "LEFT" | "RIGHT";
@@ -105,6 +112,7 @@ export type ErrorCode =
   | "DUPLICATE_REQUEST"
   | "BONE_NOT_AVAILABLE"
   | "SHOT_COOLDOWN"
+  | "FINAL_STAGE_STUNNED"
   | "SERVER_ERROR";
 
 export type ApiError = {
@@ -149,6 +157,22 @@ export type PublicPlayer = {
   orientationPermission: SensorPermission;
   stats: PlayerStats;
 };
+
+/** 결과 화면의 개인 점수와 팀 점수가 반드시 같은 산식에서 나오도록 하는 공용 계산식. */
+export function individualGameScore(player: Pick<PublicPlayer, "stats">): number {
+  return (
+    player.stats.excavationInputs * MVP_WEIGHT_EXCAVATION_INPUT +
+    player.stats.dinoCleared * MVP_WEIGHT_DINO_CLEARED +
+    player.stats.hits * MVP_WEIGHT_HIT +
+    player.stats.coreHits * MVP_WEIGHT_CORE_HIT
+  );
+}
+
+export function teamPlayerScore(players: readonly PublicPlayer[], teamId: TeamId): number {
+  return players
+    .filter((player) => player.teamId === teamId)
+    .reduce((sum, player) => sum + individualGameScore(player), 0);
+}
 
 export type DinoRunGrade = "PERFECT" | "GOOD" | "CLUMSY" | "MESSY";
 
@@ -223,6 +247,9 @@ export type TeamState = {
      * CHARGING_DRAW_WINDOW_MS 안에 거의 동시에 채우면 둘 다 DRAW로 정정한다. 시간 초과로
      * 와이라노(YRANNO)가 되면 순서와 무관하게 항상 LOSE다. */
     result: "WIN" | "LOSE" | "DRAW" | null;
+    finalLives?: number;
+    finalCoreDeadlineAt?: number | null;
+    finalStunnedUntil?: number | null;
   };
   scores: GameScores;
 };

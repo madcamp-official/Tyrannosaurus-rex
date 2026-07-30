@@ -2392,10 +2392,9 @@ body {
 .result-view::before {
   z-index: -2;
   background:
-    linear-gradient(180deg, rgba(4, 9, 21, 0.05) 0%, rgba(7, 11, 14, 0.1) 44%, rgba(19, 29, 16, 0.22) 100%),
-    url("/images/excavation-grass.jpg") center bottom / 100% 58% no-repeat,
-    #07101f url("/images/night-sky.jpg") center top / cover no-repeat;
-  filter: saturate(90%) brightness(72%);
+    linear-gradient(180deg, rgba(4, 9, 21, 0.08), rgba(15, 24, 10, 0.28)),
+    #87b96b url("/images/victory-meadow.png") center center / cover no-repeat;
+  filter: saturate(96%) brightness(78%);
 }
 
 .result-view::after {

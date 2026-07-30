@@ -1,6 +1,6 @@
 /** 실제 서버 데이터(RoomState + ephemeral 소켓 이벤트)를 BattleScreen이 요구하는 BattleState로 변환한다. */
 
-import { ENERGY_TARGET, type CoreZone, type PublicPlayer, type RoomState, type TeamId, type TeamState } from "@trex/shared";
+import { CHARGING_DURATION_MS, ENERGY_TARGET, FINAL_STAGE_CORE_TIMEOUT_MS, type CoreZone, type PublicPlayer, type RoomState, type TeamId, type TeamState } from "@trex/shared";
 import type { ChargingEphemeral } from "../desktop/PlayArea";
 import type { BattlePlayer, BattleState, BattleTeam } from "./battleTypes";
 
@@ -26,7 +26,9 @@ function teamFrom(allPlayers: PublicPlayer[], team: TeamState, teamName: string)
   return {
     name: teamName,
     players: battlePlayers,
-    energy: team.charging.energy,
+    // 팀 점수는 서버의 부활 게이지(단계별 상한 적용)가 아니라 화면에 표시되는
+    // 유저별 기여 점수의 합계와 정확히 일치해야 한다.
+    energy: battlePlayers.reduce((sum, player) => sum + player.energy, 0),
     totalHits: teamPlayers.reduce((sum, p) => sum + p.stats.hits, 0),
     coreHits: teamPlayers.reduce((sum, p) => sum + p.stats.coreHits, 0),
     result: team.charging.result,
@@ -63,6 +65,20 @@ export function battleStateFromRoom(
 
   const teamA = teamFrom(roomState.players, roomState.teams.A, roomState.teamNames.A);
   const teamB = teamFrom(roomState.players, roomState.teams.B, roomState.teamNames.B);
+  const chargingStage = trex.chargingStage ?? 1;
+  const stageProgress = Math.min(1, Math.max(0, ((CHARGING_DURATION_MS / 1000 - remainingSec) % 60) / 60));
+  const finalStatusFor = (teamId: TeamId) => {
+    const teamTrex = ephemeral.trexByTeam[teamId];
+    const deadline = teamTrex?.finalCoreDeadlineAt ?? roomState.teams[teamId].charging.finalCoreDeadlineAt;
+    return {
+      lives: teamTrex?.finalLives ?? roomState.teams[teamId].charging.finalLives ?? 5,
+      secondsLeft: deadline
+        ? Math.max(0, Math.ceil((deadline - now) / 1000))
+        : FINAL_STAGE_CORE_TIMEOUT_MS / 1000,
+    };
+  };
+  const finalA = finalStatusFor("A");
+  const finalB = finalStatusFor("B");
 
   return {
     remainingSec: Number.isFinite(remainingSec) ? remainingSec : 0,
@@ -70,6 +86,14 @@ export function battleStateFromRoom(
     stage: stageFor((teamA.energy + teamB.energy) / 2),
     siteName: roomState.roomName,
     energyTarget: ENERGY_TARGET,
+    chargingStage,
+    stageProgress,
+    teamAFinalLives: finalA.lives,
+    teamBFinalLives: finalB.lives,
+    teamAFinalSecondsLeft: finalA.secondsLeft,
+    teamBFinalSecondsLeft: finalB.secondsLeft,
+    teamAStunned: (ephemeral.trexByTeam.A?.finalStunnedUntil ?? 0) > now,
+    teamBStunned: (ephemeral.trexByTeam.B?.finalStunnedUntil ?? 0) > now,
     teamA,
     teamB,
     trex: {

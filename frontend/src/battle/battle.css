@@ -35,6 +35,33 @@
   overflow: hidden;
 }
 
+.battle-damage-overlay {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  z-index: 6;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at center, transparent 22%, rgba(255, 20, 20, 0.28) 72%, rgba(145, 0, 0, 0.68) 100%),
+    rgba(255, 0, 0, 0.14);
+  box-shadow: inset 0 0 120px rgba(255, 0, 0, 0.85);
+  animation: battle-team-damaged 0.38s ease-in-out infinite alternate;
+}
+
+.battle-damage-overlay--a {
+  left: 0;
+}
+
+.battle-damage-overlay--b {
+  right: 0;
+}
+
+@keyframes battle-team-damaged {
+  from { opacity: 0.55; }
+  to { opacity: 1; }
+}
+
 /* ---------- 3D 무대 근사 ---------- */
 
 .battle-arena {
@@ -47,13 +74,63 @@
 .battle-arena__sky {
   position: absolute;
   inset: 0;
+  background: #8fc9ed url("/images/shooting-meadow.png") center center / cover no-repeat;
+}
+
+.battle-arena--stage-2 .battle-arena__sky,
+.battle-arena--stage-2 .battle-arena__sunset {
+  background: #88b9d7 url("/images/chase-road.png") center center / cover no-repeat;
+  transform: none;
+  filter: none;
+  transition: filter 1.2s ease;
+}
+
+.battle-arena--stage-2 .battle-arena__sunset {
+  filter: sepia(0.16) saturate(1.08) brightness(0.9);
+}
+
+.battle-arena--stage-2 .battle-arena__vignette {
+  background: linear-gradient(180deg, rgba(7, 14, 20, 0.08) 0%, transparent 60%, rgba(8, 8, 8, 0.38) 100%);
+  animation: none;
+}
+
+.battle-arena--stage-3 {
+  background: #140503;
+}
+
+.battle-arena--stage-3 .battle-arena__sky {
   background: #9bc4e9 url("/images/kaist_front.png") center center / cover no-repeat;
+}
+
+.battle-arena--stage-3 .battle-arena__sunset {
+  background: #dc7c57 url("/images/kaist_front_sunset.png") center center / cover no-repeat;
+  opacity: 0.9 !important;
+  filter: saturate(1.3) contrast(1.12);
+}
+
+.battle-arena--stage-3::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  border: 18px solid rgba(180, 20, 10, 0.18);
+  box-shadow: inset 0 0 120px 40px rgba(120, 0, 0, 0.28);
+  animation: battle-danger-breathe 1.4s ease-in-out infinite;
+}
+
+@keyframes battle-danger-breathe {
+  0%, 100% { opacity: 0.42; }
+  50% { opacity: 1; }
 }
 
 .battle-arena__sunset {
   position: absolute;
   inset: 0;
-  background: #dc7c57 url("/images/kaist_front_sunset.png") center center / cover no-repeat;
+  background:
+    linear-gradient(180deg, rgba(230, 139, 83, 0.92) 0%, rgba(244, 189, 119, 0.72) 43%, transparent 43%),
+    linear-gradient(rgba(145, 86, 39, 0.18), rgba(82, 48, 18, 0.3)),
+    url("/images/shooting-meadow.png") center center / cover no-repeat;
   transition: opacity 1s linear;
   will-change: opacity;
 }
@@ -124,7 +201,7 @@
   z-index: 1;
   width: 2480px;
   height: 1440px;
-  transition: left 0.25s linear;
+  transition: left 0.25s linear, top 0.25s linear, transform 0.8s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 .battle-trex__model {
@@ -144,6 +221,121 @@
   pointer-events: none;
   transition: left 220ms cubic-bezier(0.22, 1, 0.36, 1), top 220ms cubic-bezier(0.22, 1, 0.36, 1);
   will-change: left, top;
+}
+
+.battle-core--hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.battle-arena--stage-2 .battle-trex {
+  filter: drop-shadow(0 12px 8px rgba(0, 0, 0, 0.7));
+}
+
+.battle-arena--stage-3 .battle-trex {
+  filter: drop-shadow(0 0 55px rgba(120, 0, 0, 0.72));
+}
+
+.battle-stage-banner {
+  position: absolute;
+  top: 102px;
+  left: 50%;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transform: translateX(-50%);
+  padding: 8px 18px;
+  border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 999px;
+  background: rgba(4, 7, 10, 0.72);
+  box-shadow: 0 0 24px rgba(245, 197, 66, 0.22);
+  pointer-events: none;
+}
+
+.battle-stage-banner strong {
+  color: var(--gold);
+  font: 700 14px "IBM Plex Mono", monospace;
+  letter-spacing: 0.08em;
+}
+
+.battle-stage-banner span {
+  font-size: 14px;
+}
+
+.battle-final-status {
+  position: absolute;
+  top: 112px;
+  left: 34%;
+  z-index: 6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.battle-final-status--b {
+  left: 66%;
+}
+
+.battle-final-status__team {
+  font: 800 16px "IBM Plex Mono", monospace;
+  color: var(--a);
+  text-shadow: 0 2px 7px rgba(0, 0, 0, 0.9);
+}
+
+.battle-final-status--b .battle-final-status__team {
+  color: var(--b);
+}
+
+.battle-final-status__lives {
+  display: flex;
+  gap: 10px;
+  font-size: 34px;
+  line-height: 1;
+  text-shadow: 0 0 14px rgba(255, 30, 20, 0.9);
+}
+
+.battle-final-status__lives .is-alive {
+  color: #ff4338;
+}
+
+.battle-final-status__lives .is-lost {
+  color: rgba(255, 255, 255, 0.13);
+  text-shadow: none;
+}
+
+.battle-final-status__timer {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 18px;
+  border-radius: 999px;
+  background: rgba(10, 0, 0, 0.78);
+  border: 1px solid rgba(255, 80, 60, 0.42);
+}
+
+.battle-final-status__timer strong {
+  min-width: 30px;
+  color: #fff;
+  font: 800 30px "IBM Plex Mono", monospace;
+  text-align: right;
+}
+
+.battle-final-status__timer span {
+  color: #ffc2b8;
+  font-size: 14px;
+}
+
+.battle-final-status__timer.is-danger {
+  background: rgba(145, 5, 0, 0.88);
+  animation: battle-final-countdown 360ms ease-in-out infinite alternate;
+}
+
+@keyframes battle-final-countdown {
+  to { transform: scale(1.12); box-shadow: 0 0 28px rgba(255, 35, 20, 0.8); }
 }
 
 .battle-core__glow {
@@ -185,12 +377,8 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  border: 2px solid var(--a);
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-}
-
-.battle-crosshair--b .battle-crosshair__ring {
-  border-color: var(--b);
+  border: 3px solid currentColor;
+  box-shadow: 0 0 5px #000, 0 0 13px currentColor;
 }
 
 .battle-crosshair__ring::before,
@@ -205,38 +393,42 @@
   padding: 1px 6px;
   border-radius: 6px;
   background: rgba(0, 0, 0, 0.5);
-  color: var(--a-light);
+  color: currentColor;
+  border: 1px solid currentColor;
+  text-shadow: 0 1px 3px #000;
   white-space: nowrap;
-}
-
-.battle-crosshair--b .battle-crosshair__label {
-  color: var(--b-light);
 }
 
 .battle-laser {
   position: absolute;
   z-index: 3;
-  height: 4px;
+  height: 7px;
   border-radius: 2px;
   transform-origin: left center;
+  transform: rotate(var(--laser-angle));
   pointer-events: none;
-  animation: battle-laser-burst 0.15s ease-out forwards;
+  color: var(--shot-color);
+  background: linear-gradient(90deg, #fff 0%, var(--shot-color) 18%, var(--shot-color) 82%, transparent 100%);
+  box-shadow: 0 0 8px 2px #fff, 0 0 22px 6px var(--shot-color);
+  animation: battle-laser-burst 0.28s ease-out forwards;
 }
 
-.battle-laser--a {
-  background: linear-gradient(90deg, var(--a-light), var(--a), transparent);
-  box-shadow: 0 0 12px 2px rgba(242, 153, 74, 0.8);
-}
-
-.battle-laser--b {
-  background: linear-gradient(90deg, var(--b-light), var(--b), transparent);
-  box-shadow: 0 0 12px 2px rgba(111, 195, 232, 0.8);
+.battle-laser__head {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 12px 5px var(--shot-color);
+  transform: translate(50%, -50%);
 }
 
 @keyframes battle-laser-burst {
-  0% { opacity: 0; transform: scaleX(0.2) translateY(-50%); }
+  0% { opacity: 0; transform: rotate(var(--laser-angle)) scaleX(0.05); }
   30% { opacity: 1; }
-  100% { opacity: 0; transform: scaleX(1) translateY(-50%); }
+  100% { opacity: 0; transform: rotate(var(--laser-angle)) scaleX(1); }
 }
 
 .battle-impact {
@@ -245,24 +437,17 @@
   width: 1px;
   height: 1px;
   pointer-events: none;
-  color: var(--gold);
-}
-
-.battle-impact--a {
-  color: var(--a-light);
-}
-
-.battle-impact--b {
-  color: var(--b-light);
+  color: var(--shot-color);
 }
 
 .battle-impact--core {
-  color: var(--gold);
+  filter: drop-shadow(0 0 14px var(--gold));
 }
 
 .battle-impact__flash,
 .battle-impact__ring,
 .battle-impact__dust,
+.battle-impact__spark,
 .battle-impact__score {
   position: absolute;
   left: 0;
@@ -277,6 +462,19 @@
   background: #fff;
   box-shadow: 0 0 24px 10px currentColor;
   animation: battle-impact-flash 320ms ease-out forwards;
+}
+
+.battle-impact--miss .battle-impact__flash {
+  width: 14px;
+  height: 14px;
+  margin: -7px;
+  box-shadow: 0 0 12px 4px currentColor;
+}
+
+.battle-impact--miss .battle-impact__ring--2,
+.battle-impact--miss .battle-impact__ring--3,
+.battle-impact--miss .battle-impact__dust {
+  display: none;
 }
 
 .battle-impact__ring {
@@ -312,6 +510,27 @@
 .battle-impact__dust--5 { --dust-x: -30px; --dust-y: -42px; animation-delay: 55ms; }
 .battle-impact__dust--6 { --dust-x: 16px; --dust-y: -54px; animation-delay: 90ms; }
 
+.battle-impact__spark {
+  --spark-angle: 0deg;
+  width: 48px;
+  height: 3px;
+  margin-left: -2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #fff, currentColor, transparent);
+  transform-origin: 2px 50%;
+  animation: battle-impact-spark 460ms ease-out forwards;
+}
+
+.battle-impact__spark--1 { --spark-angle: 25deg; }
+.battle-impact__spark--2 { --spark-angle: 112deg; animation-delay: 25ms; }
+.battle-impact__spark--3 { --spark-angle: 198deg; animation-delay: 45ms; }
+.battle-impact__spark--4 { --spark-angle: 292deg; animation-delay: 65ms; }
+
+.battle-impact--miss .battle-impact__spark {
+  width: 28px;
+  opacity: 0.75;
+}
+
 .battle-impact__score {
   transform: translate(-50%, -30px);
   font-family: "YeogiOttaeJalnan", "Gothic A1", system-ui, sans-serif;
@@ -337,6 +556,11 @@
   0% { transform: translate(0, 0) rotate(0deg) scale(0.4); opacity: 1; }
   70% { opacity: 0.9; }
   100% { transform: translate(var(--dust-x), var(--dust-y)) rotate(210deg) scale(1.2); opacity: 0; }
+}
+
+@keyframes battle-impact-spark {
+  0% { transform: rotate(var(--spark-angle)) scaleX(0.15); opacity: 1; }
+  100% { transform: rotate(var(--spark-angle)) scaleX(1.35); opacity: 0; }
 }
 
 @keyframes battle-score-pop {
@@ -709,14 +933,21 @@
 
 .battle-gun__flash {
   position: absolute;
-  top: 22px;
-  left: 50%;
+  top: 54px;
   width: 46px;
   height: 46px;
-  margin-left: -23px;
   border-radius: 50%;
-  background: radial-gradient(circle, #fff7dd 0%, var(--gold) 40%, rgba(245, 197, 66, 0) 72%);
+  background: radial-gradient(circle, #fff 0%, var(--shot-color, var(--gold)) 38%, transparent 74%);
+  box-shadow: 0 0 22px 8px var(--shot-color, var(--gold));
   animation: battle-muzzle-flash 0.15s ease-out forwards;
+}
+
+.battle-gun--a .battle-gun__flash {
+  left: 226px;
+}
+
+.battle-gun--b .battle-gun__flash {
+  left: 168px;
 }
 
 @keyframes battle-muzzle-flash {

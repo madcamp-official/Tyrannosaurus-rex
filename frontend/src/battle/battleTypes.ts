@@ -41,6 +41,14 @@ export interface BattleState {
   trex: BattleTrex;
   siteName: string;
   energyTarget: number;
+  chargingStage: 1 | 2 | 3;
+  stageProgress: number;
+  teamAFinalLives: number;
+  teamBFinalLives: number;
+  teamAFinalSecondsLeft: number;
+  teamBFinalSecondsLeft: number;
+  teamAStunned: boolean;
+  teamBStunned: boolean;
 }
 
 /** 발사 순간 발생하는 시각 효과(레이저/머즐플래시/임팩트) 전용 이벤트. Battle 상태 자체에는 포함하지 않는다. */
@@ -49,6 +57,7 @@ export interface BattleShotEvent {
   team: TeamId;
   playerId: string;
   playerName: string;
+  playerColor: string;
   scoreDelta: number;
   hit: boolean;
   core: boolean;

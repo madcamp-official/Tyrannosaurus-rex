@@ -8,8 +8,15 @@ const BATTLE_WALK_FPS = 24;
 const RESULT_WALK_FPS = 15;
 
 type TrexModelMode = "battle" | "winner" | "yranno";
+type BattlePresentation = "front" | "flee" | "final";
 
-export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): JSX.Element {
+export function BattleTrexModel({
+  mode = "battle",
+  presentation = "front",
+}: {
+  mode?: TrexModelMode;
+  presentation?: BattlePresentation;
+}): JSX.Element {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -50,21 +57,16 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
     const resultTextures: THREE.Texture[] = [];
     if (isWinner) {
       const textureLoader = new THREE.TextureLoader();
-      const sky = textureLoader.load("/images/night-sky.jpg");
+      const sky = textureLoader.load("/images/victory-meadow.png");
       sky.colorSpace = THREE.SRGBColorSpace;
       scene.background = sky;
       resultTextures.push(sky);
 
-      const grass = textureLoader.load("/images/excavation-grass.jpg");
-      grass.colorSpace = THREE.SRGBColorSpace;
-      grass.wrapS = THREE.RepeatWrapping;
-      grass.wrapT = THREE.RepeatWrapping;
-      grass.repeat.set(3, 3);
-      grass.anisotropy = 4;
-      resultTextures.push(grass);
       resultGround = new THREE.Mesh(
         new THREE.PlaneGeometry(30, 18),
-        new THREE.MeshStandardMaterial({ map: grass, roughness: 0.96, metalness: 0 }),
+        // 생성된 초원 이미지가 그대로 비치도록 색 바닥을 없애고 그림자만 얹는다.
+        // 기존 단색 녹색 Plane이 배경 전경과 맞지 않아 경계가 선명하게 보였다.
+        new THREE.ShadowMaterial({ color: 0x263719, opacity: 0.24 }),
       );
       resultGround.rotation.x = -Math.PI / 2;
       resultGround.receiveShadow = true;
@@ -127,6 +129,7 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
         loadedModel.updateMatrixWorld(true);
         bounds = new THREE.Box3().setFromObject(loadedModel);
         center = bounds.getCenter(new THREE.Vector3());
+        if (presentation === "flee") loadedModel.rotation.y += Math.PI;
       }
 
       const size = bounds.getSize(new THREE.Vector3());
@@ -173,12 +176,23 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
           previousRenderTime = time - ((time - previousRenderTime) % interval);
 
           const elapsed = (time - animationStartedAt) / 1000;
-          const step = elapsed * 5.2;
+          const step = elapsed * (presentation === "flee" ? 10.5 : 5.2);
           // 단일 사인 곡선으로 -30°부터 +30°까지 연속 회전한다. 서버 facing
           // 값으로 캔버스를 순간 반전하지 않으므로 방향 전환 중 각도가 끊기지 않는다.
-          motionRoot.rotation.y = Math.sin(elapsed * 0.42) * Math.PI / 6;
-          motionRoot.rotation.z = Math.sin(step) * 0.008;
-          motionRoot.position.y = Math.abs(Math.sin(step)) * size.y * 0.006;
+          if (presentation === "front") {
+            motionRoot.rotation.y = Math.sin(elapsed * 0.42) * Math.PI / 6;
+            motionRoot.rotation.z = Math.sin(step) * 0.008;
+            motionRoot.position.y = Math.abs(Math.sin(step)) * size.y * 0.006;
+          } else if (presentation === "flee") {
+            motionRoot.rotation.y = 0;
+            motionRoot.rotation.z = Math.sin(step * 0.5) * 0.025;
+            motionRoot.position.y = Math.abs(Math.sin(step)) * size.y * 0.018;
+          } else {
+            const breath = 1 + Math.sin(elapsed * 2.8) * 0.012;
+            motionRoot.rotation.set(0, 0, 0);
+            motionRoot.position.set(0, Math.sin(elapsed * 2.8) * size.y * 0.004, 0);
+            motionRoot.scale.setScalar(breath);
+          }
           renderer.render(scene, camera);
         };
         animationFrame = window.requestAnimationFrame(animateBattle);
@@ -229,7 +243,7 @@ export function BattleTrexModel({ mode = "battle" }: { mode?: TrexModelMode }): 
       }
       renderer.dispose();
     };
-  }, [mode]);
+  }, [mode, presentation]);
 
   return (
     <canvas
