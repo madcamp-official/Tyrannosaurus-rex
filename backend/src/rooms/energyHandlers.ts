@@ -228,7 +228,7 @@ export function tickRoomCharging(io: AppServer, rooms: RoomManager, roomCode: st
 
 function emitTransitionEvents(io: AppServer, rooms: RoomManager, roomCode: string, update: ChargingTickUpdate): void {
   const room = rooms.getRoom(roomCode);
-  if (!room || update.transition !== "TO_REVIVED_YRANNO") return;
+  if (!room || !update.transition) return;
   const channel = roomChannel(roomCode);
   const team = room.state.teams[update.teamId];
 

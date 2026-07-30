@@ -40,9 +40,11 @@ export interface BattleState {
   teamB: BattleTeam;
   trex: BattleTrex;
   siteName: string;
-  energyTarget: number;
+  teamAEnergyTarget: number;
+  teamBEnergyTarget: number;
   chargingStage: 1 | 2 | 3;
   stageProgress: number;
+  stageIntroActive: boolean;
   teamAFinalLives: number;
   teamBFinalLives: number;
   teamAFinalSecondsLeft: number;

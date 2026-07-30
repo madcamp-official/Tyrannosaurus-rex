@@ -2,7 +2,9 @@
 
 import {
   AIM_STALE_MS,
-  ENERGY_TARGET,
+  CHARGING_STAGE_DURATION_MS,
+  CHARGING_STAGE_INTRO_MS,
+  ENERGY_TARGET_PER_PLAYER,
   FINAL_STAGE_CORE_TIMEOUT_MS,
   PHASE_START_GRACE_MS,
   SHOT_COOLDOWN_MS,
@@ -78,6 +80,11 @@ export function applyEnergyFire(
   if (team.charging.finalStunnedUntil && now < team.charging.finalStunnedUntil) {
     return rejectOutcome("FINAL_STAGE_STUNNED", team);
   }
+  const chargingStartedAt = room.chargingStartedAt[teamId] ?? team.phaseStartedAt;
+  const stageElapsed = (now - chargingStartedAt) % CHARGING_STAGE_DURATION_MS;
+  if (stageElapsed < CHARGING_STAGE_INTRO_MS) {
+    return rejectOutcome("WRONG_TEAM_PHASE", team);
+  }
 
   let tracking = room.shotTracking.get(playerId);
   if (!tracking) {
@@ -103,7 +110,9 @@ export function applyEnergyFire(
   const { hitZone, energyDelta, stabilityDelta } = resolveStageHit(aim.point, trex.position, core, chargingStage);
   const isCoreHit = hitZone === "HEART" || hitZone === "SKULL" || hitZone === "SPINE";
 
-  const stageEnergyCeiling = chargingStage === 1 ? 80 : chargingStage === 2 ? 160 : ENERGY_TARGET;
+  const energyTarget = energyTargetForTeam(room, teamId);
+  const stageEnergyCeiling =
+    chargingStage === 1 ? energyTarget / 3 : chargingStage === 2 ? (energyTarget * 2) / 3 : energyTarget;
   team.charging.energy = Math.max(0, Math.min(stageEnergyCeiling, team.charging.energy + energyDelta));
   team.charging.stability = Math.max(0, Math.min(STABILITY_TARGET, team.charging.stability + stabilityDelta));
 
@@ -130,10 +139,11 @@ export function applyEnergyFire(
 
   let justReachedRevived = false;
 
-  if (team.charging.energy >= ENERGY_TARGET) {
-    team.charging.form = "NORMAL";
-    team.phase = "REVIVED";
-    justReachedRevived = true;
+  if (team.charging.energy >= energyTarget && team.charging.targetReachedAt == null) {
+    team.charging.targetReachedAt = now;
+    const timeBonus =
+      team.phaseEndsAt != null ? Math.max(0, Math.floor((team.phaseEndsAt - now) / 1000)) : 0;
+    if (player) player.stats.chargingTimeBonus = (player.stats.chargingTimeBonus ?? 0) + timeBonus;
   }
 
   return {
@@ -156,12 +166,24 @@ export function applyEnergyFire(
 }
 
 /** CHARGING 제한 시간(90초)이 지났는데 에너지를 못 채웠으면 와이라노로 REVIVED가 확정된다 (되돌릴 수 없음). */
-export function expireChargingIfNeeded(room: RoomRecord, teamId: TeamId, now: number): "TO_REVIVED_YRANNO" | null {
+export function energyTargetForTeam(room: RoomRecord, teamId: TeamId): number {
+  return Math.max(1, room.state.teams[teamId].playerIds.length) * ENERGY_TARGET_PER_PLAYER;
+}
+
+export function expireChargingIfNeeded(
+  room: RoomRecord,
+  teamId: TeamId,
+  now: number,
+): "TO_REVIVED_NORMAL" | "TO_REVIVED_YRANNO" | null {
   const team = room.state.teams[teamId];
   if (team.phase !== "CHARGING") return null;
   if (team.phaseEndsAt === null || now < team.phaseEndsAt) return null;
 
   team.phase = "REVIVED";
+  if (team.charging.targetReachedAt != null) {
+    team.charging.form = "NORMAL";
+    return "TO_REVIVED_NORMAL";
+  }
   team.charging.form = "YRANNO";
   return "TO_REVIVED_YRANNO";
 }

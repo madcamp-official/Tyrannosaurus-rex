@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { describe, expect, it } from "vitest";
-import { CHARGING_STAGE_DURATION_MS, ENERGY_TARGET, FINAL_STAGE_CORE_TIMEOUT_MS, PHASE_START_GRACE_MS, SHOT_COOLDOWN_MS } from "@trex/shared";
+import { CHARGING_STAGE_DURATION_MS, CHARGING_STAGE_INTRO_MS, ENERGY_TARGET, FINAL_STAGE_CORE_TIMEOUT_MS, PHASE_START_GRACE_MS, SHOT_COOLDOWN_MS } from "@trex/shared";
 import { RoomManager, type RoomRecord } from "../src/rooms/RoomManager.js";
 import { computeActiveCore, computeTrexTransform, CORE_OFFSETS } from "../src/game/charging.js";
 
@@ -27,7 +27,7 @@ function setupChargingRoom() {
   const now = Date.now();
   room.state.teams.A.phase = "CHARGING";
   room.state.teams.A.phaseStartedAt = now - PHASE_START_GRACE_MS;
-  room.chargingStartedAt.A = now;
+  room.chargingStartedAt.A = now - CHARGING_STAGE_INTRO_MS;
   room.sharedTrexStartedAt = now;
   room.aimState.set(a.playerId, { point: aimAtCore(room, now), mode: "TOUCHPAD", calibrated: true, receivedAt: now, lastSeq: 1 });
 
@@ -149,7 +149,7 @@ describe("energy:fire", () => {
 
   it("treats the whole fleeing tyranno body as the target during phase 2", () => {
     const { rooms, room, playerA, now } = setupChargingRoom();
-    room.chargingStartedAt.A = now - CHARGING_STAGE_DURATION_MS;
+    room.chargingStartedAt.A = now - CHARGING_STAGE_DURATION_MS - CHARGING_STAGE_INTRO_MS;
     const trex = computeTrexTransform(room, now);
     room.aimState.set(playerA, {
       point: trex.position,
@@ -169,7 +169,7 @@ describe("energy:fire", () => {
 
   it("resets the phase 3 danger timer when the active core is hit", () => {
     const { rooms, room, playerA, now } = setupChargingRoom();
-    room.chargingStartedAt.A = now - CHARGING_STAGE_DURATION_MS * 2;
+    room.chargingStartedAt.A = now - CHARGING_STAGE_DURATION_MS * 2 - CHARGING_STAGE_INTRO_MS;
     room.state.teams.A.charging.finalCoreDeadlineAt = now + 1;
     room.aimState.set(playerA, { point: aimAtCore(room, now), mode: "TOUCHPAD", calibrated: true, receivedAt: now, lastSeq: 2 });
 
@@ -182,10 +182,10 @@ describe("energy:fire", () => {
 
   it("damages and stuns the opponent after five consecutive phase 3 core hits", () => {
     const { rooms, room, playerA, now: startedAt } = setupChargingRoom();
-    room.chargingStartedAt.A = startedAt - CHARGING_STAGE_DURATION_MS * 2;
+    room.chargingStartedAt.A = startedAt - CHARGING_STAGE_DURATION_MS * 2 - CHARGING_STAGE_INTRO_MS;
     room.state.teams.B.phase = "CHARGING";
     room.state.teams.B.phaseStartedAt = startedAt - CHARGING_STAGE_DURATION_MS * 2;
-    room.chargingStartedAt.B = startedAt - CHARGING_STAGE_DURATION_MS * 2;
+    room.chargingStartedAt.B = startedAt - CHARGING_STAGE_DURATION_MS * 2 - CHARGING_STAGE_INTRO_MS;
     room.state.teams.B.charging.finalLives = 5;
 
     let now = startedAt;
@@ -215,7 +215,7 @@ describe("energy:fire", () => {
   it("reaches NORMAL revival once energy hits the target, scoring the game without ending the round early", () => {
     const { rooms, room, playerA } = setupChargingRoom();
     let now = Date.now();
-    room.chargingStartedAt.A = now - CHARGING_STAGE_DURATION_MS * 2;
+    room.chargingStartedAt.A = now - CHARGING_STAGE_DURATION_MS * 2 - CHARGING_STAGE_INTRO_MS;
     let outcome;
     let guard = 0;
     while (room.state.teams.A.charging.energy < ENERGY_TARGET && guard < 100) {
@@ -225,9 +225,10 @@ describe("energy:fire", () => {
       guard += 1;
     }
     expect(room.state.teams.A.charging.energy).toBeGreaterThanOrEqual(ENERGY_TARGET);
-    expect(room.state.teams.A.phase).toBe("REVIVED");
-    expect(room.state.teams.A.charging.form).toBe("NORMAL");
-    expect(room.state.teams.A.scores.charging).not.toBeNull();
+    expect(room.state.teams.A.phase).toBe("CHARGING");
+    expect(room.state.teams.A.charging.form).toBe("NONE");
+    expect(room.state.teams.A.charging.targetReachedAt).not.toBeNull();
+    expect(room.state.teams.A.scores.charging).toBeNull();
     // 팀 B는 아직 CHARGING을 마치지 않았으므로, 누적 점수제 하에서는 라운드가 아직 끝나지 않는다.
     expect(outcome?.roundFinalized).toBe(false);
     expect(room.state.roomPhase).toBe("PLAYING");
@@ -236,7 +237,7 @@ describe("energy:fire", () => {
   it("marks the first team to fill revival energy as WIN, and the other team LOSE once it also finishes", () => {
     const { rooms, room, playerA } = setupChargingRoom();
     let now = Date.now();
-    room.chargingStartedAt.A = now - CHARGING_STAGE_DURATION_MS * 2;
+    room.chargingStartedAt.A = now - CHARGING_STAGE_DURATION_MS * 2 - CHARGING_STAGE_INTRO_MS;
     let guard = 0;
     while (room.state.teams.A.charging.energy < ENERGY_TARGET && guard < 100) {
       now += SHOT_COOLDOWN_MS + 10;
@@ -244,9 +245,16 @@ describe("energy:fire", () => {
       rooms.fireEnergy(room, "A", playerA, randomUUID(), now);
       guard += 1;
     }
-    // 팀 A가 먼저 채웠고, 팀 B는 아직 REVIVED에 도달하지 않았다 — A는 WIN.
-    expect(room.state.teams.A.charging.result).toBe("WIN");
+    // 목표를 먼저 채워도 phase 3 종료 전에는 결과를 확정하지 않는다.
+    expect(room.state.teams.A.phase).toBe("CHARGING");
+    expect(room.state.teams.A.charging.result).toBeNull();
     expect(room.state.teams.B.charging.result).toBeNull();
+
+    room.state.teams.A.phaseEndsAt = now;
+    rooms.tickCharging(room, now + 1);
+    expect(room.state.teams.A.phase).toBe("REVIVED");
+    expect(room.state.teams.A.charging.form).toBe("NORMAL");
+    expect(room.state.teams.A.charging.result).toBe("WIN");
 
     // 팀 B가 시간 초과로 나중에 REVIVED에 도달하면 LOSE로 표시된다(순서와 무관하게 YRANNO는 항상 LOSE).
     room.state.teams.B.phase = "CHARGING";
@@ -282,7 +290,7 @@ describe("charging tick transitions", () => {
   it("removes a life when the phase 3 core timer expires", () => {
     const { rooms, room } = setupChargingRoom();
     const now = Date.now();
-    room.chargingStartedAt.A = now - CHARGING_STAGE_DURATION_MS * 2;
+    room.chargingStartedAt.A = now - CHARGING_STAGE_DURATION_MS * 2 - CHARGING_STAGE_INTRO_MS;
     room.state.teams.A.charging.finalLives = 5;
     room.state.teams.A.charging.finalCoreDeadlineAt = now - 1;
 
@@ -300,7 +308,7 @@ describe("charging tick transitions", () => {
   it("ends phase 3 as yranno when all five lives are lost", () => {
     const { rooms, room } = setupChargingRoom();
     const now = Date.now();
-    room.chargingStartedAt.A = now - CHARGING_STAGE_DURATION_MS * 2;
+    room.chargingStartedAt.A = now - CHARGING_STAGE_DURATION_MS * 2 - CHARGING_STAGE_INTRO_MS;
     room.state.teams.A.charging.finalLives = 1;
     room.state.teams.A.charging.finalCoreDeadlineAt = now - 1;
 

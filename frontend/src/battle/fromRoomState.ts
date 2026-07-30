@@ -1,6 +1,6 @@
 /** 실제 서버 데이터(RoomState + ephemeral 소켓 이벤트)를 BattleScreen이 요구하는 BattleState로 변환한다. */
 
-import { CHARGING_DURATION_MS, ENERGY_TARGET, FINAL_STAGE_CORE_TIMEOUT_MS, type CoreZone, type PublicPlayer, type RoomState, type TeamId, type TeamState } from "@trex/shared";
+import { CHARGING_DURATION_MS, CHARGING_STAGE_DURATION_MS, CHARGING_STAGE_INTRO_MS, ENERGY_TARGET_PER_PLAYER, FINAL_STAGE_CORE_TIMEOUT_MS, type CoreZone, type PublicPlayer, type RoomState, type TeamId, type TeamState } from "@trex/shared";
 import type { ChargingEphemeral } from "../desktop/PlayArea";
 import type { BattlePlayer, BattleState, BattleTeam } from "./battleTypes";
 
@@ -20,7 +20,7 @@ function teamFrom(allPlayers: PublicPlayer[], team: TeamState, teamName: string)
     name: p.nickname,
     shots: p.stats.shots,
     hits: p.stats.hits,
-    energy: p.stats.energyContributed,
+    energy: p.stats.energyContributed + (p.stats.chargingTimeBonus ?? 0),
     color: p.color,
   }));
   return {
@@ -66,7 +66,9 @@ export function battleStateFromRoom(
   const teamA = teamFrom(roomState.players, roomState.teams.A, roomState.teamNames.A);
   const teamB = teamFrom(roomState.players, roomState.teams.B, roomState.teamNames.B);
   const chargingStage = trex.chargingStage ?? 1;
-  const stageProgress = Math.min(1, Math.max(0, ((CHARGING_DURATION_MS / 1000 - remainingSec) % 60) / 60));
+  const elapsedMs = Math.max(0, CHARGING_DURATION_MS - remainingSec * 1000);
+  const stageElapsedMs = elapsedMs % CHARGING_STAGE_DURATION_MS;
+  const stageProgress = Math.min(1, stageElapsedMs / CHARGING_STAGE_DURATION_MS);
   const finalStatusFor = (teamId: TeamId) => {
     const teamTrex = ephemeral.trexByTeam[teamId];
     const deadline = teamTrex?.finalCoreDeadlineAt ?? roomState.teams[teamId].charging.finalCoreDeadlineAt;
@@ -85,9 +87,11 @@ export function battleStateFromRoom(
     coreName: CORE_LABEL[trex.activeCore],
     stage: stageFor((teamA.energy + teamB.energy) / 2),
     siteName: roomState.roomName,
-    energyTarget: ENERGY_TARGET,
+    teamAEnergyTarget: Math.max(1, teamA.players.length) * ENERGY_TARGET_PER_PLAYER,
+    teamBEnergyTarget: Math.max(1, teamB.players.length) * ENERGY_TARGET_PER_PLAYER,
     chargingStage,
     stageProgress,
+    stageIntroActive: stageElapsedMs < CHARGING_STAGE_INTRO_MS,
     teamAFinalLives: finalA.lives,
     teamBFinalLives: finalB.lives,
     teamAFinalSecondsLeft: finalA.secondsLeft,

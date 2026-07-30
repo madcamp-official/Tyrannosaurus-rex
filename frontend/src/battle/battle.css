@@ -35,6 +35,39 @@
   overflow: hidden;
 }
 
+.battle-phase-intro {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.9);
+  pointer-events: none;
+  animation: battle-phase-intro 2s ease-in-out both;
+}
+
+.battle-phase-intro strong {
+  color: var(--gold);
+  font: 800 32px "IBM Plex Mono", monospace;
+  letter-spacing: 0.14em;
+}
+
+.battle-phase-intro span {
+  font-family: "YeogiOttaeJalnan", "Gothic A1", sans-serif;
+  font-size: 46px;
+  text-shadow: 0 4px 24px rgba(245, 197, 66, 0.45);
+}
+
+@keyframes battle-phase-intro {
+  0%, 12% { opacity: 1; }
+  78% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 .battle-damage-overlay {
   position: absolute;
   top: 0;
