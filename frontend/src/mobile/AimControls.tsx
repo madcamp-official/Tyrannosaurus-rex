@@ -28,7 +28,13 @@ const MAX_FRAME_DELTA_DEG = 75;
 // MAX_FRAME_DELTA_DEG 필터만으로는 못 잡는다. raw gamma가 이 한계를 넘으면 그 프레임은
 // 아예 필터 갱신을 건너뛰고 마지막 안정값을 유지한다 — 조준점이 그 구간에서 튀는 대신
 // 가장자리에서 멈춰 있는 것처럼 보인다.
-const GAMMA_UNSTABLE_ZONE_DEG = 80;
+// 처음엔 80으로 뒀는데, GYRO_SENSITIVITY_X_DEG(60)와의 여유가 20도뿐이었다 — 영점(zeroRef)은
+// "그 순간 손에 들고 있던 자세"를 그대로 잡으므로 gamma가 0이 아닌 채로 잡히는 게 흔하다.
+// 영점이 예를 들어 +20이면 왼쪽 끝(dGamma=+60)에서 실제 gamma는 80으로 이 문턱에 바로
+// 걸리는데, 오른쪽 끝(dGamma=-60)은 gamma=-40이라 전혀 안 걸린다 — 똑같이 움직여도 한쪽만
+// 이 안전장치에 갇혀 "그쪽으로는 안 움직인다"로 보였다. 진짜 특이점 각도 근처의 아주
+// 좁은 구간만 잡도록 여유를 넉넉히 뒀다.
+const GAMMA_UNSTABLE_ZONE_DEG = 87;
 // DeviceOrientationEvent는 alpha(Z)→beta(X')→gamma(Y'') 순서로 회전을 분해하는데, 가운데
 // 회전인 beta가 ±90도에 가까워지면 alpha와 gamma가 서로 뒤엉키는 진짜 짐벌락 지점이다 —
 // 화면을 위로 많이 젖힐 때(beta가 90도 쪽으로 붙을 때) 조준점이 위/아래는 멀쩡한데 좌우로
