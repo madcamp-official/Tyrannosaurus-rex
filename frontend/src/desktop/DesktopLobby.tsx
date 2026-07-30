@@ -53,6 +53,8 @@ const EXCAVATION_BGM_VOLUME = 0.45;
 const EXCAVATION_BGM_FADE_MS = 900;
 const DINO_RUN_BGM_VOLUME = 0.3;
 const DINO_RUN_BGM_FADE_MS = 900;
+const CHARGING_BGM_VOLUME = 0.3;
+const CHARGING_BGM_FADE_MS = 900;
 
 /** 로비 BGM·운석 피하기 BGM이 공유하는 페이드아웃(볼륨 서서히 0으로 → 일시정지 → 볼륨 복원). */
 function fadeOutAndPause(audio: HTMLAudioElement, fadeRef: { current: number | null }, fadeMs: number, restoreVolume: number): void {
@@ -156,6 +158,7 @@ export function DesktopLobby(): JSX.Element {
     (roomState.teams.A.phase === "EXCAVATION" || roomState.teams.B.phase === "EXCAVATION");
   usePhaseBgm("/audio/dino-run-bgm.mp3", DINO_RUN_BGM_VOLUME, DINO_RUN_BGM_FADE_MS, isDinoRunActive, bgmMuted);
   usePhaseBgm("/audio/excavation-bgm.mp3", EXCAVATION_BGM_VOLUME, EXCAVATION_BGM_FADE_MS, isExcavationActive, bgmMuted);
+  usePhaseBgm("/audio/charging-bgm.mp3", CHARGING_BGM_VOLUME, CHARGING_BGM_FADE_MS, isChargingBattle, bgmMuted);
 
   useEffect(() => {
     const audio = new Audio("/audio/lobby-bgm.mp3");
@@ -164,7 +167,7 @@ export function DesktopLobby(): JSX.Element {
     audio.volume = LOBBY_BGM_VOLUME;
     lobbyBgmRef.current = audio;
     const retryAutoplay = () => {
-      if (!bgmMuted && (!roomState || roomState.roomPhase === "LOBBY")) {
+      if (!bgmMuted && (!roomState || roomState.roomPhase === "LOBBY" || roomState.roomPhase === "RESULT")) {
         void audio.play().catch(() => undefined);
       }
     };
@@ -191,7 +194,8 @@ export function DesktopLobby(): JSX.Element {
       lobbyBgmFadeRef.current = null;
     }
 
-    const lobbyActive = !roomState || roomState.roomPhase === "LOBBY";
+    // 결과 화면도 로비와 같은 BGM을 그대로 이어서 쓴다 — 별도 트랙 없이 로비 음악을 재사용.
+    const lobbyActive = !roomState || roomState.roomPhase === "LOBBY" || roomState.roomPhase === "RESULT";
     audio.muted = bgmMuted;
     if (lobbyActive) {
       audio.volume = LOBBY_BGM_VOLUME;
