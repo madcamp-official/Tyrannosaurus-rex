@@ -165,7 +165,7 @@ export function MobileJoin(): JSX.Element {
             ? `❤️ 생명을 얻었어요! (+${METEOR_HEART_SCORE_REWARD}점)`
             : `🍎 과일을 먹었어요! (+${METEOR_FRUIT_SCORE_REWARD}점)`,
         );
-        if (evt.data.kind === "FRUIT") playFruitPickupSound();
+        playFruitPickupSound();
       }
     });
     socket.on("dino:meteorLocked", (evt) => {
