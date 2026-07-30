@@ -32,7 +32,7 @@ export function BattleScreen({
   return (
     <div className="battle-viewport">
       <div
-        className="battle-stage"
+        className={`battle-stage${battle.stageIntroActive ? " battle-stage--phase-intro" : ""}`}
         style={{ width: STAGE_W, height: STAGE_H, transform: `translate(-50%, -50%) scale(${scale})` }}
       >
         <BattleArena battle={battle} shotEvents={shotEvents} aimPoints={aimPoints} />
