@@ -69,7 +69,7 @@ export function AimControls({
   const [calibrated, setCalibrated] = useState(false);
   const [point, setPoint] = useState<NormalizedPoint>({ x: 0.5, y: 0.5 });
   const [cooldownActive, setCooldownActive] = useState(false);
-  const [lastResult, setLastResult] = useState<"HIT" | "MISS" | null>(null);
+  const [lastResult, setLastResult] = useState<"HIT" | "CORE_HIT" | "MISS" | null>(null);
   const [stunned, setStunned] = useState(false);
 
   useEffect(() => {
@@ -196,13 +196,14 @@ export function AimControls({
     }
     socket.emit("energy:fire", { requestId: newRequestId(), shotId: newRequestId(), clientTime: Date.now() }, (ack) => {
       if (!ack.ok) return;
-      setLastResult(ack.data.hit ? "HIT" : "MISS");
-      if (ack.data.hit) {
-        // 발사 버튼 터치의 사용자 제스처 안에서 실행해야 모바일 브라우저의 진동 정책에
-        // 막히지 않는다. 급소 적중은 일반 적중보다 강한 패턴으로 즉시 구분한다.
-        navigator.vibrate?.(ack.data.energyDelta >= 3 ? [90, 45, 150] : 110);
-      }
-      window.setTimeout(() => setLastResult(null), 400);
+      // hitZone이 "BONE"이면 몸통에 맞은 일반 명중이고, 그 외(HEART/SKULL/SPINE)면 그 순간의
+      // 활성 코어(약점)를 맞춘 것 — 이때만 진동과 함께 더 강하게 번쩍이게 한다. 발사 버튼
+      // 터치의 사용자 제스처 안에서 실행해야 모바일 브라우저의 진동 정책에 막히지 않는다.
+      const isCoreHit = ack.data.hit && ack.data.hitZone !== null && ack.data.hitZone !== "BONE";
+      setLastResult(isCoreHit ? "CORE_HIT" : ack.data.hit ? "HIT" : "MISS");
+      if (isCoreHit) navigator.vibrate?.([90, 45, 150]);
+      else if (ack.data.hit) navigator.vibrate?.(110);
+      window.setTimeout(() => setLastResult(null), isCoreHit ? 500 : 400);
     });
   };
 
@@ -223,7 +224,9 @@ export function AimControls({
         </button>
       )}
 
-      <div className={`aim-pad${lastResult === "HIT" ? " aim-pad--hit" : ""}${lastResult === "MISS" ? " aim-pad--miss" : ""}`}>
+      <div
+        className={`aim-pad${lastResult === "HIT" ? " aim-pad--hit" : ""}${lastResult === "CORE_HIT" ? " aim-pad--core-hit" : ""}${lastResult === "MISS" ? " aim-pad--miss" : ""}`}
+      >
         <div className="aim-pad__crosshair" style={{ left: `${point.x * 100}%`, top: `${point.y * 100}%` }} />
       </div>
 
