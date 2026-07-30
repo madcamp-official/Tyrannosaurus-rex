@@ -157,10 +157,11 @@ export function DinoRunControls({
       <div className="dino-run dino-run--dead">
         <div className="dino-run__hud">
           <span>⏱ {remainingSec}초</span>
+          <span>{"🖤".repeat(METEOR_DODGE_LIVES)}</span>
           <span>점수 {score}</span>
         </div>
         <p className="dino-run__death">💀 운석에 맞아 탈락했어요!</p>
-        <p className="hint">남은 시간 동안 팀원들을 응원해주세요.</p>
+        <p className="hint">다른 팀원을 응원해주세요!</p>
       </div>
     );
   }

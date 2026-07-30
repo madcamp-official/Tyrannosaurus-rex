@@ -344,7 +344,7 @@ export function MobileJoin(): JSX.Element {
           // 부활 완료 여부·WIN/LOSE/DRAW 결과는 데스크탑 공유 화면(PlayArea)에만 띄운다 —
           // 다 같이 보는 결과라 폰마다 따로 뜨면 오히려 산만하다.
           <div className="mobile-game__revived">
-            <p className="mobile-game__title">🦖 데스크탑 화면을 확인하세요!</p>
+            <p className="mobile-game__title">다른 팀원을 응원해주세요!</p>
           </div>
         )}
       </>

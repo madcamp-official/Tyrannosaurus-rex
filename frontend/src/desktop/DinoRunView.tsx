@@ -62,7 +62,7 @@ export function DinoRunTeamPanel({ team, players }: { team: TeamState; players: 
           const dead = team.dinoRun.deadPlayerIds.includes(p.id);
           return (
             <li key={p.id} style={{ color: p.color }}>
-              {dead ? "💀 " : "❤️".repeat(lives) + "🖤".repeat(Math.max(0, METEOR_DODGE_LIVES - lives)) + " "}
+              {"❤️".repeat(lives) + "🖤".repeat(Math.max(0, METEOR_DODGE_LIVES - lives)) + " "}
               {p.nickname}: {score}점{dead ? " (탈락)" : ""}
             </li>
           );
@@ -92,7 +92,8 @@ function PlayerLives({
       <span className="dino-overlay__player-name">{player.nickname}</span>
       <span className="dino-overlay__player-score">{score}점</span>
       <span className="dino-overlay__lives" aria-label={`${lives}개의 생명`}>
-        {dead ? "💀 탈락" : `${"♥".repeat(lives)}${"♡".repeat(Math.max(0, METEOR_DODGE_LIVES - lives))}`}
+        {`${"♥".repeat(lives)}${"♡".repeat(Math.max(0, METEOR_DODGE_LIVES - lives))}`}
+        {dead && " 탈락"}
       </span>
     </li>
   );
