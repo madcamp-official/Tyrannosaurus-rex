@@ -12,7 +12,6 @@ import {
   PHASE_START_GRACE_MS,
   DINO_RUN_DURATION_MS,
   METEOR_DODGE_LIVES,
-  SKY_OBJECT_COLLISION_GRACE_MS,
   SKY_OBJECT_FALL_MS,
   type PlayerId,
   type TeamState,
@@ -36,9 +35,9 @@ const FRUIT_IMAGES = [
 ];
 /**
  * 운석·보너스가 착지하는(판정되는) 세로 위치 — 공룡이 서 있는 자리와 같은 줄이 되도록
- * 맞춘다. .dino-run__dino의 CSS bottom(16%)과 정확히 대응하는 값(100 - 16)이다.
+ * 맞춘다. .dino-run__dino의 CSS bottom(6%)과 정확히 대응하는 값(100 - 6)이다.
  */
-const LANDING_TOP_PERCENT = 84;
+const LANDING_TOP_PERCENT = 94;
 
 function clamp01(value: number): number {
   return Math.min(1, Math.max(0, value));
@@ -189,7 +188,10 @@ export function DinoRunControls({
           // 그 즉시 화면에서 지운다 — 바닥까지 떨어지는 대신 닿는 순간 사라지는 느낌을 준다.
           if (caughtObjectIds.has(obj.id)) return null;
           const progress = (elapsed - (obj.hitAtMs - SKY_OBJECT_FALL_MS)) / SKY_OBJECT_FALL_MS;
-          if (progress < -0.05 || progress > 1 + SKY_OBJECT_COLLISION_GRACE_MS / SKY_OBJECT_FALL_MS) return null;
+          // 판정 자체는 서버가 SKY_OBJECT_COLLISION_GRACE_MS만큼 늦게 확정하지만(네트워크
+          // 지연 대비 유예), 화면은 그 결과를 기다리지 않고 착지(공룡과 닿는) 순간 바로
+          // 지운다 — 캐치 여부와 무관하게 "닿으면 사라진다"는 느낌이 우선이다.
+          if (progress < -0.05 || progress > 1) return null;
           let objX = obj.x;
           if (obj.kind === "METEOR") {
             // 서버가 확정한 좌표가 도착하면 그 값을 우선한다 — 낙하 시작 직후 잠깐(서버 배경
