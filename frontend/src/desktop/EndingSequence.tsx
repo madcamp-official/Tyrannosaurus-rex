@@ -32,7 +32,11 @@ export function EndingSequence({
   return (
     <section className={`ending-sequence ending-sequence--${stage.toLowerCase()}`} aria-live="polite">
       {stage === "MESSAGE" ? (
-        <p className="ending-sequence__message">마침내 티라노사우루스는 부활에 성공했습니다</p>
+        <p className="ending-sequence__message">
+          마침내 티라노사우루스는
+          <br />
+          부활에 성공했습니다
+        </p>
       ) : (
         <img
           className="ending-sequence__image"
